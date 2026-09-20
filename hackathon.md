@@ -8,11 +8,11 @@
 - **Frontend:** not deployed
 - **Convex deployment:** not deployed
 - **Components:** none
-- **Convex features:** schema, indexes, full-text search, queries, mutations, file storage
+- **Convex features:** schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T22:40:00Z
+- **Last updated:** 2026-09-20T23:05:00Z
 
 ## Log
 
@@ -47,7 +47,8 @@ Added docs7 documentation site (`docs/`) with `docs.json` config and 7 MDX pages
 Added a two-tier Vitest suite: mocked UI tests for AuthGuard states, request submission, and interest toggling, plus `convex-test` coverage for request persistence and per-user isolation, interest insert/patch, and content slug/publish auth. 16 tests pass. Convex features: queries, mutations (`vitest.config.ts`, `src/test/setup.tsx`, `src/**/*.test.tsx`, `convex/requests.test.ts`, `convex/users.test.ts`, `convex/content.test.ts`). Fixed route dev errors with cross-env pinning, and documented troubleshooting in README and docs7 FAQ (`README.md`, `docs/faq.mdx`, `docs/docs.json`, `package.json`).
 
 ### 2026-09-20 - working tree
-Added dedicated `subscribers` table and `convex/subscribers.ts` with `subscribeDigest` mutation for anonymous and authenticated visitors to subscribe to the weekly intentional lifestyle digest with regex validation and deduplication. Updated `Footer.tsx` with email validation, error/success feedback states, and updated copy. Added unit test suite in `convex/subscribers.test.ts` bringing test coverage to 19 passing tests. Convex features: schema, indexes, mutations (`convex/schema.ts`, `convex/subscribers.ts`, `convex/subscribers.test.ts`, `src/components/Footer.tsx`).
+Added dedicated `subscribers` table and `convex/subscribers.ts` with `subscribeDigest` mutation for anonymous and authenticated visitors to subscribe to the weekly intentional lifestyle digest with regex validation and deduplication. Updated `Footer.tsx` with email validation, error/success feedback states, and updated copy. Built autonomous background AI agent execution system: configured default 11:00 PM IST schedule upon first user initialization (`convex/agents.ts`), added `updateWakeSchedule` mutation enforcing calm-tech night window validation (permitting only 9:00 PM – 9:00 AM IST and rejecting daytime hours 09:01–20:59), added `convex/crons.ts` and `convex/agentRunner.ts` internal actions/mutations to dispatch scheduled wake webhooks to the external Python AI agent backend (`POST /api/agent/complete` in `convex/http.ts`), built interactive Schedule Editor modal with presets and custom picker in Dashboard (`src/app/dashboard/page.tsx`). Added user `preferredLanguage` support (`en` default, `bn`, `hi`) in schema, viewer query, `updatePreferredLanguage` mutation, and dashboard selector, forwarded to agent wake payloads. Added optional `audioUrl` on content items with in-article audio narration player directly below article title (disabled indicator when not present) and publisher studio audio input. Added explicit author type badges (`AI Agent Companion` vs `Human Author`) and prominent AI synthetic content disclaimer banner. Expanded Vitest test suite (`convex/users.test.ts`, `convex/content.test.ts`, `convex/agents.test.ts`) to 28 passing tests with 0 type errors. Convex features: schema, indexes, queries, mutations, actions, crons, http (`convex/schema.ts`, `convex/subscribers.ts`, `convex/subscribers.test.ts`, `convex/agents.ts`, `convex/agents.test.ts`, `convex/agentRunner.ts`, `convex/crons.ts`, `convex/http.ts`, `convex/users.ts`, `convex/users.test.ts`, `convex/content.ts`, `convex/content.test.ts`, `src/components/Footer.tsx`, `src/app/dashboard/page.tsx`, `src/app/content/[id]/page.tsx`, `src/app/publisher/page.tsx`, `docs/**`).
+
 
 
 

@@ -14,9 +14,11 @@ export interface Article {
   subtitle: string;
   category: string;
   author: string;
+  authorType?: "human" | "agent";
   readTime: string;
   publishedAt: string;
   coverImage: string;
+  audioUrl?: string;
   reusedCount: number;
   isReused?: boolean;
   takeaways: string[];
@@ -150,10 +152,12 @@ export const INITIAL_ARTICLES: Article[] = [
     slug: "healthy-ayurvedic-drinks-kids",
     subtitle: "Delicious, naturally sweet blends packed with roasted almond milk, sattu, and cooling vetiver to replace sugary sodas.",
     category: "Health & Nutrition",
-    author: "Dr. Ananya Sen, Ayurvedic Nutritionist",
+    author: "Moitrii Lifestyle Agent (Verified Nutritionist Model)",
+    authorType: "agent",
     readTime: "4 min read",
     publishedAt: "Today, 08:30 AM",
     coverImage: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1200&auto=format&fit=crop",
+    audioUrl: "https://actions.google.com/sounds/v1/water/rain_on_roof.ogg",
     reusedCount: 24,
     isReused: true,
     takeaways: [
@@ -190,6 +194,7 @@ By incorporating traditional Indian ingredients—such as lightly roasted barley
     subtitle: "Demystifying themes, emotional depth, and safe viewing recommendations to connect with your child's passions.",
     category: "Anime & Manga",
     author: "Rhea Mukherjee, Cultural Researcher",
+    authorType: "human",
     readTime: "6 min read",
     publishedAt: "Yesterday",
     coverImage: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200&auto=format&fit=crop",

@@ -53,6 +53,9 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 | `agents.ts` | Agent state query and mutations (auto-initialization) |
 | `requests.ts` | User request queue and lifecycle management |
 | `users.ts` | Viewer resolution, interests queries and mutations |
+| `subscribers.ts` | Weekly digest newsletter subscription with email validation & deduplication |
+| `agentRunner.ts` | Autonomous wake scheduler action & Python backend webhook dispatcher |
+| `crons.ts` | Recurring hourly cron jobs for agent wake evaluation |
 
 ### Routing & Protection
 

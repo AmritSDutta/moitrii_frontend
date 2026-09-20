@@ -41,6 +41,7 @@ export default function PublisherStudioPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [youtubeId, setYoutubeId] = useState("");
   const [youtubeTitle, setYoutubeTitle] = useState("");
+  const [audioUrl, setAudioUrl] = useState("");
   const [takeaways, setTakeaways] = useState<string[]>([
     "Wholesome ingredient substitutions preserve nutritional integrity.",
     "Gentle daily rituals anchor mental and physical clarity."
@@ -105,6 +106,7 @@ export default function PublisherStudioPage() {
         readTime: readTime.trim(),
         coverImage,
         coverImageStorageId,
+        audioUrl: audioUrl.trim() || undefined,
         youtubeId: youtubeId.trim() || undefined,
         youtubeTitle: youtubeTitle.trim() || undefined,
         takeaways: takeaways.filter((t) => t.trim() !== ""),
@@ -314,6 +316,19 @@ export default function PublisherStudioPage() {
                     className="w-full px-3 py-2 text-xs bg-petal-50 rounded-xl border border-petal-200"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-charcoal-700 block mb-1">
+                  Audio Narration URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={audioUrl}
+                  onChange={(e) => setAudioUrl(e.target.value)}
+                  placeholder="https://example.com/audio/narration.mp3"
+                  className="w-full px-3 py-2 text-xs bg-petal-50 rounded-xl border border-petal-200"
+                />
               </div>
             </div>
           </div>

@@ -27,7 +27,7 @@ export default function RequestsPage() {
 
   const rawRequests =
     liveRequests && liveRequests.length > 0
-      ? liveRequests.map((r) => ({
+      ? liveRequests.map((r: any) => ({
           id: r._id,
           prompt: r.prompt,
           category: r.category,
@@ -65,7 +65,7 @@ export default function RequestsPage() {
     }
   };
 
-  const filteredRequests = rawRequests.filter((r) => {
+  const filteredRequests = rawRequests.filter((r: any) => {
     if (statusFilter === "ALL") return true;
     return r.status === statusFilter;
   });
@@ -181,7 +181,7 @@ export default function RequestsPage() {
 
         {/* Requests List */}
         <div className="space-y-4">
-          {filteredRequests.map((req) => {
+          {filteredRequests.map((req: any) => {
             const isDone = req.status === "COMPLETED";
             return (
               <div

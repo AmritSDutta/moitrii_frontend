@@ -57,3 +57,20 @@ test("publishing the same slug twice yields a distinct slug", async () => {
   expect(second.slug).not.toBe(first.slug);
   expect(second.slug.startsWith("shared-guide")).toBe(true);
 });
+
+test("publishContent persists optional audioUrl and authorType", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const asUser = t.withIdentity({ subject: userId });
+
+  const res = await asUser.mutation(api.content.publishContent, {
+    ...baseContent("audio-guide"),
+    authorType: "agent",
+    audioUrl: "https://example.com/narration.mp3",
+  });
+
+  const article = await asUser.query(api.content.getContentBySlug, { slug: res.slug });
+  expect(article).not.toBeNull();
+  expect((article as any)?.authorType).toBe("agent");
+  expect((article as any)?.audioUrl).toBe("https://example.com/narration.mp3");
+});

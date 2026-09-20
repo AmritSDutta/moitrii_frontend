@@ -17,7 +17,7 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 - "Popular Categories" — interactive topic grid cards
 - "Latest Stories" — browsable article grid with reuse badges
 - "Trending Videos" — curated YouTube video cards with modal player
-- "About Moitrii" mission footer with multi-language greetings
+- "About Moitrii" mission footer with multi-language greetings and weekly curated lifestyle digest subscription input (subscribers mutation)
 
 ## 2. Onboarding & Interest Selection (`/onboarding`)
 
@@ -51,7 +51,8 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 
 - **Greeting Hero:** Personalized "Good Morning, {name}" with agent logo
 - **Agent Status Box:** Live status badge (`SLEEPING` / `ACTIVE` / `WORKING` / `WAITING` / `ERROR`), status message, subscription tier, and demo "Simulate Wake Cycle" button
-- **Wake-Up Schedule Card:** Next scheduled wake time, frequency, last active timestamp
+- **Wake-Up Schedule Card:** Next scheduled wake time (defaults to 11:00 PM IST), frequency, last active timestamp, and schedule time modification (configured anytime outside 9:00 AM – 9:00 PM IST calm-tech window)
+- **Preferred Language Selector:** Card positioned directly below schedule with native script toggle pills for **English** (`en`), **বাংলা** (`bn`), and **हिन्दी** (`hi`)
 - **Quick Request Composer:** Natural language prompt input with category dropdown → `createRequest` mutation
 - **Active Interests Strip:** Followed topics as pills with edit link to `/onboarding`
 - **Agent Work Feed:**
@@ -78,8 +79,12 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 **Access:** Public
 
 - Back button navigating to previous page
-- Header: category badge, reuse count badge, title, subtitle
-- Metadata row: author, read time, publish date, share button
+- Header: category badge, reuse count badge, title
+- **Audio Narration Bar:** Positioned directly below the title; displays interactive play/pause controls when `audioUrl` is present, or disabled indicator ("Audio narration not available") when omitted
+- Subtitle and metadata row:
+  - Author byline with **Author Type Badge** (`AI Agent Companion` vs `Human Author`)
+  - Read time, publish date, share button
+- **AI Synthetic Content Disclaimer:** Prominent editorial disclaimer banner rendered directly under the metadata row when content is AI/agent-generated (*"Disclaimer: AI generated synthetic content synthesized by Moitrii Agent."*)
 - Editorial cover photo (16:9 aspect ratio)
 - **Agent Key Takeaways** — bulleted list with check icons
 - **Video Companion** — embedded YouTube player (if `youtubeId` present)
@@ -93,7 +98,7 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 
 - **Mode Toggle:** Compose / Live Preview
 - **Article Meta Form:** Title, subtitle, category, author byline, read time
-- **Cover Image:** URL input or file upload to Convex File Storage
+- **Cover Image & Media:** URL input or file upload to Convex File Storage, optional Audio Narration URL
 - **YouTube:** Optional video ID and title fields
 - **Key Takeaways Builder:** Add/edit/remove takeaway bullets (numbered)
 - **Markdown Editor:** Textarea for article body with live preview

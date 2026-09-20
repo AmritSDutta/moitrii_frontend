@@ -21,7 +21,11 @@ import {
   BookOpen,
   Settings,
   Plus,
-  Loader2
+  Loader2,
+  X,
+  AlertCircle,
+  Globe,
+  Languages
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -40,15 +44,41 @@ export default function DashboardPage() {
   const liveInterests = useQuery(api.users.getInterests);
   const liveRequests = useQuery(api.requests.listUserRequests);
   const createRequestMutation = useMutation(api.requests.createRequest);
+  const updateWakeScheduleMutation = useMutation(api.agents.updateWakeSchedule);
+  const updatePreferredLanguageMutation = useMutation(api.users.updatePreferredLanguage);
 
   const displayName = user?.name || user?.email?.split("@")[0] || "Friend";
 
   const agentState = liveAgent || fallbackAgentState;
   const userInterests = liveInterests && liveInterests.length > 0 ? liveInterests : fallbackInterests;
 
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedWakeTime, setSelectedWakeTime] = useState(
+    (liveAgent as any)?.wakeTimeOfDay || "23:00"
+  );
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+  const [scheduleSuccess, setScheduleSuccess] = useState(false);
+
+  const [updatingLanguage, setUpdatingLanguage] = useState(false);
+  const [languageToast, setLanguageToast] = useState(false);
+
+  const handleLanguageChange = async (lang: "en" | "bn" | "hi") => {
+    setUpdatingLanguage(true);
+    try {
+      await updatePreferredLanguageMutation({ language: lang });
+      setLanguageToast(true);
+      setTimeout(() => setLanguageToast(false), 3000);
+    } catch (err) {
+      console.error("Failed to update preferred language:", err);
+    } finally {
+      setUpdatingLanguage(false);
+    }
+  };
+
   const rawRequests =
     liveRequests && liveRequests.length > 0
-      ? liveRequests.map((r) => ({
+      ? liveRequests.map((r: any) => ({
           id: r._id,
           prompt: r.prompt,
           category: r.category,
@@ -88,8 +118,56 @@ export default function DashboardPage() {
     }
   };
 
-  const completedRequests = rawRequests.filter((r) => r.status === "COMPLETED");
-  const pendingRequests = rawRequests.filter((r) => r.status === "PENDING" || r.status === "PROCESSING");
+  const NIGHT_SCHEDULE_PRESETS = [
+    { label: "09:00 PM IST", value: "21:00" },
+    { label: "10:00 PM IST", value: "22:00" },
+    { label: "11:00 PM IST (Default)", value: "23:00" },
+    { label: "12:00 AM IST (Midnight)", value: "00:00" },
+    { label: "05:00 AM IST (Early)", value: "05:00" },
+    { label: "06:00 AM IST", value: "06:00" },
+    { label: "07:00 AM IST", value: "07:00" },
+    { label: "08:00 AM IST", value: "08:00" },
+    { label: "09:00 AM IST", value: "09:00" },
+  ];
+
+  const isDisallowedDaytime = (timeStr: string) => {
+    const match = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/.exec(timeStr.trim());
+    if (!match) return false;
+    const hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    return (hour > 9 && hour < 21) || (hour === 9 && minute > 0);
+  };
+
+  const handleScheduleSave = async (timeToSet?: string) => {
+    const target = timeToSet || selectedWakeTime;
+    setScheduleError("");
+    if (isDisallowedDaytime(target)) {
+      setScheduleError(
+        "Calm Tech Policy: Agents rest during daytime hours (9:00 AM – 9:00 PM IST) to avoid interruptions. Please choose a night or morning time between 9:00 PM and 9:00 AM IST."
+      );
+      return;
+    }
+
+    setSavingSchedule(true);
+    try {
+      await updateWakeScheduleMutation({
+        wakeTimeOfDay: target,
+      });
+      setSelectedWakeTime(target);
+      setScheduleSuccess(true);
+      setTimeout(() => {
+        setScheduleSuccess(false);
+        setShowScheduleModal(false);
+      }, 1200);
+    } catch (err: any) {
+      setScheduleError(err?.message || "Failed to update wake schedule.");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const completedRequests = rawRequests.filter((r: any) => r.status === "COMPLETED");
+  const pendingRequests = rawRequests.filter((r: any) => r.status === "PENDING" || r.status === "PROCESSING");
 
 
   return (
@@ -174,35 +252,121 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right: Wake Cycle Schedule */}
-          <div className="lg:col-span-4 bg-petal-100/70 p-5 rounded-2xl border border-petal-200 space-y-3">
-            <div className="flex items-center justify-between text-xs text-charcoal-600">
-              <span className="font-bold uppercase tracking-wider text-charcoal-900">
-                Wake-Up Schedule
-              </span>
-              <Clock className="w-4 h-4 text-charcoal-500" />
+          {/* Right: Sidebar Stack */}
+          <div className="lg:col-span-4 space-y-4">
+            {/* Wake-Up Schedule Card */}
+            <div className="bg-petal-100/70 p-5 rounded-2xl border border-petal-200 space-y-3">
+              <div className="flex items-center justify-between text-xs text-charcoal-600">
+                <span className="font-bold uppercase tracking-wider text-charcoal-900">
+                  Wake-Up Schedule
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedWakeTime((liveAgent as any)?.wakeTimeOfDay || "23:00");
+                    setScheduleError("");
+                    setScheduleSuccess(false);
+                    setShowScheduleModal(true);
+                  }}
+                  className="text-[11px] text-forest-800 hover:text-forest-900 font-bold underline flex items-center space-x-1"
+                >
+                  <Settings className="w-3 h-3" />
+                  <span>Modify</span>
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-charcoal-600">Next Scheduled Wake:</span>
+                  <span className="font-bold text-forest-900">{agentState.nextWakeTime}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-charcoal-600">Frequency:</span>
+                  <span className="font-medium text-charcoal-800">{agentState.wakeFrequency}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-charcoal-600">Last Active:</span>
+                  <span className="text-charcoal-700">{agentState.lastActiveTime}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-petal-200/80 flex items-center justify-between text-[11px] text-charcoal-500">
+                <span>{pendingRequests.length} pending request(s) queued</span>
+                <Link href="/requests" className="text-forest-800 font-semibold hover:underline">
+                  View Queue →
+                </Link>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-charcoal-600">Next Scheduled Wake:</span>
-                <span className="font-bold text-forest-900">{agentState.nextWakeTime}</span>
+            {/* Preferred Language Card */}
+            <div className="bg-petal-100/70 p-4 sm:p-5 rounded-2xl border border-petal-200 space-y-3">
+              <div className="flex items-center justify-between text-xs text-charcoal-600">
+                <div className="flex items-center space-x-1.5">
+                  <Languages className="w-3.5 h-3.5 text-forest-700" />
+                  <span className="font-bold uppercase tracking-wider text-charcoal-900">
+                    Agent Language
+                  </span>
+                </div>
+                {updatingLanguage && (
+                  <span className="text-[11px] text-forest-700 flex items-center space-x-1 font-medium">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Saving...</span>
+                  </span>
+                )}
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-charcoal-600">Frequency:</span>
-                <span className="font-medium text-charcoal-800">{agentState.wakeFrequency}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-charcoal-600">Last Active:</span>
-                <span className="text-charcoal-700">{agentState.lastActiveTime}</span>
-              </div>
-            </div>
 
-            <div className="pt-2 border-t border-petal-200/80 flex items-center justify-between text-[11px] text-charcoal-500">
-              <span>{pendingRequests.length} pending request(s) queued</span>
-              <Link href="/requests" className="text-forest-800 font-semibold hover:underline">
-                View Queue →
-              </Link>
+              {/* Segmented Pill Track */}
+              <div className="bg-petal-200/50 p-1 rounded-xl flex items-center gap-1 border border-petal-200/80">
+                {[
+                  { code: "en", label: "English", tag: "EN" },
+                  { code: "bn", label: "বাংলা", tag: "BN" },
+                  { code: "hi", label: "हिन्दी", tag: "HI" },
+                ].map((item) => {
+                  const currentLang = (user as any)?.preferredLanguage ?? "en";
+                  const isActive = currentLang === item.code;
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      disabled={updatingLanguage}
+                      onClick={() => handleLanguageChange(item.code as any)}
+                      className={`flex-1 py-2 px-2 rounded-lg text-center transition-all duration-200 flex items-center justify-center space-x-1.5 ${
+                        isActive
+                          ? "bg-white text-forest-900 font-bold shadow-xs border border-petal-200/60 ring-1 ring-forest-900/5"
+                          : "text-charcoal-600 hover:text-charcoal-900 hover:bg-white/40 font-medium text-xs"
+                      }`}
+                    >
+                      <span className="text-xs">{item.label}</span>
+                      <span
+                        className={`text-[10px] px-1 py-0.2 rounded font-mono ${
+                          isActive
+                            ? "bg-forest-50 text-forest-800 font-semibold"
+                            : "bg-petal-200/60 text-charcoal-500"
+                        }`}
+                      >
+                        {item.tag}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Dynamic Contextual Helper */}
+              <div className="text-[11px] text-charcoal-500 flex items-center justify-between pt-0.5">
+                <span>
+                  {((user as any)?.preferredLanguage ?? "en") === "bn"
+                    ? "গবেষণা ও অডিও বাংলায় প্রস্তুত হবে"
+                    : ((user as any)?.preferredLanguage ?? "en") === "hi"
+                    ? "रिसर्च और ऑडियो हिन्दी में तैयार होगा"
+                    : "Synthesizing research & audio in English"}
+                </span>
+                {languageToast && (
+                  <span className="text-emerald-700 font-semibold flex items-center space-x-0.5">
+                    <CheckCircle className="w-3 h-3 text-emerald-600" />
+                    <span>Saved</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -317,7 +481,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-4">
-            {completedRequests.map((req) => (
+            {completedRequests.map((req: any) => (
               <div
                 key={req.id}
                 className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
@@ -386,7 +550,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              pendingRequests.map((req) => (
+              pendingRequests.map((req: any) => (
                 <div
                   key={req.id}
                   className="bg-white p-5 rounded-2xl border border-petal-200 shadow-sm space-y-2"
@@ -410,6 +574,123 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* SCHEDULE MODAL */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-petal-200 shadow-editorial space-y-6 relative">
+            <div className="flex items-center justify-between border-b border-petal-100 pb-4">
+              <div className="flex items-center space-x-2">
+                <Moon className="w-5 h-5 text-forest-800" />
+                <h3 className="font-editorial text-xl font-bold text-charcoal-900">
+                  Agent Wake Schedule
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="p-1 rounded-full text-charcoal-400 hover:text-charcoal-700 hover:bg-petal-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Calm Tech Info Banner */}
+            <div className="p-4 bg-forest-50/70 border border-forest-200/50 rounded-2xl text-xs text-forest-900 space-y-1">
+              <div className="font-bold flex items-center space-x-1.5 text-forest-800">
+                <Sparkles className="w-3.5 h-3.5 text-forest-700" />
+                <span>Calm Technology Night Window</span>
+              </div>
+              <p className="text-forest-700 text-[11px] leading-relaxed">
+                To prevent daytime interruptions and peak API loads, your personal agent works
+                overnight while you rest. Wake times are permitted only between{" "}
+                <strong className="text-forest-900">9:00 PM and 9:00 AM IST</strong>.
+              </p>
+            </div>
+
+            {/* Presets Grid */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-charcoal-700 uppercase tracking-wider block">
+                Quick Presets (IST)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {NIGHT_SCHEDULE_PRESETS.map((preset) => {
+                  const isSelected = selectedWakeTime === preset.value;
+                  return (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedWakeTime(preset.value);
+                        setScheduleError("");
+                      }}
+                      className={`px-3 py-2 text-xs rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? "bg-forest-800 text-white border-forest-800 font-bold shadow-xs"
+                          : "bg-white text-charcoal-700 border-petal-200 hover:border-forest-700/50"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Time Picker */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-charcoal-700 uppercase tracking-wider block">
+                Or Custom Night Time
+              </label>
+              <input
+                type="time"
+                value={selectedWakeTime}
+                onChange={(e) => {
+                  setSelectedWakeTime(e.target.value);
+                  setScheduleError("");
+                }}
+                className="w-full px-4 py-2.5 text-sm bg-petal-50 rounded-xl border border-petal-200 text-charcoal-800 focus:outline-none focus:ring-2 focus:ring-forest-800/30 font-mono"
+              />
+            </div>
+
+            {/* Error Message */}
+            {scheduleError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <span>{scheduleError}</span>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {scheduleSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center space-x-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Schedule updated successfully!</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="px-4 py-2.5 text-xs text-charcoal-600 hover:text-charcoal-900 font-medium rounded-xl hover:bg-petal-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScheduleSave()}
+                disabled={savingSchedule || isDisallowedDaytime(selectedWakeTime)}
+                className="px-6 py-2.5 text-xs bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center space-x-2"
+              >
+                {savingSchedule && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Save Schedule</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </AuthGuard>
   );

@@ -49,4 +49,42 @@ test("updateInterests rejects an unauthenticated caller", async () => {
   );
 });
 
+test("viewer returns default preferredLanguage as English ('en') when unset", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const asUser = t.withIdentity({ subject: userId });
+
+  const profile = await asUser.query(api.users.viewer, {});
+  expect(profile).not.toBeNull();
+  expect((profile as any)?.preferredLanguage).toBe("en");
+});
+
+test("updatePreferredLanguage updates user preference to Bengali and Hindi", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const asUser = t.withIdentity({ subject: userId });
+
+  // Update to Bengali (bn)
+  const resBn = await asUser.mutation(api.users.updatePreferredLanguage, { language: "bn" });
+  expect(resBn.preferredLanguage).toBe("bn");
+
+  let profile = await asUser.query(api.users.viewer, {});
+  expect((profile as any)?.preferredLanguage).toBe("bn");
+
+  // Update to Hindi (hi)
+  const resHi = await asUser.mutation(api.users.updatePreferredLanguage, { language: "hi" });
+  expect(resHi.preferredLanguage).toBe("hi");
+
+  profile = await asUser.query(api.users.viewer, {});
+  expect((profile as any)?.preferredLanguage).toBe("hi");
+});
+
+test("updatePreferredLanguage rejects unauthenticated caller", async () => {
+  const t = convexTest(schema, modules);
+
+  await expect(
+    t.mutation(api.users.updatePreferredLanguage, { language: "bn" })
+  ).rejects.toThrow(/Unauthorized/);
+});
+
 

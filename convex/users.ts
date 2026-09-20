@@ -4,6 +4,7 @@ import { v } from "convex/values";
 
 /**
  * Returns the currently authenticated user document or null if unauthenticated.
+ * Defaults preferredLanguage to "en" if not yet set.
  */
 export const viewer = query({
   args: {},
@@ -13,7 +14,12 @@ export const viewer = query({
       return null;
     }
     const user = await ctx.db.get(userId);
-    return user;
+    if (!user) return null;
+
+    return {
+      ...user,
+      preferredLanguage: (user as any).preferredLanguage ?? "en",
+    };
   },
 });
 
@@ -62,6 +68,30 @@ export const updateInterests = mutation({
         topicIds: args.topicIds,
       });
     }
+  },
+});
+
+/**
+ * Updates the preferred language for AI agent outputs (English, Bengali, Hindi).
+ */
+export const updatePreferredLanguage = mutation({
+  args: {
+    language: v.union(v.literal("en"), v.literal("bn"), v.literal("hi")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized: Must be logged in to update language preferences");
+    }
+
+    await ctx.db.patch(userId, {
+      preferredLanguage: args.language,
+    });
+
+    return {
+      success: true,
+      preferredLanguage: args.language,
+    };
   },
 });
 

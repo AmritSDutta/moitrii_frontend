@@ -5,6 +5,22 @@ import { v } from "convex/values";
 export default defineSchema({
   ...authTables,
 
+  // Custom user profile extensions (preferred language for AI agent outputs)
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    preferredLanguage: v.optional(
+      v.union(v.literal("en"), v.literal("bn"), v.literal("hi"))
+    ),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+
   // Persistent personal agent states
   agents: defineTable({
     userId: v.id("users"),
@@ -19,9 +35,14 @@ export default defineSchema({
     nextWakeTime: v.string(),
     lastActiveTime: v.string(),
     wakeFrequency: v.string(),
+    wakeTimeOfDay: v.optional(v.string()), // 24h format in user timezone, e.g. "23:00"
+    timezone: v.optional(v.string()),      // e.g. "Asia/Kolkata"
     subscriptionTier: v.string(),
     activeTask: v.optional(v.string()),
-  }).index("by_user", ["userId"]),
+    lastRunAt: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_wake_time", ["wakeTimeOfDay"]),
 
   // User topic subscriptions and preferences
   userInterests: defineTable({
@@ -64,6 +85,8 @@ export default defineSchema({
     publishedAt: v.string(),
     coverImage: v.string(),
     coverImageStorageId: v.optional(v.id("_storage")),
+    audioUrl: v.optional(v.string()),
+    audioStorageId: v.optional(v.id("_storage")),
     reusedCount: v.number(),
     isReused: v.boolean(),
     takeaways: v.array(v.string()),

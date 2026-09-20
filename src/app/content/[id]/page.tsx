@@ -17,6 +17,10 @@ import {
   ArrowLeft,
   CheckCircle2,
   Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Bot,
   Sparkles,
   Loader2
 } from "lucide-react";
@@ -26,6 +30,19 @@ export default function ContentReaderPage() {
   const router = useRouter();
   const { articles: fallbackArticles } = useApp();
   const [copied, setCopied] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+    if (isPlayingAudio) {
+      audioRef.current.pause();
+      setIsPlayingAudio(false);
+    } else {
+      audioRef.current.play();
+      setIsPlayingAudio(true);
+    }
+  };
 
   const slugParam = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
   const convexArticle = useQuery(api.content.getContentBySlug, { slug: slugParam });
@@ -77,14 +94,69 @@ export default function ContentReaderPage() {
           {article.title}
         </h1>
 
+        {/* Audio Player Bar (Just below headline/title) */}
+        <div className="pt-1 pb-1">
+          {article.audioUrl ? (
+            <div className="flex flex-wrap items-center gap-3 bg-forest-50/80 border border-forest-200/70 p-3 sm:px-4 rounded-2xl">
+              <button
+                type="button"
+                onClick={toggleAudio}
+                className="bg-forest-800 hover:bg-forest-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors flex items-center space-x-2 shadow-xs"
+              >
+                {isPlayingAudio ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5 fill-current" />
+                    <span>Pause Narration</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Listen to Audio</span>
+                  </>
+                )}
+              </button>
+              <div className="flex items-center space-x-2 text-xs text-forest-900 font-medium">
+                <Volume2 className="w-4 h-4 text-forest-700" />
+                <span>Audio Narration Available · {article.readTime || "4 min"}</span>
+              </div>
+              <audio
+                ref={audioRef}
+                src={article.audioUrl}
+                onEnded={() => setIsPlayingAudio(false)}
+                onPause={() => setIsPlayingAudio(false)}
+                onPlay={() => setIsPlayingAudio(true)}
+                className="hidden"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 text-xs text-charcoal-400 bg-petal-50/70 border border-petal-200/60 px-3.5 py-2 rounded-2xl w-fit opacity-65 cursor-not-allowed">
+              <VolumeX className="w-4 h-4 text-charcoal-400" />
+              <span className="font-medium">Audio narration not available</span>
+            </div>
+          )}
+        </div>
+
         <p className="text-base sm:text-lg text-charcoal-600 leading-relaxed">
           {article.subtitle}
         </p>
 
         {/* Metadata & Actions */}
         <div className="pt-4 border-y border-petal-200 flex flex-wrap items-center justify-between gap-4 text-xs text-charcoal-600">
-          <div className="flex items-center space-x-4">
-            <span className="font-semibold text-charcoal-900">{article.author}</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-charcoal-900">{article.author}</span>
+              {article.authorType === "agent" ? (
+                <span className="text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                  <Bot className="w-3 h-3 text-purple-700" />
+                  <span>AI Agent Companion</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                  <User className="w-3 h-3 text-amber-700" />
+                  <span>Human Author</span>
+                </span>
+              )}
+            </div>
             <span>·</span>
             <span className="flex items-center space-x-1">
               <Clock className="w-3.5 h-3.5" />
@@ -104,6 +176,16 @@ export default function ContentReaderPage() {
             </button>
           </div>
         </div>
+
+        {/* AI Disclaimer Banner */}
+        {article.authorType === "agent" && (
+          <div className="p-3.5 bg-amber-50/80 border border-amber-200/90 rounded-2xl flex items-center space-x-2.5 text-xs text-amber-900 shadow-xs">
+            <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>
+              <strong>Disclaimer:</strong> AI generated synthetic content synthesized by Moitrii Agent.
+            </span>
+          </div>
+        )}
       </header>
 
       {/* 2. Editorial Cover Photo */}

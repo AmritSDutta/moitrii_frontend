@@ -5,7 +5,7 @@ description: Convex schema — tables, indexes, validators, and relationships fo
 
 # Data Model
 
-The Convex schema is defined in `convex/schema.ts`. It extends the built-in `authTables` from `@convex-dev/auth` and adds five application tables.
+The Convex schema is defined in `convex/schema.ts`. It extends the built-in `authTables` from `@convex-dev/auth` and adds six application tables.
 
 ## Tables Overview
 
@@ -16,6 +16,7 @@ The Convex schema is defined in `convex/schema.ts`. It extends the built-in `aut
 | `userInterests` | User-selected topic subscriptions |
 | `requests` | Research requests with lifecycle status |
 | `content` | Published guides/articles in the shared knowledge library |
+| `subscribers` | Weekly curated lifestyle digest email subscribers |
 
 ## Table: agents
 
@@ -35,9 +36,14 @@ agents: defineTable({
   nextWakeTime: v.string(),
   lastActiveTime: v.string(),
   wakeFrequency: v.string(),
+  wakeTimeOfDay: v.optional(v.string()), // 24h format in IST, e.g. "23:00"
+  timezone: v.optional(v.string()),      // defaults to "Asia/Kolkata"
   subscriptionTier: v.string(),
   activeTask: v.optional(v.string()),
-}).index("by_user", ["userId"])
+  lastRunAt: v.optional(v.string()),
+})
+  .index("by_user", ["userId"])
+  .index("by_wake_time", ["wakeTimeOfDay"])
 ```
 
 ## Table: userInterests
@@ -94,6 +100,8 @@ content: defineTable({
   publishedAt: v.string(),
   coverImage: v.string(),
   coverImageStorageId: v.optional(v.id("_storage")),
+  audioUrl: v.optional(v.string()),
+  audioStorageId: v.optional(v.id("_storage")),
   reusedCount: v.number(),
   isReused: v.boolean(),
   takeaways: v.array(v.string()),
@@ -111,6 +119,19 @@ content: defineTable({
   })
 ```
 
+## Table: subscribers
+
+Stores weekly curated lifestyle digest email subscriptions for anonymous visitors and authenticated users.
+
+```ts
+subscribers: defineTable({
+  email: v.string(),
+  subscribedAt: v.string(),
+  source: v.optional(v.string()),
+  status: v.union(v.literal("ACTIVE"), v.literal("UNSUBSCRIBED")),
+}).index("by_email", ["email"])
+```
+
 ## Relationships
 
 ```
@@ -119,6 +140,8 @@ users
   └── (1:many) userInterests    via userId
   └── (1:many) requests          via userId
   └── (1:many) content           via authorId (optional)
+
+subscribers (standalone collection for anonymous & authenticated email recipients)
 ```
 
 ## Storage Decision

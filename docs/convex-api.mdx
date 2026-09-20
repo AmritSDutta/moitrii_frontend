@@ -48,6 +48,23 @@ Creates or updates the authenticated user's topic subscriptions.
 { topicIds: string[] }
 ```
 
+### `updatePreferredLanguage` (mutation)
+
+Updates the user's preferred language for AI agent deliverables (English, Bengali, or Hindi).
+
+**Args:**
+```ts
+{ language: "en" | "bn" | "hi" }
+```
+
+**Returns:**
+```ts
+{
+  success: boolean,
+  preferredLanguage: "en" | "bn" | "hi"
+}
+```
+
 ## Agents (`convex/agents.ts`)
 
 ### `getAgentState` (query)
@@ -72,16 +89,27 @@ Ensures an agent record exists for the authenticated user.
 
 **Returns:** `Id<"agents">`
 
-### `updateAgentFrequency` (mutation)
+### `updateWakeSchedule` (mutation)
 
-Updates the wake frequency for the authenticated user's agent.
+Updates the scheduled wake time for the authenticated user's agent. Enforces the calm-tech policy: wake time must fall strictly between **9:00 PM and 9:00 AM IST** (daytime hours 09:01–20:59 are rejected).
 
 **Args:**
 ```ts
-{ wakeFrequency: string }
+{
+  wakeTimeOfDay: string,   // 24h format, e.g. "23:00"
+  timezone?: string        // defaults to "Asia/Kolkata"
+}
 ```
 
-**Returns:** `Id<"agents">`
+**Returns:**
+```ts
+{
+  agentId: Id<"agents">,
+  wakeTimeOfDay: string,
+  wakeFrequency: string,
+  nextWakeTime: string
+}
+```
 
 ## Requests (`convex/requests.ts`)
 
@@ -172,6 +200,8 @@ Publishes a new guide to the Shared Knowledge Ecosystem. Auto-generates a unique
   readTime: string,
   coverImage: string,
   coverImageStorageId?: Id<"_storage">,
+  audioUrl?: string,
+  audioStorageId?: Id<"_storage">,
   reusedCount?: number,
   isReused?: boolean,
   takeaways: string[],
@@ -186,6 +216,38 @@ Publishes a new guide to the Shared Knowledge Ecosystem. Auto-generates a unique
 **Returns:** `{ contentId: Id<"content">, slug: string }`
 
 **Auth required.**
+
+## Subscribers (`convex/subscribers.ts`)
+
+### `subscribeDigest` (mutation)
+
+Subscribes an email address to the weekly curated lifestyle digest. Validates email format with RFC 5322 regex and ensures idempotency by checking for existing active subscriptions. Available to both anonymous visitors and authenticated users.
+
+**Args:**
+```ts
+{
+  email: string,
+  source?: string   // defaults to "footer"
+}
+```
+
+**Returns:**
+```ts
+{
+  success: boolean,
+  message: string
+}
+```
+
+## Agent Runner & Crons (`convex/agentRunner.ts`, `convex/crons.ts`)
+
+### `triggerScheduledWakes` (internal action)
+
+Triggered on an hourly schedule (at `:30` minute UTC to align with IST boundaries) by `convex/crons.ts`. Queries all agents due for execution with pending requests, sets their state to `WORKING`, and dispatches an HTTPS POST webhook to the external Python AI agent backend (`PYTHON_AGENT_ENDPOINT`) with `{ userId, userEmail, userName, agentId, wakeTimeOfDay, timezone, requests }`.
+
+### `POST /api/agent/complete` (HTTP endpoint)
+
+Callback endpoint mounted in `convex/http.ts` for the Python agent backend to submit completed deliverables. Transitions pending requests to `COMPLETED` and resets agent state to `SLEEPING`.
 
 ## Frontend Client Imports
 
