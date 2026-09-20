@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { AuthModal } from "@/components/AuthModal";
 import {
   Sparkles,
@@ -29,39 +31,20 @@ export const Navbar: React.FC = () => {
   const { agentState, userInterests, topics } = useApp();
   const { logoUrl } = useBrandAssets();
 
-  let isAuthenticated = false;
-  let isLoading = false;
-  let signOut = async () => {};
-
-  try {
-    const auth = useConvexAuth();
-    if (auth) {
-      isAuthenticated = auth.isAuthenticated;
-      isLoading = auth.isLoading;
-    }
-  } catch (e) {
-    // Graceful fallback during static generation or unconfigured auth
-  }
-
-  try {
-    const actions = useAuthActions();
-    if (actions) {
-      signOut = actions.signOut;
-    }
-  } catch (e) {
-    // Graceful fallback
-  }
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const { signOut } = useAuthActions();
+  const user = useQuery(api.users.viewer);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const navLinks = [
-    { name: "Explore", href: "/", icon: Compass },
-    { name: "My Agent", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Request Center", href: "/requests", icon: Inbox },
-    { name: "Interests", href: "/onboarding", icon: BookmarkCheck },
-    { name: "Publisher Studio", href: "/publisher", icon: PenTool },
+    { name: "Explore", href: "/", icon: Compass, public: true },
+    { name: "My Agent", href: "/dashboard", icon: LayoutDashboard, public: false },
+    { name: "Request Center", href: "/requests", icon: Inbox, public: false },
+    { name: "Interests", href: "/onboarding", icon: BookmarkCheck, public: false },
+    { name: "Publisher Studio", href: "/publisher", icon: PenTool, public: false },
   ];
 
   return (
@@ -106,6 +89,20 @@ export const Navbar: React.FC = () => {
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
+
+                if (!link.public && !isAuthenticated) {
+                  return (
+                    <button
+                      key={link.href}
+                      onClick={() => setAuthModalOpen(true)}
+                      className="flex items-center space-x-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all text-charcoal-700 hover:text-charcoal-900 hover:bg-petal-100/80"
+                    >
+                      <Icon className="w-4 h-4 text-charcoal-500" />
+                      <span>{link.name}</span>
+                    </button>
+                  );
+                }
+
                 return (
                   <Link
                     key={link.href}
@@ -126,63 +123,103 @@ export const Navbar: React.FC = () => {
             {/* Right Status & Auth/Profile Controls */}
             <div className="hidden lg:flex items-center space-x-3">
               {/* Agent Live Badge */}
-              <Link
-                href="/dashboard"
-                className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100 border border-petal-200 shadow-sm hover:border-forest-500/40 transition-colors"
-              >
-                <div className="relative flex items-center justify-center">
-                  {agentState.status === "SLEEPING" ? (
-                    <>
-                      <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping opacity-75" />
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping opacity-75" />
-                    </>
-                  )}
-                </div>
-                <div className="text-left">
-                  <span className="text-[11px] font-semibold text-charcoal-800 block leading-tight">
-                    {agentState.status === "SLEEPING" ? "Agent Resting" : "Agent Active"}
-                  </span>
-                  <span className="text-[10px] text-charcoal-500 block leading-tight">
-                    Wake: 08:00 AM
-                  </span>
-                </div>
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href="/dashboard"
+                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100 border border-petal-200 shadow-sm hover:border-forest-500/40 transition-colors"
+                >
+                  <div className="relative flex items-center justify-center">
+                    {agentState.status === "SLEEPING" ? (
+                      <>
+                        <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping opacity-75" />
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping opacity-75" />
+                      </>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <span className="text-[11px] font-semibold text-charcoal-800 block leading-tight">
+                      {agentState.status === "SLEEPING" ? "Agent Resting" : "Agent Active"}
+                    </span>
+                    <span className="text-[10px] text-charcoal-500 block leading-tight">
+                      Wake: 08:00 AM
+                    </span>
+                  </div>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setAuthModalOpen(true)}
+                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100/70 hover:bg-cream-100 border border-petal-200 shadow-xs transition-colors"
+                >
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <div className="text-left">
+                    <span className="text-[11px] font-semibold text-charcoal-700 block leading-tight">
+                      Agent Resting
+                    </span>
+                    <span className="text-[10px] text-charcoal-400 block leading-tight">
+                      Sign in to wake
+                    </span>
+                  </div>
+                </button>
+              )}
 
               {/* Convex Auth Sign In / User Button */}
-              {isAuthenticated ? (
+              {isAuthLoading ? (
+                <div className="w-20 h-8 rounded-full bg-petal-100 animate-pulse" />
+              ) : isAuthenticated ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     className="flex items-center space-x-2 bg-petal-100 hover:bg-petal-200 border border-petal-200 px-3 py-1.5 rounded-full text-xs font-semibold text-charcoal-800 transition-colors"
                   >
-                    <div className="w-6 h-6 rounded-full bg-forest-800 text-white flex items-center justify-center text-[10px]">
-                      P
-                    </div>
-                    <span>Priya</span>
+                    {user?.image ? (
+                      <div className="relative w-6 h-6 rounded-full overflow-hidden shrink-0 ring-1 ring-rosebrand/30">
+                        <Image
+                          src={user.image}
+                          alt={user.name || "User Avatar"}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-forest-800 text-white flex items-center justify-center text-[10px] font-bold shrink-0 uppercase">
+                        {user?.name?.[0] || user?.email?.[0] || "U"}
+                      </div>
+                    )}
+                    <span className="max-w-[110px] truncate">
+                      {user?.name || user?.email?.split("@")[0] || "Account"}
+                    </span>
                   </button>
 
                   {userDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-petal-200 p-2 text-xs space-y-1 z-50">
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-petal-200 p-2 text-xs space-y-1 z-50 animate-fade-in">
                       <div className="px-3 py-2 border-b border-petal-100">
-                        <span className="font-bold text-charcoal-900 block">Priya Sharma</span>
-                        <span className="text-[10px] text-charcoal-500 block">Daily Companion Plan</span>
+                        <span className="font-bold text-charcoal-900 block truncate">
+                          {user?.name || "Moitrii Companion"}
+                        </span>
+                        <span className="text-[11px] text-charcoal-500 block truncate">
+                          {user?.email || "Signed in with Google"}
+                        </span>
+                        <div className="flex items-center space-x-1 text-[10px] text-emerald-700 font-medium mt-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                          <span>Active Google Session</span>
+                        </div>
                       </div>
                       <Link
                         href="/dashboard"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="block px-3 py-2 rounded-xl hover:bg-petal-50 text-charcoal-700"
+                        className="block px-3 py-2 rounded-xl hover:bg-petal-50 text-charcoal-700 font-medium"
                       >
-                        Dashboard
+                        Personal Dashboard
                       </Link>
                       <Link
                         href="/onboarding"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="block px-3 py-2 rounded-xl hover:bg-petal-50 text-charcoal-700"
+                        className="block px-3 py-2 rounded-xl hover:bg-petal-50 text-charcoal-700 font-medium"
                       >
                         Topic Interests ({userInterests.length})
                       </Link>
@@ -191,7 +228,7 @@ export const Navbar: React.FC = () => {
                           signOut();
                           setUserDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-50 text-red-600 font-medium flex items-center space-x-1.5"
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-50 text-red-600 font-medium flex items-center space-x-1.5 transition-colors"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>Sign Out</span>
@@ -245,6 +282,23 @@ export const Navbar: React.FC = () => {
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
+
+              if (!link.public && !isAuthenticated) {
+                return (
+                  <button
+                    key={link.href}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setAuthModalOpen(true);
+                    }}
+                    className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium text-charcoal-800 hover:bg-petal-100 text-left"
+                  >
+                    <Icon className="w-4 h-4 text-charcoal-500" />
+                    <span>{link.name}</span>
+                  </button>
+                );
+              }
+
               return (
                 <Link
                   key={link.href}
@@ -262,19 +316,35 @@ export const Navbar: React.FC = () => {
               );
             })}
             <div className="pt-2 border-t border-petal-200 flex items-center justify-between text-xs text-charcoal-600">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  if (isAuthenticated) {
-                    signOut();
-                  } else {
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-forest-800 text-white flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
+                    {user?.name?.[0] || user?.email?.[0] || "U"}
+                  </div>
+                  <span className="font-semibold text-charcoal-900 truncate max-w-[120px]">
+                    {user?.name || user?.email?.split("@")[0]}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                    className="text-red-600 font-bold ml-2"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
                     setAuthModalOpen(true);
-                  }
-                }}
-                className="text-forest-800 font-bold flex items-center space-x-1"
-              >
-                {isAuthenticated ? "Sign Out" : "Sign In / Register"}
-              </button>
+                  }}
+                  className="text-forest-800 font-bold flex items-center space-x-1"
+                >
+                  Sign In with Google
+                </button>
+              )}
               <Link href="/onboarding" className="text-charcoal-600">
                 {userInterests.length} Topics
               </Link>

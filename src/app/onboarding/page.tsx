@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   Heart,
   Utensils,
@@ -43,7 +44,11 @@ export default function OnboardingPage() {
   const youthTopics = topics.filter((t) => t.category === "parenting");
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+    <AuthGuard
+      title="Personalize Your Agent's Interests"
+      description="Sign in with your Google account to customize the lifestyle domains, wellness topics, and cultural streams your personal agent follows."
+    >
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto space-y-3">
         <span className="text-xs font-bold uppercase tracking-widest text-forest-700 bg-forest-50 px-3.5 py-1 rounded-full border border-forest-100">
@@ -226,5 +231,6 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

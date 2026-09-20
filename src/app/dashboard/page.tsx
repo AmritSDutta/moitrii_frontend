@@ -4,6 +4,10 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
+import { useBrandAssets } from "@/lib/useBrandAssets";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   Moon,
   Zap,
@@ -30,6 +34,10 @@ export default function DashboardPage() {
     triggerManualWake
   } = useApp();
 
+  const { logoUrl } = useBrandAssets();
+  const user = useQuery(api.users.viewer);
+  const displayName = user?.name || user?.email?.split("@")[0] || "Friend";
+
   const [promptInput, setPromptInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Health & Nutrition");
   const [submitting, setSubmitting] = useState(false);
@@ -51,24 +59,33 @@ export default function DashboardPage() {
   const pendingRequests = requests.filter((r) => r.status === "PENDING" || r.status === "PROCESSING");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+    <AuthGuard
+      title="Personal Agent Dashboard"
+      description="Sign in with your Google account to interact with your personal AI agent, track scheduled wake cycles, and manage deliverables."
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* 1. TOP GREETING & AGENT STATUS HERO */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-petal-200 shadow-editorial relative overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left: Greeting & Status */}
           <div className="lg:col-span-8 space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm">
+              <div
+                className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm shrink-0"
+                style={{ width: 48, height: 48, minWidth: 48, maxWidth: 48 }}
+              >
                 <Image
-                  src="/images/moitrii_logo.jpg"
+                  src={logoUrl}
                   alt="Moitrii Agent"
-                  fill
-                  className="object-cover object-top"
+                  width={48}
+                  height={48}
+                  className="w-full h-full object-cover object-center rounded-full"
+                  style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center" }}
                 />
               </div>
               <div>
                 <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-charcoal-900">
-                  Good Morning, Priya
+                  Good Morning, {displayName}
                 </h1>
                 <p className="text-xs text-charcoal-500">
                   Your dedicated Moitrii agent is managing your personalized lifestyle feeds.
@@ -360,5 +377,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

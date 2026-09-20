@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/AppContext";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   Inbox,
   PlusCircle,
@@ -39,7 +40,11 @@ export default function RequestsPage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+    <AuthGuard
+      title="Request Center & Durable Queue"
+      description="Sign in with Google to submit research prompts, track scheduled wake windows, and view your personalized deliverable history."
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* Header */}
       <div className="space-y-2">
         <span className="text-xs font-bold uppercase tracking-widest text-forest-700 bg-forest-50 px-3 py-1 rounded-full border border-forest-100">
@@ -221,5 +226,6 @@ export default function RequestsPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

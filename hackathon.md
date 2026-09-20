@@ -12,7 +12,7 @@
 - **Convex features:** Convex Cloud Database, Convex File Storage (CDN asset serving), Auth, Scheduled Actions (planned)
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T19:02:00Z
+- **Last updated:** 2026-09-20T19:22:00Z
 
 ## Log
 
@@ -30,4 +30,8 @@ Configured Git exclusions for agent workspaces in .gitignore and initialized Con
 
 ### 2026-09-20 - f78a93b
 Integrated `@convex-dev/auth` for full user authentication flow with server-side middleware and glassmorphic `AuthModal`. Connected Convex File Storage CDN (`convex/files.ts`, `src/lib/useBrandAssets.ts`) to serve dynamic brand assets (`moitrii_logo.jpg` and `moitrii.jpg`) across Navbar, Hero, AuthModal, Footer, and browser tab header icon (favicon). Refined navigation logo sizing and centering. Verified zero-error production build (`npm run build`).
+
+### 2026-09-20 - 4c88bbb
+Fixed Next.js middleware static asset exclusion matcher (`src/middleware.ts`) to prevent 404 interceptions on CSS and JavaScript chunks. Added hard inline dimension and centering constraints to brand emblem images in `Navbar`, `Footer`, and `AuthModal` to prevent layout shift or image enlargement during stylesheet drops. Added custom editorial `not-found.tsx` route.
+
 

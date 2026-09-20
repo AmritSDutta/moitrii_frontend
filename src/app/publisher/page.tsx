@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   PenTool,
   Sparkles,
@@ -82,7 +83,11 @@ export default function PublisherStudioPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <AuthGuard
+      title="Publisher Studio"
+      description="Sign in with your Google account to draft, preview, and publish verified guides to the Moitrii Shared Knowledge Ecosystem."
+    >
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-petal-200 pb-6">
         <div>
@@ -373,5 +378,6 @@ export default function PublisherStudioPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }
