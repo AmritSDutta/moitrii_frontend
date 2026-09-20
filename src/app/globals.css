@@ -5,16 +5,27 @@
 @tailwind utilities;
 
 :root {
-  --background: #FAF4F0;
+  --background: #FAF2EE;
   --foreground: #1E1619;
 }
 
 body {
   color: var(--foreground);
-  background-color: var(--background);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #FAF2EE;
+  /* Luminous, vibrant rainbow ambient mesh backdrop */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(255, 175, 195, 0.65) 0px, transparent 50%),    /* Vibrant Rose/Blush */
+    radial-gradient(at 100% 5%, rgba(255, 220, 140, 0.7) 0px, transparent 50%),   /* Radiant Golden Amber */
+    radial-gradient(at 50% 30%, rgba(180, 245, 200, 0.6) 0px, transparent 50%),   /* Fresh Mint/Emerald */
+    radial-gradient(at 5% 65%, rgba(160, 220, 255, 0.65) 0px, transparent 50%),   /* Bright Sky Cyan */
+    radial-gradient(at 95% 75%, rgba(225, 185, 255, 0.7) 0px, transparent 50%),   /* Vivid Lilac/Violet */
+    radial-gradient(at 50% 100%, rgba(255, 190, 180, 0.6) 0px, transparent 50%);  /* Warm Coral Sunset */
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 h1, h2, h3, .font-editorial {
@@ -31,7 +42,7 @@ h1, h2, h3, .font-editorial {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #FAF4F0;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #DBC6BC;

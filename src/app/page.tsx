@@ -49,7 +49,7 @@ export default function HomePage() {
   return (
     <div className="space-y-20 pb-16">
       {/* 1. HERO SECTION (Guided by moitrii_theme.png and moitrii.jpg) */}
-      <section className="relative pt-8 pb-12 md:pt-14 md:pb-16 bg-gradient-to-b from-[#FAF4F0] via-[#FAF4F0] to-[#F4E9E3]/50 border-b border-petal-200/60">
+      <section className="relative pt-8 pb-12 md:pt-14 md:pb-16 border-b border-petal-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
             {/* Left Content Column */}
@@ -132,37 +132,38 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right Image Column with moitrii.jpg & Floating Overlay */}
-            <div className="lg:col-span-6 relative flex justify-center">
-              <div className="relative w-full max-w-[500px] aspect-[4/5] rounded-[2rem] overflow-hidden shadow-editorial ring-1 ring-petal-300/60 group">
+            {/* Right Image Column with full moitrii.jpg & subtle guide card */}
+            <div className="lg:col-span-6 relative flex flex-col items-center">
+              <div className="relative w-full max-w-[540px] aspect-square rounded-[2rem] overflow-hidden shadow-editorial ring-1 ring-petal-300/80 bg-white group">
                 <Image
                   src="/images/moitrii.jpg"
                   alt="Moitrii - A friend for a more beautiful you"
                   fill
-                  className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                  className="object-contain transition-transform duration-700 group-hover:scale-[1.02]"
                   priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-charcoal-900/40 via-transparent to-transparent opacity-60" />
+              </div>
 
-                {/* Floating Overlay Card (Matching moitrii_theme.png) */}
-                <div className="absolute bottom-6 left-6 right-6 sm:right-auto sm:max-w-xs bg-white/95 backdrop-blur-md p-5 rounded-2xl shadow-xl border border-petal-200/90 transition-transform group-hover:translate-y-[-2px]">
-                  <div className="flex items-center space-x-2 mb-1.5">
+              {/* Companion Guide Card (Placed cleanly to not obstruct the image text) */}
+              <div className="w-full max-w-[540px] mt-3 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-card border border-petal-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all hover:shadow-editorial">
+                <div>
+                  <div className="flex items-center space-x-2 mb-1">
                     <span className="w-2 h-2 rounded-full bg-forest-700 animate-pulse" />
-                    <h3 className="font-editorial text-lg font-bold text-charcoal-900">
+                    <h3 className="font-editorial text-base font-bold text-charcoal-900">
                       Wellness Starts Here
                     </h3>
                   </div>
-                  <p className="text-xs text-charcoal-600 mb-3 leading-relaxed">
-                    Explore practical guides for food, self-care, beauty, and calm home routines.
+                  <p className="text-xs text-charcoal-600 leading-relaxed">
+                    Explore practical guides for food, self-care, parenting, and calm home routines.
                   </p>
-                  <Link
-                    href="#articles-section"
-                    className="inline-flex items-center space-x-1 text-xs font-bold text-forest-800 hover:text-forest-900 group/link"
-                  >
-                    <span>Read Latest Guides</span>
-                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-1" />
-                  </Link>
                 </div>
+                <Link
+                  href="#articles-section"
+                  className="inline-flex items-center space-x-1.5 text-xs font-bold text-forest-800 hover:text-forest-900 shrink-0 bg-forest-50 hover:bg-forest-100 px-4 py-2 rounded-full transition-colors border border-forest-100 self-start sm:self-auto"
+                >
+                  <span>Read Latest Guides</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
           </div>
@@ -279,7 +280,7 @@ export default function HomePage() {
       </section>
 
       {/* 3. POPULAR CATEGORIES */}
-      <section className="bg-petal-100/70 py-16 border-y border-petal-200">
+      <section className="bg-white/40 backdrop-blur-xs py-16 border-y border-petal-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-xl mx-auto mb-12 space-y-2">
             <span className="text-xs font-bold uppercase tracking-widest text-forest-700 block">

@@ -33,7 +33,7 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-[#FAF4F0]/95 backdrop-blur-md border-b border-petal-200">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-petal-200/80 shadow-xs">
       {/* Top Main Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -136,7 +136,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Category Sub-Navigation Bar (Editorial Category Strip) */}
-      <div className="border-t border-petal-200/80 bg-[#FAF4F0]/80">
+      <div className="border-t border-petal-200/60 bg-white/50 backdrop-blur-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto scrollbar-none flex items-center space-x-6 text-xs text-charcoal-700">
           <span className="font-semibold uppercase tracking-wider text-[10px] text-charcoal-500 shrink-0">
             Editorial Streams:

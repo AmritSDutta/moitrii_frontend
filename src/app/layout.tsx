@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col bg-petal-50 text-charcoal-900 antialiased selection:bg-rosebrand/20 selection:text-charcoal-900">
+      <body className="min-h-screen flex flex-col text-charcoal-900 antialiased selection:bg-rosebrand/20 selection:text-charcoal-900">
         <AppProvider>
           <Navbar />
           <main className="flex-grow">{children}</main>
