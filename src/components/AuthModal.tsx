@@ -69,12 +69,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Header with Logo */}
         <div className="text-center space-y-3 mb-6">
-          <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm mx-auto">
+          <div
+            className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm mx-auto shrink-0"
+            style={{ width: 48, height: 48, minWidth: 48, minHeight: 48, maxWidth: 48, maxHeight: 48 }}
+          >
             <Image
               src={logoUrl}
               alt="Moitrii Emblem"
-              fill
-              className="object-cover object-top"
+              width={48}
+              height={48}
+              className="w-full h-full object-cover object-center rounded-full"
+              style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center" }}
             />
           </div>
           <div>

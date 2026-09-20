@@ -12,7 +12,7 @@
 - **Convex features:** Convex Cloud Database, Convex File Storage (CDN asset serving), Auth, Scheduled Actions (planned)
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T18:40:00Z
+- **Last updated:** 2026-09-20T19:02:00Z
 
 ## Log
 
@@ -28,6 +28,6 @@ Shipped Phase 1 Next.js/React frontend with 6 core screens: Public Landing with 
 ### 2026-09-20 - fbbe951
 Configured Git exclusions for agent workspaces in .gitignore and initialized Convex backend structure (`.gitignore`, `convex/tsconfig.json`, `convex/README.md`).
 
-### 2026-09-20 - pending
-Integrated `@convex-dev/auth` for full user authentication flow with server-side middleware and glassmorphic `AuthModal`. Connected Convex File Storage CDN IDs (`convex/files.ts`, `src/lib/useBrandAssets.ts`) to serve dynamic brand assets (`moitrii_logo.jpg` and `moitrii.jpg`) across Navbar, Hero, AuthModal, and Footer. Verified zero-error production build (`npm run build`).
+### 2026-09-20 - f78a93b
+Integrated `@convex-dev/auth` for full user authentication flow with server-side middleware and glassmorphic `AuthModal`. Connected Convex File Storage CDN (`convex/files.ts`, `src/lib/useBrandAssets.ts`) to serve dynamic brand assets (`moitrii_logo.jpg` and `moitrii.jpg`) across Navbar, Hero, AuthModal, Footer, and browser tab header icon (favicon). Refined navigation logo sizing and centering. Verified zero-error production build (`npm run build`).
 

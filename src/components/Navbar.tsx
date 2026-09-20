@@ -72,12 +72,17 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center justify-between h-20">
             {/* Logo & Brand Identity */}
             <Link href="/" className="flex items-center space-x-3 group">
-              <div className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow-xs shrink-0 group-hover:ring-forest-700/40 transition-colors">
+              <div
+                className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow-xs shrink-0 group-hover:ring-forest-700/40 transition-colors"
+                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36, maxWidth: 36, maxHeight: 36 }}
+              >
                 <Image
                   src={logoUrl}
                   alt="Moitrii Logo"
-                  fill
-                  className="object-cover object-center"
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover object-center rounded-full"
+                  style={{ width: 36, height: 36, objectFit: "cover", objectPosition: "center" }}
                   priority
                 />
               </div>

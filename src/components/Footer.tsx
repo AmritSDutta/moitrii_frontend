@@ -16,12 +16,17 @@ export const Footer: React.FC = () => {
           {/* Brand Col */}
           <div className="space-y-4 md:col-span-1">
             <div className="flex items-center space-x-3">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow">
+              <div
+                className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow shrink-0"
+                style={{ width: 40, height: 40, minWidth: 40, minHeight: 40, maxWidth: 40, maxHeight: 40 }}
+              >
                 <Image
                   src={logoUrl}
                   alt="Moitrii Emblem"
-                  fill
-                  className="object-cover object-top"
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover object-center rounded-full"
+                  style={{ width: 40, height: 40, objectFit: "cover", objectPosition: "center" }}
                 />
               </div>
               <span className="font-brand-title text-2xl font-bold text-charcoal-900">

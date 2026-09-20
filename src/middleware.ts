@@ -3,7 +3,8 @@ import { convexAuthNextjsMiddleware } from "@convex-dev/auth/nextjs/server";
 export default convexAuthNextjsMiddleware();
 
 export const config = {
-  // The following matcher runs middleware on all routes
-  // except static assets.
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  // Exclude _next/static, _next/image, favicon.ico, and static file extensions from middleware
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|images/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
+  ],
 };
