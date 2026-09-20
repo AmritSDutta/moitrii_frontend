@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   Search,
   Sparkles,
@@ -20,12 +22,35 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const { articles, topics, videos, searchQuery, setSearchQuery } = useApp();
+  const { articles: fallbackArticles, topics, videos, searchQuery, setSearchQuery } = useApp();
   const { heroUrl } = useBrandAssets();
   const [selectedTopicFilter, setSelectedTopicFilter] = useState<string>("all");
   const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null);
 
-  const filteredArticles = articles.filter((art) => {
+  const convexArticles = useQuery(api.content.getPublishedContent, {
+    category: selectedTopicFilter === "all" ? undefined : selectedTopicFilter,
+  });
+
+  // Prefer live Convex articles if available; otherwise use fallback
+  const rawArticles =
+    convexArticles && convexArticles.length > 0
+      ? convexArticles.map((a: any) => ({
+          id: a.slug || a._id,
+          title: a.title,
+          slug: a.slug,
+          subtitle: a.subtitle,
+          category: a.category,
+          author: a.author,
+          readTime: a.readTime,
+          publishedAt: a.publishedAt.includes("T")
+            ? new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : a.publishedAt,
+          coverImage: a.coverImage,
+          reusedCount: a.reusedCount ?? 0,
+        }))
+      : fallbackArticles;
+
+  const filteredArticles = rawArticles.filter((art: any) => {
     const matchesSearch =
       searchQuery === "" ||
       art.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,6 +63,8 @@ export default function HomePage() {
 
     return matchesSearch && matchesTopic;
   });
+
+
 
   const popularPills = [
     "Ayurvedic Drinks",
@@ -215,7 +242,7 @@ export default function HomePage() {
 
         {/* Article Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredArticles.map((article) => (
+          {filteredArticles.map((article: any) => (
             <article
               key={article.id}
               className="bg-white rounded-2xl overflow-hidden border border-petal-200/90 shadow-card hover:shadow-editorial transition-all hover:translate-y-[-4px] flex flex-col group"

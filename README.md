@@ -76,30 +76,55 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 
 ---
 
-## ⚡ Convex Integration & Architecture
+## ⚡ Convex Integration & Realtime Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Frontend ["Next.js / React UI"]
-        UI_Home["Landing & Explore"]
-        UI_Dash["Agent Dashboard"]
-        UI_Req["Request Center"]
-        UI_Reader["Content Reader"]
+    subgraph Frontend ["Next.js React Frontend"]
+        P_Home["Explore (/)"]
+        P_Dash["Dashboard (/dashboard)"]
+        P_Req["Request Center (/requests)"]
+        P_Reader["Reader (/content/[id])"]
+        P_Pub["Studio (/publisher)"]
+        P_Onb["Interests (/onboarding)"]
     end
 
-    subgraph Convex ["Convex Realtime Backend"]
-        Q_Agent["api.agents.getAgentState"]
-        Q_Req["api.requests.listUserRequests"]
-        Q_Content["api.content.getPublishedContent"]
-        M_Req["api.requests.createRequest"]
-        M_User["api.users.updateInterests"]
+    subgraph ConvexBackend ["Convex Cloud Realtime Backend"]
+        F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getContentBySlug<br/>• publishContent<br/>• generateUploadUrl"]
+        F_Agents["convex/agents.ts<br/>• getAgentState<br/>• updateAgentFrequency"]
+        F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest"]
+        F_Users["convex/users.ts<br/>• viewer<br/>• getInterests<br/>• updateInterests"]
+        F_Storage["Convex File Storage<br/>• _storage for Cover Photos"]
     end
 
-    Frontend <-->|"Convex React Client"| Convex
+    P_Home <-->|useQuery| F_Content
+    P_Reader <-->|useQuery| F_Content
+    P_Pub -->|useMutation| F_Content
+    P_Pub -->|Upload Photo| F_Storage
+    P_Dash <-->|useQuery| F_Agents
+    P_Dash -->|useMutation| F_Requests
+    P_Req <-->|useQuery & useMutation| F_Requests
+    P_Onb <-->|useQuery & useMutation| F_Users
 ```
 
-- **Queries:** Realtime subscriptions to agent state, request queue status, published articles, and user profile.
-- **Mutations:** Immediate, optimistic updates for request creation and interest preferences.
+### Convex Function & Realtime Responsibilities
+- **`convex/content.ts`:**
+  - `getPublishedContent(category?, limit?)`: Realtime listing with category projections.
+  - `getContentBySlug(slug)`: Full markdown guide, key takeaways, and companion media for `/content/[id]`.
+  - `publishContent(...)`: Secure mutation for human authors and AI agents to publish deliverables.
+  - `generateUploadUrl()`: Upload URL generator for direct image uploads to Convex File Storage.
+- **`convex/agents.ts`:**
+  - `getAgentState()`: Persistent personal agent state query with auto-initialization on first login.
+  - `updateAgentFrequency(wakeFrequency)`: Mutation updating wake schedule.
+- **`convex/requests.ts`:**
+  - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
+  - `createRequest(prompt, category)`: Mutation queueing research tasks for the agent's next wake cycle.
+- **`convex/users.ts`:**
+  - `viewer()`: Authenticated Google user profile resolution.
+  - `getInterests()` & `updateInterests(topicIds)`: User topic preferences.
+- **`convex/files.ts`:**
+  - Brand emblem and lifestyle CDN asset serving.
+
 
 ---
 
@@ -174,3 +199,22 @@ Your Agent's Work
 
 ✦ Weekend trip ideas
   Researching next wake-up
+
+---
+
+## 🏛️ Architectural Decisions: Article Body & Media Storage
+
+### Database Document (`content: v.string()`) vs. File Storage (`_storage`)
+
+| Consideration | Database Document (`content: v.string()`) [SELECTED] | File Storage (`_storage` file) |
+| :--- | :--- | :--- |
+| **Reader Latency & UX** | ⚡ **Instant (1 Hop):** Single reactive query loads metadata + full article body with zero waterfall lag. | ⏳ **Waterfall (2 Hops):** Requires querying metadata, then firing a 2nd client HTTP fetch to download text blob. |
+| **Searchability & Reuse** | 🔍 **Native Full-Text Search:** Direct Convex `.searchIndex("search_content", { searchField: "content" })` enables instant matching for AI content reuse. | ❌ **No Direct Search:** Convex search indexes cannot index binary files in File Storage. |
+| **Publishing / Agent Action** | ✍️ **1-Step Atomic Transaction:** Single database mutation writes title, takeaways, photos, and markdown atomically. | 🔄 **Multi-Step Flow:** Generate upload URL $\rightarrow$ HTTP POST blob $\rightarrow$ get `storageId` $\rightarrow$ insert document (risk of orphaned blobs). |
+| **Capacity & Economics** | A typical 2,000-word article is **~8 KB**, utilizing <1% of the **1 MB Convex document limit**. | Unlimited storage; ideal for multi-megabyte PDFs, audio, or video binaries. |
+| **Payload Optimization** | **List Projections:** Landing page queries fetch only card metadata (`title`, `slug`, `subtitle`, `coverImage`), keeping grid payloads lightweight. | Separate files, but introduces network roundtrips. |
+
+### Decision Summary
+- **Binary Photos & Uploads:** Use **Convex File Storage (`_storage`)** or optimized CDN URLs for cover images.
+- **Article Markdown Body & Key Takeaways:** Store directly in the **Convex Database Document (`content: v.string()`)** for instant loading, full-text search indexing, and atomic agent deliverables.
+

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { AuthGuard } from "@/components/AuthGuard";
 import {
@@ -20,43 +20,77 @@ import {
   Send,
   BookOpen,
   Settings,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
 
 export default function DashboardPage() {
   const {
-    agentState,
-    userInterests,
+    agentState: fallbackAgentState,
+    userInterests: fallbackInterests,
     topics,
-    requests,
+    requests: fallbackRequests,
     articles,
-    submitRequest,
-    triggerManualWake
+    triggerManualWake,
   } = useApp();
 
   const { logoUrl } = useBrandAssets();
   const user = useQuery(api.users.viewer);
+  const liveAgent = useQuery(api.agents.getAgentState);
+  const liveInterests = useQuery(api.users.getInterests);
+  const liveRequests = useQuery(api.requests.listUserRequests);
+  const createRequestMutation = useMutation(api.requests.createRequest);
+
   const displayName = user?.name || user?.email?.split("@")[0] || "Friend";
+
+  const agentState = liveAgent || fallbackAgentState;
+  const userInterests = liveInterests && liveInterests.length > 0 ? liveInterests : fallbackInterests;
+
+  const rawRequests =
+    liveRequests && liveRequests.length > 0
+      ? liveRequests.map((r) => ({
+          id: r._id,
+          prompt: r.prompt,
+          category: r.category,
+          status: r.status,
+          submittedAt: r.submittedAt,
+          scheduledFor: r.scheduledFor,
+          completedAt: r.completedAt,
+          contentId: r.contentId,
+          contentTitle: r.contentTitle,
+          isReused: r.isReused,
+          reuseNote: r.reuseNote,
+        }))
+      : fallbackRequests;
 
   const [promptInput, setPromptInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Health & Nutrition");
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState(false);
 
-  const handlePromptSubmit = (e: React.FormEvent) => {
+  const handlePromptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promptInput.trim()) return;
 
     setSubmitting(true);
-    submitRequest(promptInput, selectedCategory);
-    setPromptInput("");
-    setSubmitting(false);
-    setSuccessToast(true);
-    setTimeout(() => setSuccessToast(false), 4000);
+    try {
+      await createRequestMutation({
+        prompt: promptInput.trim(),
+        category: selectedCategory,
+      });
+      setPromptInput("");
+      setSuccessToast(true);
+      setTimeout(() => setSuccessToast(false), 4000);
+    } catch (err) {
+      console.error("Failed to create request:", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const completedRequests = requests.filter((r) => r.status === "COMPLETED");
-  const pendingRequests = requests.filter((r) => r.status === "PENDING" || r.status === "PROCESSING");
+  const completedRequests = rawRequests.filter((r) => r.status === "COMPLETED");
+  const pendingRequests = rawRequests.filter((r) => r.status === "PENDING" || r.status === "PROCESSING");
+
 
   return (
     <AuthGuard

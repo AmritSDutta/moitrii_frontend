@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import {
   Clock,
   User,
@@ -15,20 +17,25 @@ import {
   ArrowLeft,
   CheckCircle2,
   Play,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 
 export default function ContentReaderPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { articles } = useApp();
+  const { articles: fallbackArticles } = useApp();
   const [copied, setCopied] = useState(false);
 
-  // Find article by id or fallback to first
-  const article =
-    articles.find((a) => a.id === id || a.slug === id) || articles[0];
+  const slugParam = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
+  const convexArticle = useQuery(api.content.getContentBySlug, { slug: slugParam });
 
-  const relatedArticles = articles.filter((a) => a.id !== article.id).slice(0, 2);
+  // Fallback if not found in Convex or still loading initial local preview
+  const fallbackArticle =
+    fallbackArticles.find((a) => a.id === slugParam || a.slug === slugParam) || fallbackArticles[0];
+
+  const article: any = convexArticle || fallbackArticle;
+  const relatedArticles = fallbackArticles.filter((a) => a.id !== slugParam && a.slug !== slugParam).slice(0, 2);
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
@@ -37,6 +44,7 @@ export default function ContentReaderPage() {
       setTimeout(() => setCopied(false), 2500);
     }
   };
+
 
   return (
     <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
@@ -98,8 +106,8 @@ export default function ContentReaderPage() {
         </div>
       </header>
 
-      {/* 2. Hero Visual */}
-      <div className="relative aspect-[16/9] w-full rounded-3xl overflow-hidden shadow-editorial ring-1 ring-petal-200">
+      {/* 2. Editorial Cover Photo */}
+      <div className="relative aspect-[16/9] rounded-3xl overflow-hidden shadow-editorial border border-petal-200 bg-white">
         <Image
           src={article.coverImage}
           alt={article.title}
@@ -119,7 +127,7 @@ export default function ContentReaderPage() {
             </h2>
           </div>
           <ul className="space-y-2.5 text-sm text-charcoal-800">
-            {article.takeaways.map((point, idx) => (
+            {article.takeaways.map((point: string, idx: number) => (
               <li key={idx} className="flex items-start space-x-2.5">
                 <CheckCircle2 className="w-4 h-4 text-forest-700 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{point}</span>
@@ -152,27 +160,29 @@ export default function ContentReaderPage() {
 
       {/* 5. Article Content Body */}
       <div className="prose prose-stone max-w-none text-charcoal-800 space-y-6 text-sm sm:text-base leading-relaxed">
-        {article.content.split("\n\n").map((block, idx) => {
-          if (block.startsWith("### ")) {
+        {article.content ? (
+          article.content.split("\n\n").map((block: string, idx: number) => {
+            if (block.startsWith("### ")) {
+              return (
+                <h3 key={idx} className="font-editorial text-2xl font-bold text-charcoal-900 pt-4">
+                  {block.replace("### ", "")}
+                </h3>
+              );
+            }
+            if (block.startsWith("#### ")) {
+              return (
+                <h4 key={idx} className="font-editorial text-xl font-bold text-charcoal-900 pt-2">
+                  {block.replace("#### ", "")}
+                </h4>
+              );
+            }
             return (
-              <h3 key={idx} className="font-editorial text-2xl font-bold text-charcoal-900 pt-4">
-                {block.replace("### ", "")}
-              </h3>
+              <p key={idx} className="text-charcoal-700 leading-relaxed">
+                {block}
+              </p>
             );
-          }
-          if (block.startsWith("#### ")) {
-            return (
-              <h4 key={idx} className="font-editorial text-xl font-bold text-charcoal-900 pt-2">
-                {block.replace("#### ", "")}
-              </h4>
-            );
-          }
-          return (
-            <p key={idx} className="text-charcoal-700 leading-relaxed">
-              {block}
-            </p>
-          );
-        })}
+          })
+        ) : null}
       </div>
 
       {/* 6. Verified Sources & Citations */}
@@ -182,7 +192,7 @@ export default function ContentReaderPage() {
             Verified Research Sources
           </h3>
           <ul className="space-y-2">
-            {article.sources.map((src, i) => (
+            {article.sources.map((src: any, i: number) => (
               <li key={i} className="flex items-center space-x-2 text-xs">
                 <ExternalLink className="w-3.5 h-3.5 text-forest-700 shrink-0" />
                 <a

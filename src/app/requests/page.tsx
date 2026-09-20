@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/AppContext";
 import { AuthGuard } from "@/components/AuthGuard";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   Inbox,
   PlusCircle,
@@ -14,30 +16,60 @@ import {
   Sparkles,
   ArrowRight,
   Filter,
-  Send
+  Send,
+  Loader2
 } from "lucide-react";
 
 export default function RequestsPage() {
-  const { requests, topics, submitRequest, agentState } = useApp();
+  const { requests: fallbackRequests, topics, agentState } = useApp();
+  const liveRequests = useQuery(api.requests.listUserRequests);
+  const createRequestMutation = useMutation(api.requests.createRequest);
+
+  const rawRequests =
+    liveRequests && liveRequests.length > 0
+      ? liveRequests.map((r) => ({
+          id: r._id,
+          prompt: r.prompt,
+          category: r.category,
+          status: r.status,
+          submittedAt: r.submittedAt,
+          scheduledFor: r.scheduledFor,
+          completedAt: r.completedAt,
+          contentId: r.contentId,
+          contentTitle: r.contentTitle,
+          isReused: r.isReused,
+          reuseNote: r.reuseNote,
+        }))
+      : fallbackRequests;
+
   const [prompt, setPrompt] = useState("");
   const [category, setCategory] = useState("Health & Nutrition");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showToast, setShowToast] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
 
-    submitRequest(prompt, category);
-    setPrompt("");
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 4000);
+    setSubmitting(true);
+    try {
+      await createRequestMutation({ prompt: prompt.trim(), category });
+      setPrompt("");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 4000);
+    } catch (err) {
+      console.error("Failed to create request:", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const filteredRequests = requests.filter((r) => {
+  const filteredRequests = rawRequests.filter((r) => {
     if (statusFilter === "ALL") return true;
     return r.status === statusFilter;
   });
+
 
   return (
     <AuthGuard
@@ -122,7 +154,7 @@ export default function RequestsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-petal-200 pb-4">
           <div>
             <h3 className="font-editorial text-2xl font-bold text-charcoal-900">
-              Request History ({requests.length})
+              Request History ({rawRequests.length})
             </h3>
             <p className="text-xs text-charcoal-500">
               Real-time lifecycle from PENDING to COMPLETED.

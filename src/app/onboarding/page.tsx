@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { AuthGuard } from "@/components/AuthGuard";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   Heart,
   Utensils,
@@ -17,12 +19,42 @@ import {
   Zap,
   Smile,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { topics, userInterests, toggleInterest } = useApp();
+  const { topics, userInterests: fallbackInterests } = useApp();
+  const liveInterests = useQuery(api.users.getInterests);
+  const updateInterestsMutation = useMutation(api.users.updateInterests);
+
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (liveInterests && liveInterests.length > 0) {
+      setSelectedInterests(liveInterests);
+    } else if (fallbackInterests && fallbackInterests.length > 0) {
+      setSelectedInterests(fallbackInterests);
+    }
+  }, [liveInterests, fallbackInterests]);
+
+  const userInterests = selectedInterests;
+
+  const toggleInterest = async (topicId: string) => {
+    const updated = selectedInterests.includes(topicId)
+      ? selectedInterests.filter((id) => id !== topicId)
+      : [...selectedInterests, topicId];
+
+    setSelectedInterests(updated);
+    try {
+      await updateInterestsMutation({ topicIds: updated });
+    } catch (err) {
+      console.error("Failed to sync interests:", err);
+    }
+  };
+
 
   const getIcon = (iconName: string) => {
     switch (iconName) {

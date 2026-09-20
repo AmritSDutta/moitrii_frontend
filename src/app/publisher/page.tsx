@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
 import { AuthGuard } from "@/components/AuthGuard";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 import {
   PenTool,
   Sparkles,
@@ -13,12 +16,16 @@ import {
   Plus,
   Trash2,
   UploadCloud,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  Loader2
 } from "lucide-react";
 
 export default function PublisherStudioPage() {
   const router = useRouter();
-  const { topics, publishArticle } = useApp();
+  const { topics } = useApp();
+  const publishContent = useMutation(api.content.publishContent);
+  const generateUploadUrl = useMutation(api.content.generateUploadUrl);
 
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [title, setTitle] = useState("");
@@ -29,6 +36,9 @@ export default function PublisherStudioPage() {
   const [coverImage, setCoverImage] = useState(
     "https://images.unsplash.com/photo-1540420773420-3366772f4999?q=80&w=1200&auto=format&fit=crop"
   );
+  const [coverImageStorageId, setCoverImageStorageId] = useState<Id<"_storage"> | undefined>(undefined);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [youtubeId, setYoutubeId] = useState("");
   const [youtubeTitle, setYoutubeTitle] = useState("");
   const [takeaways, setTakeaways] = useState<string[]>([
@@ -53,34 +63,64 @@ export default function PublisherStudioPage() {
     setTakeaways(takeaways.filter((_, i) => i !== index));
   };
 
-  const handlePublish = (e: React.FormEvent) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await result.json();
+      setCoverImageStorageId(storageId);
+      setCoverImage(URL.createObjectURL(file));
+    } catch (err) {
+      console.error("Failed to upload image to Convex storage:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "");
+    setIsPublishing(true);
+    try {
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
 
-    const newArt = publishArticle({
-      title,
-      slug,
-      subtitle,
-      category,
-      author,
-      readTime,
-      coverImage,
-      youtubeId: youtubeId.trim() || undefined,
-      youtubeTitle: youtubeTitle.trim() || undefined,
-      takeaways: takeaways.filter((t) => t.trim() !== ""),
-      content,
-      sources: [
-        { title: "Moitrii Verified Editorial Knowledge", url: "https://example.com" }
-      ]
-    });
+      const res = await publishContent({
+        title: title.trim(),
+        slug,
+        subtitle: subtitle.trim(),
+        category,
+        author: author.trim(),
+        authorType: "human",
+        readTime: readTime.trim(),
+        coverImage,
+        coverImageStorageId,
+        youtubeId: youtubeId.trim() || undefined,
+        youtubeTitle: youtubeTitle.trim() || undefined,
+        takeaways: takeaways.filter((t) => t.trim() !== ""),
+        content: content.trim(),
+        sources: [
+          { title: "Moitrii Verified Editorial Knowledge", url: "https://example.com" }
+        ],
+      });
 
-    router.push(`/content/${newArt.id}`);
+      router.push(`/content/${res.slug}`);
+    } catch (err) {
+      console.error("Failed to publish content:", err);
+      setIsPublishing(false);
+    }
   };
+
 
   return (
     <AuthGuard
@@ -215,14 +255,38 @@ export default function PublisherStudioPage() {
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-charcoal-700 block mb-1">
-                  Cover Image URL
+                  Cover Image (Upload file or enter URL)
                 </label>
-                <input
-                  type="url"
-                  value={coverImage}
-                  onChange={(e) => setCoverImage(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-petal-50 rounded-xl border border-petal-200"
-                />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <input
+                    type="url"
+                    value={coverImage}
+                    onChange={(e) => setCoverImage(e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full px-3 py-2 text-xs bg-petal-50 rounded-xl border border-petal-200"
+                  />
+                  <label className="shrink-0 inline-flex items-center justify-center space-x-2 bg-white hover:bg-petal-100 text-charcoal-800 text-xs font-semibold px-4 py-2 rounded-xl border border-petal-300 cursor-pointer shadow-xs transition-colors">
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-forest-800" />
+                    ) : (
+                      <Upload className="w-4 h-4 text-forest-800" />
+                    )}
+                    <span>{isUploading ? "Uploading..." : "Upload Image"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={isUploading}
+                    />
+                  </label>
+                </div>
+                {coverImageStorageId && (
+                  <p className="text-[11px] text-emerald-700 mt-1 font-medium flex items-center space-x-1">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Image uploaded to Convex File Storage</span>
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -246,7 +310,7 @@ export default function PublisherStudioPage() {
                     type="text"
                     value={youtubeTitle}
                     onChange={(e) => setYoutubeTitle(e.target.value)}
-                    placeholder="Video Title"
+                    placeholder="e.g. Gentle Morning Yoga Flow"
                     className="w-full px-3 py-2 text-xs bg-petal-50 rounded-xl border border-petal-200"
                   />
                 </div>
@@ -257,25 +321,33 @@ export default function PublisherStudioPage() {
           {/* Key Takeaways Builder */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-petal-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-editorial text-xl font-bold text-charcoal-900">
-                Key Takeaways / Highlights
-              </h2>
+              <div>
+                <h2 className="font-editorial text-xl font-bold text-charcoal-900">
+                  Key Takeaway Highlights
+                </h2>
+                <p className="text-xs text-charcoal-500">
+                  3-4 core lessons or takeaways for the reader callout card.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={addTakeaway}
-                className="text-xs font-bold text-forest-800 bg-forest-50 hover:bg-forest-100 px-3 py-1.5 rounded-full flex items-center space-x-1"
+                className="text-xs font-bold text-forest-800 hover:text-forest-900 flex items-center space-x-1 bg-forest-50 px-3 py-1.5 rounded-full border border-forest-100"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Takeaway</span>
+                <span>Add Bullet</span>
               </button>
             </div>
 
-            <div className="space-y-2.5">
-              {takeaways.map((point, i) => (
+            <div className="space-y-3">
+              {takeaways.map((t, i) => (
                 <div key={i} className="flex items-center space-x-2">
+                  <span className="w-5 h-5 rounded-full bg-petal-100 text-charcoal-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {i + 1}
+                  </span>
                   <input
                     type="text"
-                    value={point}
+                    value={t}
                     onChange={(e) => updateTakeaway(i, e.target.value)}
                     placeholder={`Takeaway bullet ${i + 1}`}
                     className="w-full px-3 py-2 text-xs bg-petal-50 rounded-xl border border-petal-200"
@@ -312,10 +384,15 @@ export default function PublisherStudioPage() {
           <div className="flex items-center justify-end space-x-4">
             <button
               type="submit"
-              className="bg-forest-800 hover:bg-forest-900 text-white text-xs font-bold px-8 py-3.5 rounded-full transition-colors flex items-center space-x-2 shadow-md"
+              disabled={isPublishing}
+              className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs font-bold px-8 py-3.5 rounded-full transition-colors flex items-center space-x-2 shadow-md"
             >
-              <UploadCloud className="w-4 h-4" />
-              <span>Publish to Shared Ecosystem</span>
+              {isPublishing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <UploadCloud className="w-4 h-4" />
+              )}
+              <span>{isPublishing ? "Publishing to Convex..." : "Publish to Shared Ecosystem"}</span>
             </button>
           </div>
         </form>

@@ -51,16 +51,19 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_status", ["status"]),
 
-  // Shared knowledge library & publisher content
+  // Shared knowledge library & publisher/agent content
   content: defineTable({
     title: v.string(),
     slug: v.string(),
     subtitle: v.string(),
     category: v.string(),
     author: v.string(),
+    authorId: v.optional(v.id("users")),
+    authorType: v.optional(v.union(v.literal("human"), v.literal("agent"))),
     readTime: v.string(),
     publishedAt: v.string(),
     coverImage: v.string(),
+    coverImageStorageId: v.optional(v.id("_storage")),
     reusedCount: v.number(),
     isReused: v.boolean(),
     takeaways: v.array(v.string()),
@@ -73,7 +76,13 @@ export default defineSchema({
         url: v.string(),
       })
     ),
+    generatedFromPrompt: v.optional(v.string()),
   })
     .index("by_slug", ["slug"])
-    .index("by_category", ["category"]),
+    .index("by_category", ["category"])
+    .searchIndex("search_content", {
+      searchField: "content",
+      filterFields: ["category"],
+    }),
 });
+
