@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T21:23:29Z
+- **Last updated:** 2026-09-20T21:47:40Z
 
 ## Log
 
@@ -39,6 +39,9 @@ Configured Convex Auth exclusively for Google OAuth and streamlined modal to 1-c
 
 ### 2026-09-20 - working tree
 Built Phase 3 Convex realtime data layer and connected all frontend screens without external scrapers. Added `convex/content.ts` with full-text search indexing for published guides, `convex/agents.ts` for persistent agent state and auto-initialization, `convex/requests.ts` for durable request queueing, and direct image upload to Convex File Storage (`_storage`) in Publisher Studio. Documented storage architecture tradeoff in README.md. Convex features: schema, indexes, full-text search, queries, mutations, file storage (`convex/schema.ts`, `convex/content.ts`, `convex/agents.ts`, `convex/requests.ts`, `src/app/**`).
+
+### 2026-09-20 - 7089cc1
+Added docs7 documentation site (`docs/`) with `docs.json` config and 7 MDX pages covering project overview, setup, architecture, data model, design system, UI screens, and Convex API reference. Updated `AGENTS.md` to reflect the current project structure and verified dev commands. Updated `README.md` architecture diagram to include all Convex functions (`getWhatsHot`, `initializeAgent`, `getBrandAssets`, auth/http modules) and added docs7 reference (`docs/**`, `AGENTS.md`, `README.md`).
 
 
 
