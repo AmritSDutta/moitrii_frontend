@@ -8,11 +8,11 @@
 - **Frontend:** not deployed
 - **Convex deployment:** not deployed
 - **Components:** none
-- **Convex features:** schema, queries, mutations, file storage
+- **Convex features:** schema, indexes, full-text search, queries, mutations, file storage
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T20:56:34Z
+- **Last updated:** 2026-09-20T21:23:29Z
 
 ## Log
 
@@ -36,5 +36,9 @@ Fixed Next.js middleware static asset exclusion matcher (`src/middleware.ts`) to
 
 ### 2026-09-20 - 4bcffa3
 Configured Convex Auth exclusively for Google OAuth and streamlined modal to 1-click sign-in (`convex/auth.ts`, `src/components/AuthModal.tsx`). Implemented `AuthGuard` to protect member navigation routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`) while keeping `/` public. Wired live user profile name and Google avatar into Navbar and Dashboard greeting. Added Google avatar domain to Next.js image config (`next.config.mjs`). Convex features: queries (`convex/users.ts`, `convex/auth.ts`).
+
+### 2026-09-20 - working tree
+Built Phase 3 Convex realtime data layer and connected all frontend screens without external scrapers. Added `convex/content.ts` with full-text search indexing for published guides, `convex/agents.ts` for persistent agent state and auto-initialization, `convex/requests.ts` for durable request queueing, and direct image upload to Convex File Storage (`_storage`) in Publisher Studio. Documented storage architecture tradeoff in README.md. Convex features: schema, indexes, full-text search, queries, mutations, file storage (`convex/schema.ts`, `convex/content.ts`, `convex/agents.ts`, `convex/requests.ts`, `src/app/**`).
+
 
 
