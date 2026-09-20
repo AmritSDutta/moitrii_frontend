@@ -42,10 +42,8 @@ export const Footer: React.FC = () => {
       setEmail("");
     } catch (err) {
       console.error("Failed to subscribe:", err);
-      // Fallback optimistic success for graceful experience
-      setStatus("success");
-      setFeedbackMessage("✨ Subscribed! Check your inbox for your weekly digest.");
-      setEmail("");
+      setStatus("error");
+      setFeedbackMessage("Could not subscribe right now. Please try again in a moment.");
     }
   };
 

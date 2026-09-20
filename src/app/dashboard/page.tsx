@@ -31,10 +31,7 @@ import {
 export default function DashboardPage() {
   const {
     agentState: fallbackAgentState,
-    userInterests: fallbackInterests,
     topics,
-    requests: fallbackRequests,
-    articles,
     triggerManualWake,
   } = useApp();
 
@@ -50,7 +47,7 @@ export default function DashboardPage() {
   const displayName = user?.name || user?.email?.split("@")[0] || "Friend";
 
   const agentState = liveAgent || fallbackAgentState;
-  const userInterests = liveInterests && liveInterests.length > 0 ? liveInterests : fallbackInterests;
+  const userInterests = liveInterests ?? [];
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedWakeTime, setSelectedWakeTime] = useState(
@@ -76,22 +73,20 @@ export default function DashboardPage() {
     }
   };
 
-  const rawRequests =
-    liveRequests && liveRequests.length > 0
-      ? liveRequests.map((r: any) => ({
-          id: r._id,
-          prompt: r.prompt,
-          category: r.category,
-          status: r.status,
-          submittedAt: r.submittedAt,
-          scheduledFor: r.scheduledFor,
-          completedAt: r.completedAt,
-          contentId: r.contentId,
-          contentTitle: r.contentTitle,
-          isReused: r.isReused,
-          reuseNote: r.reuseNote,
-        }))
-      : fallbackRequests;
+  const requestsLoading = liveRequests === undefined;
+  const rawRequests = (liveRequests ?? []).map((r) => ({
+    id: r._id,
+    prompt: r.prompt,
+    category: r.category,
+    status: r.status,
+    submittedAt: r.submittedAt,
+    scheduledFor: r.scheduledFor,
+    completedAt: r.completedAt,
+    contentId: r.contentId,
+    contentTitle: r.contentTitle,
+    isReused: r.isReused,
+    reuseNote: r.reuseNote,
+  }));
 
   const [promptInput, setPromptInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Health & Nutrition");
@@ -481,7 +476,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-4">
-            {completedRequests.map((req: any) => (
+            {requestsLoading ? (
+              <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center">
+                <p className="text-xs text-charcoal-500">Loading your agent&apos;s work…</p>
+              </div>
+            ) : completedRequests.length === 0 ? (
+              <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center space-y-2">
+                <p className="text-xs text-charcoal-500">No deliverables yet.</p>
+                <p className="text-[11px] text-charcoal-400">
+                  Submit a prompt above — your agent will prepare a guide at its next wake.
+                </p>
+              </div>
+            ) : (
+              completedRequests.map((req: any) => (
               <div
                 key={req.id}
                 className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
@@ -521,7 +528,8 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -542,7 +550,11 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-4">
-            {pendingRequests.length === 0 ? (
+            {requestsLoading ? (
+              <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center">
+                <p className="text-xs text-charcoal-500">Loading queued tasks…</p>
+              </div>
+            ) : pendingRequests.length === 0 ? (
               <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center space-y-2">
                 <p className="text-xs text-charcoal-500">No pending requests.</p>
                 <p className="text-[11px] text-charcoal-400">

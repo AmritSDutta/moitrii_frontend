@@ -18,7 +18,8 @@ import {
   UploadCloud,
   ArrowRight,
   Upload,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 
 export default function PublisherStudioPage() {
@@ -38,6 +39,7 @@ export default function PublisherStudioPage() {
   );
   const [coverImageStorageId, setCoverImageStorageId] = useState<Id<"_storage"> | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [youtubeId, setYoutubeId] = useState("");
   const [youtubeTitle, setYoutubeTitle] = useState("");
@@ -68,6 +70,7 @@ export default function PublisherStudioPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploading(true);
+    setUploadError("");
     try {
       const uploadUrl = await generateUploadUrl();
       const result = await fetch(uploadUrl, {
@@ -75,11 +78,18 @@ export default function PublisherStudioPage() {
         headers: { "Content-Type": file.type },
         body: file,
       });
+      if (!result.ok) {
+        throw new Error(`Upload failed with HTTP ${result.status}`);
+      }
       const { storageId } = await result.json();
-      setCoverImageStorageId(storageId);
+      if (typeof storageId !== "string") {
+        throw new Error("Upload response did not include a storage id");
+      }
+      setCoverImageStorageId(storageId as Id<"_storage">);
       setCoverImage(URL.createObjectURL(file));
     } catch (err) {
       console.error("Failed to upload image to Convex storage:", err);
+      setUploadError("Image upload failed. Check your connection and try again, or use an image URL instead.");
     } finally {
       setIsUploading(false);
     }
@@ -287,6 +297,12 @@ export default function PublisherStudioPage() {
                   <p className="text-[11px] text-emerald-700 mt-1 font-medium flex items-center space-x-1">
                     <CheckCircle className="w-3.5 h-3.5" />
                     <span>Image uploaded to Convex File Storage</span>
+                  </p>
+                )}
+                {uploadError && (
+                  <p className="text-[11px] text-red-600 mt-1 font-medium flex items-center space-x-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{uploadError}</span>
                   </p>
                 )}
               </div>

@@ -1,9 +1,36 @@
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
+
+const DEFAULT_CONTENT_LIMIT = 24;
+
+/**
+ * Card-facing projection for list views. Keeps landing/related grids light by
+ * omitting the full markdown body, takeaways, and sources.
+ */
+function toContentCard(doc: Doc<"content">) {
+  return {
+    _id: doc._id,
+    slug: doc.slug,
+    title: doc.title,
+    subtitle: doc.subtitle,
+    category: doc.category,
+    author: doc.author,
+    authorType: doc.authorType,
+    readTime: doc.readTime,
+    publishedAt: doc.publishedAt,
+    coverImage: doc.coverImage,
+    reusedCount: doc.reusedCount,
+    isReused: doc.isReused,
+    youtubeId: doc.youtubeId,
+    youtubeTitle: doc.youtubeTitle,
+  };
+}
 
 /**
  * Lists published articles with optional category filtering and limit.
+ * Bounded read returning only card metadata.
  */
 export const getPublishedContent = query({
   args: {
@@ -11,42 +38,38 @@ export const getPublishedContent = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db.query("content");
+    const limit = Math.min(args.limit ?? DEFAULT_CONTENT_LIMIT, DEFAULT_CONTENT_LIMIT);
 
-    if (args.category && args.category !== "all") {
-      const results = await ctx.db
-        .query("content")
-        .withIndex("by_category", (q) => q.eq("category", args.category!))
-        .order("desc")
-        .collect();
+    const results =
+      args.category && args.category !== "all"
+        ? await ctx.db
+            .query("content")
+            .withIndex("by_category", (q) => q.eq("category", args.category!))
+            .order("desc")
+            .take(limit)
+        : await ctx.db.query("content").order("desc").take(limit);
 
-      if (args.limit) {
-        return results.slice(0, args.limit);
-      }
-      return results;
-    }
-
-    const results = await q.order("desc").collect();
-    if (args.limit) {
-      return results.slice(0, args.limit);
-    }
-    return results;
+    return results.map(toContentCard);
   },
 });
 
 /**
- * Returns trending / popular articles (highest reusedCount).
+ * Returns trending / popular articles (highest reusedCount) via index order.
  */
 export const getWhatsHot = query({
   args: {
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const results = await ctx.db.query("content").collect();
-    // Sort descending by reusedCount
-    results.sort((a, b) => (b.reusedCount ?? 0) - (a.reusedCount ?? 0));
-    const limit = args.limit ?? 4;
-    return results.slice(0, limit);
+    const limit = Math.min(args.limit ?? 4, DEFAULT_CONTENT_LIMIT);
+
+    const results = await ctx.db
+      .query("content")
+      .withIndex("by_reused_count")
+      .order("desc")
+      .take(limit);
+
+    return results.map(toContentCard);
   },
 });
 

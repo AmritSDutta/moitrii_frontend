@@ -15,7 +15,8 @@ export function useBrandAssets() {
   try {
     data = useQuery(api.files.getBrandAssets);
   } catch (e) {
-    // Fallback when Convex client is uninitialized or during static generation
+    // Fallback when the query throws during static generation or against an
+    // unreachable deployment — keeps Navbar/AuthModal rendering with local assets.
   }
 
   const logoUrl = data?.logoUrl || "/images/moitrii_logo.jpg";

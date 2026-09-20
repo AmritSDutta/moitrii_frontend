@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -46,13 +46,17 @@ export default function ContentReaderPage() {
 
   const slugParam = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
   const convexArticle = useQuery(api.content.getContentBySlug, { slug: slugParam });
+  const articleLoading = convexArticle === undefined;
 
-  // Fallback if not found in Convex or still loading initial local preview
-  const fallbackArticle =
-    fallbackArticles.find((a) => a.id === slugParam || a.slug === slugParam) || fallbackArticles[0];
+  // Demo article renders only on an exact slug match; unknown slugs 404 below.
+  const demoArticle = fallbackArticles.find((a) => a.id === slugParam || a.slug === slugParam);
+  const article: any = convexArticle ?? demoArticle;
 
-  const article: any = convexArticle || fallbackArticle;
-  const relatedArticles = fallbackArticles.filter((a) => a.id !== slugParam && a.slug !== slugParam).slice(0, 2);
+  // Related stories come from the live shared ecosystem, not mock data.
+  const relatedDocs = useQuery(api.content.getPublishedContent, { limit: 6 });
+  const relatedArticles = (relatedDocs ?? [])
+    .filter((rel) => rel.slug !== slugParam && String(rel._id) !== slugParam)
+    .slice(0, 2);
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
@@ -61,6 +65,19 @@ export default function ContentReaderPage() {
       setTimeout(() => setCopied(false), 2500);
     }
   };
+
+  if (!articleLoading && !article) {
+    notFound();
+  }
+
+  if (articleLoading || !article) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+        <div className="w-10 h-10 rounded-full border-2 border-forest-800 border-t-transparent animate-spin mx-auto mb-4" />
+        <p className="text-xs text-charcoal-500">Loading guide…</p>
+      </div>
+    );
+  }
 
 
   return (
@@ -299,8 +316,8 @@ export default function ContentReaderPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {relatedArticles.map((rel) => (
             <Link
-              key={rel.id}
-              href={`/content/${rel.id}`}
+              key={rel._id}
+              href={`/content/${rel.slug}`}
               className="bg-white p-5 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
             >
               <div className="relative aspect-[16/9] rounded-xl overflow-hidden">

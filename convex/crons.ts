@@ -4,12 +4,13 @@ import { internal } from "./_generated/api";
 const crons = cronJobs();
 
 /**
- * Autonomous hourly cron job that evaluates due wake cycles, checks for queued
- * user research requests, and dispatches wake execution webhooks to the Python agent backend.
+ * Autonomous hourly cron job that evaluates due wake cycles (gated by each
+ * agent's IST wakeTimeOfDay), checks for queued user research requests, and
+ * dispatches wake execution webhooks to the Python agent backend.
  */
-crons.hourly(
+crons.cron(
   "autonomous-agent-wake-cycle",
-  { minuteUTC: 30 }, // 30 mins offset aligns with IST (:30) boundaries e.g. 23:00 IST = 17:30 UTC
+  "30 * * * *", // 30 mins past each hour; IST offset is +5:30, so this aligns with :00 IST boundaries
   internal.agentRunner.triggerScheduledWakes,
   {}
 );

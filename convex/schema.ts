@@ -103,6 +103,7 @@ export default defineSchema({
   })
     .index("by_slug", ["slug"])
     .index("by_category", ["category"])
+    .index("by_reused_count", ["reusedCount"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["category"],

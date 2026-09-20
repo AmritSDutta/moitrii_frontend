@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T23:05:00Z
+- **Last updated:** 2026-09-20T23:54:18Z
 
 ## Log
 
@@ -46,8 +46,11 @@ Added docs7 documentation site (`docs/`) with `docs.json` config and 7 MDX pages
 ### 2026-09-20 - 86eb00c
 Added a two-tier Vitest suite: mocked UI tests for AuthGuard states, request submission, and interest toggling, plus `convex-test` coverage for request persistence and per-user isolation, interest insert/patch, and content slug/publish auth. 16 tests pass. Convex features: queries, mutations (`vitest.config.ts`, `src/test/setup.tsx`, `src/**/*.test.tsx`, `convex/requests.test.ts`, `convex/users.test.ts`, `convex/content.test.ts`). Fixed route dev errors with cross-env pinning, and documented troubleshooting in README and docs7 FAQ (`README.md`, `docs/faq.mdx`, `docs/docs.json`, `package.json`).
 
-### 2026-09-20 - working tree
+### 2026-09-20 - d0d0cbe
 Added dedicated `subscribers` table and `convex/subscribers.ts` with `subscribeDigest` mutation for anonymous and authenticated visitors to subscribe to the weekly intentional lifestyle digest with regex validation and deduplication. Updated `Footer.tsx` with email validation, error/success feedback states, and updated copy. Built autonomous background AI agent execution system: configured default 11:00 PM IST schedule upon first user initialization (`convex/agents.ts`), added `updateWakeSchedule` mutation enforcing calm-tech night window validation (permitting only 9:00 PM – 9:00 AM IST and rejecting daytime hours 09:01–20:59), added `convex/crons.ts` and `convex/agentRunner.ts` internal actions/mutations to dispatch scheduled wake webhooks to the external Python AI agent backend (`POST /api/agent/complete` in `convex/http.ts`), built interactive Schedule Editor modal with presets and custom picker in Dashboard (`src/app/dashboard/page.tsx`). Added user `preferredLanguage` support (`en` default, `bn`, `hi`) in schema, viewer query, `updatePreferredLanguage` mutation, and dashboard selector, forwarded to agent wake payloads. Added optional `audioUrl` on content items with in-article audio narration player directly below article title (disabled indicator when not present) and publisher studio audio input. Added explicit author type badges (`AI Agent Companion` vs `Human Author`) and prominent AI synthetic content disclaimer banner. Expanded Vitest test suite (`convex/users.test.ts`, `convex/content.test.ts`, `convex/agents.test.ts`) to 28 passing tests with 0 type errors. Convex features: schema, indexes, queries, mutations, actions, crons, http (`convex/schema.ts`, `convex/subscribers.ts`, `convex/subscribers.test.ts`, `convex/agents.ts`, `convex/agents.test.ts`, `convex/agentRunner.ts`, `convex/crons.ts`, `convex/http.ts`, `convex/users.ts`, `convex/users.test.ts`, `convex/content.ts`, `convex/content.test.ts`, `src/components/Footer.tsx`, `src/app/dashboard/page.tsx`, `src/app/content/[id]/page.tsx`, `src/app/publisher/page.tsx`, `docs/**`).
+
+### 2026-09-20 - working tree
+Hardened the autonomous agent loop after a code review. The completion webhook `/api/agent/complete` now fails closed (503 when `AGENT_SERVICE_SECRET` is unset, 401 on mismatch) and validates every payload field before writing; dispatches that cannot reach the Python service revert agents to SLEEPING and requests to PENDING instead of stranding them in PROCESSING; the hourly cron now dispatches only agents whose IST wake time actually elapsed, so the calm-tech night window is enforced server-side. Landing/list queries return bounded card projections via a new `by_reused_count` index, unknown article slugs render the 404 page instead of mock content, and dashboard/request views show live data with loading states. Added webhook-validation and wake-gating tests (35 passing). Convex features: http actions, crons, indexes, queries, mutations (`convex/http.ts`, `convex/agentRunner.ts`, `convex/crons.ts`, `convex/content.ts`, `convex/schema.ts`, `convex/http.test.ts`, `convex/agentRunner.test.ts`, `src/app/**`).
 
 
 
