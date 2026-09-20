@@ -1,0 +1,97 @@
+---
+title: FAQ
+description: Troubleshooting common local setup issues — a production environment variable breaking the dev server, missing dev dependencies, Vitest runtime errors, and Convex codegen.
+---
+
+# FAQ
+
+## Every page returns 500 in dev with `EvalError: Code generation from strings disallowed`
+
+**Symptom:** `npm run dev` starts, but every route responds with HTTP 500 and the server logs:
+
+```
+EvalError: Code generation from strings disallowed for this context
+    at (middleware)/./src/middleware.ts
+```
+
+Next.js may also warn: *"You are using a non-standard `NODE_ENV` value in your environment."*
+
+**Cause:** `NODE_ENV` is set to `production` in your environment — most often a system-wide variable. Next.js disables `eval` inside its edge sandbox whenever `NODE_ENV === "production"`:
+
+```js
+// next/dist/server/web/sandbox/context.js
+codeGeneration: process.env.NODE_ENV !== "production"
+  ? { strings: true, wasm: true }
+  : undefined,
+```
+
+Because `src/middleware.ts` runs inside that sandbox, and the dev middleware bundle uses `eval`, the middleware fails to evaluate and the request never reaches a page.
+
+**Fix:** run the app through the npm scripts, which pin the correct value with `cross-env`:
+
+```bash
+npm run dev   # cross-env NODE_ENV=development next dev
+```
+
+If you invoke `next dev` directly or add a new script, set it yourself:
+
+```bash
+npx cross-env NODE_ENV=development next dev
+```
+
+Unsetting the system-wide `NODE_ENV=production` removes the root cause entirely.
+
+## `npm install` deletes dev dependencies
+
+**Symptom:** After `npm install`, packages such as `vitest`, `tailwindcss`, or `typescript` are gone from `node_modules`, and `npm run test` / `npm run lint` fail.
+
+**Cause:** npm is configured with `omit=dev`, which it inherits automatically from a global `NODE_ENV=production` — the same root cause as the 500s above.
+
+**Fix:** install with dev dependencies included:
+
+```bash
+npm install --include=dev
+```
+
+## Tests fail with `act(...) is not supported in production builds of React`
+
+**Symptom:** UI tests throw `Error: act(...) is not supported in production builds of React` as soon as `render()` is called.
+
+**Cause:** React resolves to its **production** build, because `NODE_ENV=production` is set when the test runner boots.
+
+**Fix:** `vitest.config.ts` already forces the test environment via `test.env`:
+
+```ts
+test: {
+  env: { NODE_ENV: "test" },
+  // ...
+}
+```
+
+If you run Vitest from another entry point (a custom script, an IDE runner), make sure `NODE_ENV` is not `production`.
+
+## Where do the tests live, and how do I run them?
+
+Two tiers run under one config:
+
+| Tier | Location | Environment | What it covers |
+|------|----------|-------------|----------------|
+| UI | `src/**/*.test.{ts,tsx}` | `jsdom` | Components/pages with `convex/react` and auth hooks mocked |
+| Convex | `convex/**/*.test.ts` | `edge-runtime` | Real functions via `convex-test` against an in-memory backend |
+
+```bash
+npm test          # run both projects once
+npm run test:watch  # watch mode
+```
+
+## Convex functions are missing types / `_generated` is empty
+
+**Symptom:** Imports from `convex/_generated/api` fail, or the app cannot resolve any Convex function.
+
+**Cause:** `convex/_generated/` is gitignored, so a fresh clone has no generated client until Convex codegen runs.
+
+**Fix:** start the Convex dev server once (or run codegen) to generate it:
+
+```bash
+npx convex dev
+```

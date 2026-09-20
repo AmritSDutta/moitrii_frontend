@@ -226,3 +226,35 @@ Your Agent's Work
 - **Binary Photos & Uploads:** Use **Convex File Storage (`_storage`)** or optimized CDN URLs for cover images.
 - **Article Markdown Body & Key Takeaways:** Store directly in the **Convex Database Document (`content: v.string()`)** for instant loading, full-text search indexing, and atomic agent deliverables.
 
+---
+
+## ❓ FAQ
+
+### Every page returns 500 in dev with `EvalError: Code generation from strings disallowed`
+
+**Cause:** `NODE_ENV` is set to `production` in your environment (commonly a system-wide variable). Next.js disables `eval` inside its edge sandbox whenever `NODE_ENV === "production"` (`next/dist/server/web/sandbox/context.js`), and `src/middleware.ts` runs in that sandbox — so every request fails before it reaches a page. Next also warns: *"You are using a non-standard NODE_ENV value."*
+
+**Fix:** The npm scripts already pin the correct value with `cross-env`, so use `npm run dev`. If you invoke `next dev` directly (or add a new script), set it yourself:
+
+```bash
+npx cross-env NODE_ENV=development next dev
+```
+
+Unsetting the system-wide `NODE_ENV=production` removes the root cause entirely.
+
+### `npm install` deletes dev dependencies (`vitest`, `tailwindcss`, `typescript` disappear)
+
+**Cause:** npm is configured with `omit=dev`, which it inherits automatically from a global `NODE_ENV=production` (same root cause as above).
+
+**Fix:** install with dev dependencies included:
+
+```bash
+npm install --include=dev
+```
+
+### Tests fail with `act(...) is not supported in production builds of React`
+
+**Cause:** React resolves to its production build because `NODE_ENV=production` is set when the test runner starts.
+
+**Fix:** Vitest already forces `NODE_ENV=test` via `test.env` in `vitest.config.ts`. If you run Vitest from another entry point, ensure `NODE_ENV` is not `production`.
+

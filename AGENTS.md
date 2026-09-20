@@ -13,15 +13,17 @@ This repository implements a React/Next.js frontend (`src/`) backed by a Convex 
 
 ## Build, Test, and Development Commands
 
-Run `npm install` once to install frontend dependencies listed in `package.json`. The verified workflow is:
+Run `npm install` once to install dependencies listed in `package.json`. The verified workflow is:
 
-- `npm install` — install frontend dependencies.
+- `npm install` — install dependencies.
 - `npm run dev` — start the Next.js frontend dev server at `http://localhost:3000`.
 - `npx convex dev` — start the local Convex backend with hot reload (run in a second terminal).
 - `npm run build` — create a production frontend build.
 - `npm run lint` — run the Next.js linter.
+- `npm test` — run the Vitest suite (UI + Convex projects).
+- `npm run test:watch` — run Vitest in watch mode.
 
-No test framework is configured yet; add tests beside the relevant TypeScript modules as `*.test.ts` or `*.test.tsx` following the Testing Guidelines below. Only add test scripts to `package.json` after they have been run successfully in the current checkout.
+If `npm install` prunes dev dependencies (a global `omit=dev` npm config), re-run it with `npm install --include=dev`.
 
 ## Coding Style & Naming Conventions
 
@@ -29,7 +31,12 @@ Use the formatter and linter configured by the project; add them before introduc
 
 ## Testing Guidelines
 
-No testing framework is configured yet. Add tests beside the relevant TypeScript modules as `*.test.ts` or `*.test.tsx`, and keep Python tests under `tests/`. Cover request persistence, agent state transitions, content reuse, retries, and user-visible loading/error states.
+Two tiers run under one Vitest config (`vitest.config.ts`):
+
+- **UI tests** (`src/**/*.test.{ts,tsx}`, `jsdom` project) — mock `convex/react` (`useQuery`, `useMutation`) and `@convex-dev/auth/react` (`useConvexAuth`, `useAuthActions`) so components render without a backend. Shared setup (jest-dom matchers, `next/image` mock, RTL cleanup) lives in `src/test/setup.tsx`.
+- **Convex tests** (`convex/**/*.test.ts`, `edge-runtime` project) — use `convex-test` with the `import.meta.glob` module map, per `convex/_generated/ai/guidelines.md`. Seed identity with `t.withIdentity({ subject: userId })`; `getAuthUserId` just reads `identity.subject.split("|")[0]`.
+
+Import `test`/`expect`/`vi` explicitly from `vitest` (no `globals`), and never add a `compilerOptions.types` allowlist to any tsconfig. Cover request persistence, agent state transitions, content reuse, retries, and user-visible loading/error states.
 
 ## Commit & Pull Request Guidelines
 

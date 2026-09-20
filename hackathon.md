@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T21:47:40Z
+- **Last updated:** 2026-09-20T22:26:00Z
 
 ## Log
 
@@ -37,11 +37,18 @@ Fixed Next.js middleware static asset exclusion matcher (`src/middleware.ts`) to
 ### 2026-09-20 - 4bcffa3
 Configured Convex Auth exclusively for Google OAuth and streamlined modal to 1-click sign-in (`convex/auth.ts`, `src/components/AuthModal.tsx`). Implemented `AuthGuard` to protect member navigation routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`) while keeping `/` public. Wired live user profile name and Google avatar into Navbar and Dashboard greeting. Added Google avatar domain to Next.js image config (`next.config.mjs`). Convex features: queries (`convex/users.ts`, `convex/auth.ts`).
 
-### 2026-09-20 - working tree
+### 2026-09-20 - cc822f7
 Built Phase 3 Convex realtime data layer and connected all frontend screens without external scrapers. Added `convex/content.ts` with full-text search indexing for published guides, `convex/agents.ts` for persistent agent state and auto-initialization, `convex/requests.ts` for durable request queueing, and direct image upload to Convex File Storage (`_storage`) in Publisher Studio. Documented storage architecture tradeoff in README.md. Convex features: schema, indexes, full-text search, queries, mutations, file storage (`convex/schema.ts`, `convex/content.ts`, `convex/agents.ts`, `convex/requests.ts`, `src/app/**`).
 
 ### 2026-09-20 - 7089cc1
 Added docs7 documentation site (`docs/`) with `docs.json` config and 7 MDX pages covering project overview, setup, architecture, data model, design system, UI screens, and Convex API reference. Updated `AGENTS.md` to reflect the current project structure and verified dev commands. Updated `README.md` architecture diagram to include all Convex functions (`getWhatsHot`, `initializeAgent`, `getBrandAssets`, auth/http modules) and added docs7 reference (`docs/**`, `AGENTS.md`, `README.md`).
+
+### 2026-09-20 - working tree
+Added a two-tier Vitest suite: mocked UI tests for AuthGuard states, request submission, and interest toggling, plus `convex-test` coverage for request persistence and per-user isolation, interest insert/patch, and content slug/publish auth. 16 tests pass. Convex features exercised: queries, mutations (`vitest.config.ts`, `src/test/setup.tsx`, `src/**/*.test.tsx`, `convex/requests.test.ts`, `convex/users.test.ts`, `convex/content.test.ts`).
+
+Fixed every dev route returning 500 with `EvalError: Code generation from strings disallowed` — a machine-wide `NODE_ENV=production` disables `eval` in Next's edge sandbox — by pinning `NODE_ENV` per script with `cross-env` (`package.json`).
+
+Documented the NODE_ENV and dev-dependency troubleshooting in a new README FAQ section and a docs7 FAQ page with its own nav group (`README.md`, `docs/faq.mdx`, `docs/docs.json`).
 
 
 

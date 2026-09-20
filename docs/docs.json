@@ -11,7 +11,8 @@
       { "group": "Getting Started", "pages": ["index", "getting-started"] },
       { "group": "Architecture", "pages": ["architecture", "data-model"] },
       { "group": "Product", "pages": ["design-system", "screens"] },
-      { "group": "Reference", "pages": ["convex-api"] }
+      { "group": "Reference", "pages": ["convex-api"] },
+      { "group": "FAQ", "pages": ["faq"] }
     ]
   }
 }
