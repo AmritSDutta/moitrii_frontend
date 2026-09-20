@@ -8,11 +8,11 @@
 - **Frontend:** not deployed
 - **Convex deployment:** not deployed
 - **Components:** none
-- **Auth:** @convex-dev/auth (Password/Email, Sessions)
-- **Convex features:** Convex Cloud Database, Convex File Storage (CDN asset serving), Auth, Scheduled Actions (planned)
+- **Convex features:** schema, queries, mutations, file storage
+- **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T19:22:00Z
+- **Last updated:** 2026-09-20T20:56:34Z
 
 ## Log
 
@@ -33,5 +33,8 @@ Integrated `@convex-dev/auth` for full user authentication flow with server-side
 
 ### 2026-09-20 - 4c88bbb
 Fixed Next.js middleware static asset exclusion matcher (`src/middleware.ts`) to prevent 404 interceptions on CSS and JavaScript chunks. Added hard inline dimension and centering constraints to brand emblem images in `Navbar`, `Footer`, and `AuthModal` to prevent layout shift or image enlargement during stylesheet drops. Added custom editorial `not-found.tsx` route.
+
+### 2026-09-20 - 4bcffa3
+Configured Convex Auth exclusively for Google OAuth and streamlined modal to 1-click sign-in (`convex/auth.ts`, `src/components/AuthModal.tsx`). Implemented `AuthGuard` to protect member navigation routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`) while keeping `/` public. Wired live user profile name and Google avatar into Navbar and Dashboard greeting. Added Google avatar domain to Next.js image config (`next.config.mjs`). Convex features: queries (`convex/users.ts`, `convex/auth.ts`).
 
 
