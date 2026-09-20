@@ -84,5 +84,12 @@ export default defineSchema({
       searchField: "content",
       filterFields: ["category"],
     }),
+
+  // Newsletter & intentional weekly digest subscribers
+  subscribers: defineTable({
+    email: v.string(),
+    subscribedAt: v.string(),
+  }).index("by_email", ["email"]),
 });
+
 

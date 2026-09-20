@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T22:26:00Z
+- **Last updated:** 2026-09-20T22:40:00Z
 
 ## Log
 
@@ -43,12 +43,12 @@ Built Phase 3 Convex realtime data layer and connected all frontend screens with
 ### 2026-09-20 - 7089cc1
 Added docs7 documentation site (`docs/`) with `docs.json` config and 7 MDX pages covering project overview, setup, architecture, data model, design system, UI screens, and Convex API reference. Updated `AGENTS.md` to reflect the current project structure and verified dev commands. Updated `README.md` architecture diagram to include all Convex functions (`getWhatsHot`, `initializeAgent`, `getBrandAssets`, auth/http modules) and added docs7 reference (`docs/**`, `AGENTS.md`, `README.md`).
 
+### 2026-09-20 - 86eb00c
+Added a two-tier Vitest suite: mocked UI tests for AuthGuard states, request submission, and interest toggling, plus `convex-test` coverage for request persistence and per-user isolation, interest insert/patch, and content slug/publish auth. 16 tests pass. Convex features: queries, mutations (`vitest.config.ts`, `src/test/setup.tsx`, `src/**/*.test.tsx`, `convex/requests.test.ts`, `convex/users.test.ts`, `convex/content.test.ts`). Fixed route dev errors with cross-env pinning, and documented troubleshooting in README and docs7 FAQ (`README.md`, `docs/faq.mdx`, `docs/docs.json`, `package.json`).
+
 ### 2026-09-20 - working tree
-Added a two-tier Vitest suite: mocked UI tests for AuthGuard states, request submission, and interest toggling, plus `convex-test` coverage for request persistence and per-user isolation, interest insert/patch, and content slug/publish auth. 16 tests pass. Convex features exercised: queries, mutations (`vitest.config.ts`, `src/test/setup.tsx`, `src/**/*.test.tsx`, `convex/requests.test.ts`, `convex/users.test.ts`, `convex/content.test.ts`).
+Added dedicated `subscribers` table and `convex/subscribers.ts` with `subscribeDigest` mutation for anonymous and authenticated visitors to subscribe to the weekly intentional lifestyle digest with regex validation and deduplication. Updated `Footer.tsx` with email validation, error/success feedback states, and updated copy. Added unit test suite in `convex/subscribers.test.ts` bringing test coverage to 19 passing tests. Convex features: schema, indexes, mutations (`convex/schema.ts`, `convex/subscribers.ts`, `convex/subscribers.test.ts`, `src/components/Footer.tsx`).
 
-Fixed every dev route returning 500 with `EvalError: Code generation from strings disallowed` — a machine-wide `NODE_ENV=production` disables `eval` in Next's edge sandbox — by pinning `NODE_ENV` per script with `cross-env` (`package.json`).
-
-Documented the NODE_ENV and dev-dependency troubleshooting in a new README FAQ section and a docs7 FAQ page with its own nav group (`README.md`, `docs/faq.mdx`, `docs/docs.json`).
 
 
 

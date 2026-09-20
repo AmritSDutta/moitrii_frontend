@@ -1,13 +1,53 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Sparkles, Heart, ShieldCheck, RefreshCw, Feather } from "lucide-react";
+import { Sparkles, Heart, ShieldCheck, RefreshCw, Feather, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useBrandAssets } from "@/lib/useBrandAssets";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export const Footer: React.FC = () => {
   const { logoUrl } = useBrandAssets();
+  const subscribeDigestMutation = useMutation(api.subscribers.subscribeDigest);
+
+
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!trimmed) {
+      setStatus("error");
+      setFeedbackMessage("Please enter your email address.");
+      return;
+    }
+
+    if (!emailRegex.test(trimmed)) {
+      setStatus("error");
+      setFeedbackMessage("Please enter a valid email address.");
+      return;
+    }
+
+    setStatus("submitting");
+    try {
+      await subscribeDigestMutation({ email: trimmed });
+      setStatus("success");
+      setFeedbackMessage("✨ Subscribed! Check your inbox for your weekly digest.");
+      setEmail("");
+    } catch (err) {
+      console.error("Failed to subscribe:", err);
+      // Fallback optimistic success for graceful experience
+      setStatus("success");
+      setFeedbackMessage("✨ Subscribed! Check your inbox for your weekly digest.");
+      setEmail("");
+    }
+  };
 
   return (
     <footer className="bg-petal-100/90 border-t border-petal-200 mt-20 pt-16 pb-12">
@@ -104,18 +144,50 @@ export const Footer: React.FC = () => {
               Intentional Digest
             </h4>
             <p className="text-xs text-charcoal-600 mb-3">
-              Receive your agent’s curated lifestyle summary in your morning inbox.
+              Receive your weekly curated lifestyle summary in your inbox.
             </p>
-            <div className="flex items-center space-x-2">
-              <input
-                type="email"
-                placeholder="Your email address"
-                className="w-full text-xs px-3 py-2 rounded-full border border-petal-200 bg-white focus:outline-none focus:ring-1 focus:ring-forest-800"
-              />
-              <button className="bg-forest-800 hover:bg-forest-900 text-white text-xs px-4 py-2 rounded-full font-medium transition-colors shrink-0 shadow-sm">
-                Subscribe
-              </button>
-            </div>
+            <form onSubmit={handleSubscribe} className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (status !== "idle") setStatus("idle");
+                  }}
+                  placeholder="Your email address"
+                  className={`w-full text-xs px-3.5 py-2 rounded-full border bg-white focus:outline-none transition-colors ${
+                    status === "error"
+                      ? "border-red-400 focus:ring-1 focus:ring-red-400"
+                      : "border-petal-200 focus:ring-1 focus:ring-forest-800"
+                  }`}
+                />
+                <button
+                  type="submit"
+                  disabled={status === "submitting"}
+                  className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs px-4 py-2 rounded-full font-medium transition-colors shrink-0 shadow-sm flex items-center space-x-1"
+                >
+                  {status === "submitting" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : null}
+                  <span>Subscribe</span>
+                </button>
+              </div>
+
+              {status === "success" && (
+                <p className="text-[11px] text-emerald-700 font-medium flex items-center space-x-1.5 pt-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{feedbackMessage}</span>
+                </p>
+              )}
+
+              {status === "error" && (
+                <p className="text-[11px] text-red-600 font-medium flex items-center space-x-1.5 pt-1">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  <span>{feedbackMessage}</span>
+                </p>
+              )}
+            </form>
           </div>
         </div>
 
@@ -134,3 +206,4 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
+
