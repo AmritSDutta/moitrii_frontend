@@ -37,3 +37,17 @@ No repository-specific commit convention is documented yet. Use short, imperativ
 ## Security & Configuration
 
 Never commit `.env*` files, tokens, deployment keys, private records, or personal data. Keep secrets in the approved local/host configuration and document only variable names. Validate external webhooks, preserve idempotency for agent execution, and redact sensitive values from public logs.
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

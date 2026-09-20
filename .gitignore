@@ -27,3 +27,11 @@ phase_wise_plan.md
 
 # Convex generated
 convex/_generated/
+
+# Agent configuration & skill directories
+.agents/
+.agent/
+.agent*
+.claude/
+skills-lock.json
+CLAUDE.md
