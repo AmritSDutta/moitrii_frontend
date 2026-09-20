@@ -1,0 +1,17 @@
+{
+  "name": "Moitrii",
+  "theme": "maple",
+  "colors": {
+    "primary": "#1C4732",
+    "light": "#7C9082",
+    "dark": "#143525"
+  },
+  "navigation": {
+    "groups": [
+      { "group": "Getting Started", "pages": ["index", "getting-started"] },
+      { "group": "Architecture", "pages": ["architecture", "data-model"] },
+      { "group": "Product", "pages": ["design-system", "screens"] },
+      { "group": "Reference", "pages": ["convex-api"] }
+    ]
+  }
+}

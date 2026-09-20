@@ -1,0 +1,99 @@
+---
+title: Getting Started
+description: Local setup, development workflow, and build commands for the Moitrii frontend and Convex backend.
+---
+
+# Getting Started
+
+## Prerequisites
+
+- **Node.js 18+** (tested with Node 18/20)
+- **npm** (or compatible package manager)
+- **Convex CLI** — install via `npm install -g convex` or use `npx convex`
+- **Google OAuth credentials** — required for local auth (see below)
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/AmritSDutta/moitrii_frontend
+cd moitrii_frontend
+npm install
+```
+
+## Environment Setup
+
+Create a `.env.local` file in the project root with your Convex deployment URL:
+
+```bash
+NEXT_PUBLIC_CONVEX_URL=https://<your-deployment-name>.convex.cloud
+```
+
+For local development, run `npx convex dev` to link your local Convex backend.
+
+## Development Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the Next.js frontend dev server at `http://localhost:3000` |
+| `npx convex dev` | Start the local Convex backend with hot reload |
+| `npm run build` | Create a production frontend build |
+| `npm run lint` | Run the Next.js linter |
+| `npm run start` | Start a production frontend server |
+
+## Project Structure
+
+```
+moitrii_frontend/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── page.tsx            # Public Landing & Explore
+│   │   ├── dashboard/page.tsx  # Agent Dashboard
+│   │   ├── requests/page.tsx   # Request Center & History
+│   │   ├── onboarding/page.tsx # Interest Selection
+│   │   ├── content/[id]/page.tsx  # Editorial Reader
+│   │   ├── publisher/page.tsx  # Publisher Studio
+│   │   ├── layout.tsx          # Root layout with providers
+│   │   ├── globals.css         # Tailwind + custom styles
+│   │   ├── not-found.tsx       # Custom 404
+│   │   └── middleware.ts       # Auth middleware
+│   ├── components/
+│   │   ├── Navbar.tsx          # Editorial navigation
+│   │   ├── Footer.tsx          # Mission footer
+│   │   ├── AuthModal.tsx       # Google OAuth modal
+│   │   ├── AuthGuard.tsx       # Protected route wrapper
+│   │   └── ConvexClientProvider.tsx  # Convex provider
+│   └── lib/
+│       ├── AppContext.tsx      # Shared React context
+│       ├── mockData.ts         # Fallback mock data
+│       └── useBrandAssets.ts   # Dynamic CDN asset hook
+├── convex/                     # Convex backend
+│   ├── schema.ts               # Database schema
+│   ├── content.ts              # Content queries & mutations
+│   ├── agents.ts               # Agent state management
+│   ├── requests.ts             # Request queue lifecycle
+│   ├── users.ts                # User profile & interests
+│   ├── files.ts                # Brand asset CDN serving
+│   ├── auth.ts                 # Convex Auth config (Google)
+│   ├── auth.config.ts          # Auth configuration
+│   ├── http.ts                 # HTTP router for auth
+│   └── tsconfig.json
+├── public/                     # Static assets
+├── docs/                       # This docs7 documentation site
+└── ...
+```
+
+## Google OAuth Setup
+
+To enable authentication locally:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com)
+2. Create or select a project
+3. Navigate to **APIs & Credentials** → **OAuth consent screen**
+4. Configure the consent screen with:
+   - **Authorized JavaScript origins**: `http://localhost:3000`
+   - **Redirect URIs**: `http://localhost:3000/auth/google/callback`
+5. Set the OAuth client ID and secret as environment variables in your Convex dashboard:
+   - `AUTH_GOOGLE_ID` — Google OAuth client ID
+   - `AUTH_GOOGLE_SECRET` — Google OAuth client secret

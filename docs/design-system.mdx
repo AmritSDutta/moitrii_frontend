@@ -1,0 +1,75 @@
+---
+title: Design System
+description: Moitrii's warm editorial lifestyle aesthetic — color palette, typography, spacing, and component conventions.
+---
+
+# Design System
+
+Moitrii uses a warm, editorial lifestyle magazine aesthetic — avoiding generic dark/cold SaaS styling in favor of calm, intentional design.
+
+## Color Palette
+
+### Tailwind Custom Colors
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `cream-50` | `#FDFBF7` | Primary background |
+| `cream-100` | `#FAF7F2` | Secondary background |
+| `cream-200` | `#F4EFEA` | Background elements |
+| `charcoal-900` | `#1E1619` | Primary text |
+| `charcoal-700` | `#3D2D33` | Secondary text |
+| `charcoal-500` | `#705B63` | Tertiary text |
+| `forest-800` | `#1C4732` | Primary accents (buttons, links) |
+| `forest-50` | `#EDF5F1` | Accent backgrounds |
+| `petal-200` | `#E8D8D0` | Borders, dividers |
+| `rosebrand` | `#B85D6E` | Decorative accents |
+| `terracotta` | `#C86D51` | Highlights |
+
+### Fonts
+
+- **Display/Brand** (`font-editorial`, `font-brand-title`): `Playfair Display` — editorial serif for headings
+- **Body** (`font-sans`): `Plus Jakarta Sans` — clean sans-serif
+- **Mono**: System monospace for code blocks
+
+### Typography Scale
+
+- H1: `text-3xl`–`text-5xl` (`font-editorial`, `font-bold`)
+- H2: `text-2xl`–`text-4xl` (`font-editorial`, `font-bold`)
+- H3: `text-lg`–`text-xl` (`font-editorial`, `font-bold`)
+- Body: `text-sm`–`text-base`
+- Captions: `text-[10px]`–`text-xs`
+
+## Spacing & Layout
+
+- **Container max-width**: `max-w-7xl mx-auto`
+- **Card padding**: `p-5`–`p-8`
+- **Border radius**: `rounded-2xl`–`rounded-3xl` (cards), `rounded-full` (buttons, badges)
+- **Shadows**: `shadow-editorial` (deep, soft) and `shadow-card` (subtle lift)
+
+## Component Conventions
+
+### Buttons
+
+- Primary: `bg-forest-800 hover:bg-forest-900 text-white rounded-full`
+- Secondary: `bg-white border border-petal-200 rounded-full`
+- Ghost: `text-forest-800 hover:bg-forest-50`
+
+### Badges
+
+- Category: `text-[10px] bg-forest-50 text-forest-800 rounded-full`
+- Status: `SLEEPING` (indigo), `COMPLETED` (emerald), `PENDING` (indigo)
+- Reuse: `text-[10px] bg-petal-100 text-charcoal-700 rounded-full`
+
+### Cards
+
+- Article cards: `bg-white rounded-2xl border border-petal-200 shadow-card`
+- Editorial layout cards: `bg-white/95 backdrop-blur-md rounded-2xl border border-petal-200`
+
+## Calm Technology
+
+The UI treats AI as a helpful, subtle companion rather than an intrusive chatbot:
+
+- **Agent Status Pill**: Visual state badge with calm pulse animation (`animate-pulse-subtle`)
+- **Sleeping state**: Indigo/Moon icon with subtle ping animation
+- **Active state**: Emerald/Zap icon with bounce animation
+- **Shared Knowledge Reuse**: `RefreshCw` icon to distinguish reused content from freshly generated

@@ -1,0 +1,68 @@
+---
+title: Architecture
+description: System overview covering the Next.js frontend, Convex realtime backend, sleeping agent model, and shared knowledge ecosystem.
+---
+
+# Architecture
+
+Moitrii follows a **frontend + backend** split: a Next.js React frontend served at the edge, and a Convex Cloud realtime backend handling authentication, database, file storage, and scheduled agent execution.
+
+## High-Level Data Flow
+
+```
+User Interaction
+  │
+  ▼
+Next.js App Router (src/app/)
+  │  useQuery / useMutation
+  │
+  ▼
+Convex Cloud Backend (convex/)
+  ├── Schema & Database      (convex/schema.ts)
+  ├── Auth                   (convex/auth.ts)
+  ├── File Storage           (convex/files.ts)
+  ├── HTTP Routes            (convex/http.ts)
+  │
+  ▼
+Google OAuth / Browser
+```
+
+## System Components
+
+### Frontend (Next.js App Router)
+
+All UI lives under `src/app/` using the App Router. Key patterns:
+
+- **Client components** (`"use client"` directive) for interactive pages, since they depend on Convex React hooks (`useQuery`, `useMutation`).
+- **React Context** (`src/lib/AppContext.tsx`) provides fallback mock data when Convex is not yet connected.
+- **Convex Client Provider** (`src/components/ConvexClientProvider.tsx`) wraps the app with `ConvexAuthNextjsProvider` and `ConvexReactClient`.
+- **AuthGuard** wraps all member-only routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`), protecting them with Google OAuth.
+- **useBrandAssets** hook dynamically resolves logo and hero image URLs from Convex File Storage CDN, with local fallback.
+
+### Backend (Convex Cloud)
+
+All backend logic lives in `convex/`. Every function is a serializable, type-safe transaction.
+
+| File | Responsibility |
+|------|---------------|
+| `schema.ts` | Defines all tables with validators, indexes, and full-text search |
+| `auth.ts` | Configures `@convex-dev/auth` with Google as the sole provider |
+| `http.ts` | Sets up the HTTP router and mounts auth routes |
+| `files.ts` | Serves static brand assets (logo, hero) via Convex CDN |
+| `content.ts` | Content queries (list, search, by-slug) and publish mutation |
+| `agents.ts` | Agent state query and mutations (auto-initialization) |
+| `requests.ts` | User request queue and lifecycle management |
+| `users.ts` | Viewer resolution, interests queries and mutations |
+
+### Routing & Protection
+
+| Route | Access | AuthGuard |
+|-------|--------|-----------|
+| `/` | Public | No |
+| `/onboarding` | Auth required | Yes |
+| `/dashboard` | Auth required | Yes |
+| `/requests` | Auth required | Yes |
+| `/publisher` | Auth required | Yes |
+| `/content/[id]` | Public | No |
+
+Next.js middleware (`src/middleware.ts`) excludes static assets (`_next/static`, images, CSS, JS) from processing.

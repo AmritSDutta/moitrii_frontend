@@ -9,18 +9,19 @@
 
 ## Project Structure & Module Organization
 
-This repository is currently documentation-first: `README.md` briefly identifies the UI, `PRODUCT.md` contains the product specification and architecture, and `hackathon.md` is the public build log. The planned implementation separates a React/Next.js frontend from a Convex backend and a Python agent service. As code is added, keep UI code in `src/` (static assets in `public/`), Convex functions and schema in `convex/`, and Python agent code in a clearly named service directory such as `agent/`.
+This repository implements a React/Next.js frontend (`src/`) backed by a Convex Cloud realtime backend (`convex/`). Static assets live in `public/`, and documentation is maintained in `docs/` (docs7 site), `README.md` (full project spec), `GEMINI.md` (UI/UX goals), `phasewise_plan.md` (engineering roadmap), and `hackathon.md` (build log). The Python agent service directory (`agent/`) is planned but not yet scaffolded. Keep UI code in `src/` (static assets in `public/`), Convex functions and schema in `convex/`, and agent code in `agent/` once added.
 
 ## Build, Test, and Development Commands
 
-No package manifest or runnable scripts exist yet. When scaffolding is added, document the exact commands in `package.json` and update this file. The expected workflow is:
+Run `npm install` once to install frontend dependencies listed in `package.json`. The verified workflow is:
 
 - `npm install` — install frontend dependencies.
-- `npm run dev` — start the local frontend and Convex development services.
+- `npm run dev` — start the Next.js frontend dev server at `http://localhost:3000`.
+- `npx convex dev` — start the local Convex backend with hot reload (run in a second terminal).
 - `npm run build` — create a production frontend build.
-- `npm test` — run the complete test suite.
+- `npm run lint` — run the Next.js linter.
 
-Do not claim a command works until it has been run successfully in the current checkout.
+No test framework is configured yet; add tests beside the relevant TypeScript modules as `*.test.ts` or `*.test.tsx` following the Testing Guidelines below. Only add test scripts to `package.json` after they have been run successfully in the current checkout.
 
 ## Coding Style & Naming Conventions
 

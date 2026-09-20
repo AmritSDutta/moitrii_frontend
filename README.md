@@ -78,23 +78,27 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 
 ## ⚡ Convex Integration & Realtime Architecture
 
+Documentation for this project lives at [`docs/`](docs/index.mdx) (preview locally with `docs7 dev docs --port 3333`).
+
 ```mermaid
 flowchart LR
     subgraph Frontend ["Next.js React Frontend"]
-        P_Home["Explore (/)"]
-        P_Dash["Dashboard (/dashboard)"]
-        P_Req["Request Center (/requests)"]
-        P_Reader["Reader (/content/[id])"]
-        P_Pub["Studio (/publisher)"]
-        P_Onb["Interests (/onboarding)"]
+      P_Home["Explore (/)"]
+      P_Dash["Dashboard (/dashboard)"]
+      P_Req["Request Center (/requests)"]
+      P_Reader["Reader (/content/[id])"]
+      P_Pub["Studio (/publisher)"]
+      P_Onb["Interests (/onboarding)"]
     end
 
     subgraph ConvexBackend ["Convex Cloud Realtime Backend"]
-        F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getContentBySlug<br/>• publishContent<br/>• generateUploadUrl"]
-        F_Agents["convex/agents.ts<br/>• getAgentState<br/>• updateAgentFrequency"]
-        F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest"]
-        F_Users["convex/users.ts<br/>• viewer<br/>• getInterests<br/>• updateInterests"]
-        F_Storage["Convex File Storage<br/>• _storage for Cover Photos"]
+      F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot<br/>• getContentBySlug<br/>• publishContent<br/>• generateUploadUrl"]
+      F_Agents["convex/agents.ts<br/>• getAgentState<br/>• initializeAgent<br/>• updateAgentFrequency"]
+      F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest"]
+      F_Users["convex/users.ts<br/>• viewer<br/>• getInterests<br/>• updateInterests"]
+      F_Files["convex/files.ts<br/>• getBrandAssets<br/>• Static CDN asset serving"]
+      F_Auth["convex/auth.ts<br/>• Google OAuth via<br/>• @convex-dev/auth"]
+      F_Storage["Convex File Storage<br/>• _storage for Cover Photos"]
     end
 
     P_Home <-->|useQuery| F_Content
@@ -110,20 +114,24 @@ flowchart LR
 ### Convex Function & Realtime Responsibilities
 - **`convex/content.ts`:**
   - `getPublishedContent(category?, limit?)`: Realtime listing with category projections.
+  - `getWhatsHot(limit?)`: Trending articles sorted by reuse count.
   - `getContentBySlug(slug)`: Full markdown guide, key takeaways, and companion media for `/content/[id]`.
   - `publishContent(...)`: Secure mutation for human authors and AI agents to publish deliverables.
   - `generateUploadUrl()`: Upload URL generator for direct image uploads to Convex File Storage.
 - **`convex/agents.ts`:**
   - `getAgentState()`: Persistent personal agent state query with auto-initialization on first login.
+  - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists.
   - `updateAgentFrequency(wakeFrequency)`: Mutation updating wake schedule.
 - **`convex/requests.ts`:**
   - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
-  - `createRequest(prompt, category)`: Mutation queueing research tasks for the agent's next wake cycle.
+  - `createRequest(prompt, category?)`: Mutation queueing research tasks for the agent's next wake cycle.
 - **`convex/users.ts`:**
   - `viewer()`: Authenticated Google user profile resolution.
   - `getInterests()` & `updateInterests(topicIds)`: User topic preferences.
 - **`convex/files.ts`:**
-  - Brand emblem and lifestyle CDN asset serving.
+  - `getBrandAssets()`: Serves dynamic Convex CDN URLs for logo and hero images.
+- **`convex/auth.ts`** & **`convex/http.ts`:**
+  - Google OAuth configuration via `@convex-dev/auth`, with HTTP routes mounted on the Convex router.
 
 
 ---

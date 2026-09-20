@@ -1,0 +1,131 @@
+---
+title: Data Model
+description: Convex schema — tables, indexes, validators, and relationships for agents, requests, content, and user interests.
+---
+
+# Data Model
+
+The Convex schema is defined in `convex/schema.ts`. It extends the built-in `authTables` from `@convex-dev/auth` and adds five application tables.
+
+## Tables Overview
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Auth user profiles (extended from `@convex-dev/auth`) |
+| `agents` | Persistent per-user agent state (status, schedule) |
+| `userInterests` | User-selected topic subscriptions |
+| `requests` | Research requests with lifecycle status |
+| `content` | Published guides/articles in the shared knowledge library |
+
+## Table: agents
+
+Stores the persistent state of each user's personal AI agent.
+
+```ts
+agents: defineTable({
+  userId: v.id("users"),           // FK → users
+  status: v.union(
+    v.literal("SLEEPING"),
+    v.literal("ACTIVE"),
+    v.literal("WORKING"),
+    v.literal("WAITING"),
+    v.literal("ERROR")
+  ),
+  statusMessage: v.string(),
+  nextWakeTime: v.string(),
+  lastActiveTime: v.string(),
+  wakeFrequency: v.string(),
+  subscriptionTier: v.string(),
+  activeTask: v.optional(v.string()),
+}).index("by_user", ["userId"])
+```
+
+## Table: userInterests
+
+Tracks which lifestyle topics each user has subscribed to.
+
+```ts
+userInterests: defineTable({
+  userId: v.id("users"),
+  topicIds: v.array(v.string()),
+}).index("by_user", ["userId"])
+```
+
+## Table: requests
+
+Durable research request queue. Status transitions: `PENDING` → `PROCESSING` → `COMPLETED` | `FAILED`.
+
+```ts
+requests: defineTable({
+  userId: v.id("users"),
+  prompt: v.string(),
+  category: v.string(),
+  status: v.union(
+    v.literal("PENDING"),
+    v.literal("PROCESSING"),
+    v.literal("COMPLETED"),
+    v.literal("FAILED")
+  ),
+  submittedAt: v.string(),
+  scheduledFor: v.string(),
+  completedAt: v.optional(v.string()),
+  contentId: v.optional(v.string()),
+  contentTitle: v.optional(v.string()),
+  isReused: v.boolean(),
+  reuseNote: v.optional(v.string()),
+}).index("by_user", ["userId"])
+  .index("by_status", ["status"])
+```
+
+## Table: content
+
+Published articles/guides in the Shared Knowledge Ecosystem. Article body stored as `v.string()` for instant loading and native full-text search.
+
+```ts
+content: defineTable({
+  title: v.string(),
+  slug: v.string(),
+  subtitle: v.string(),
+  category: v.string(),
+  author: v.string(),
+  authorId: v.optional(v.id("users")),
+  authorType: v.optional(v.union(v.literal("human"), v.literal("agent"))),
+  readTime: v.string(),
+  publishedAt: v.string(),
+  coverImage: v.string(),
+  coverImageStorageId: v.optional(v.id("_storage")),
+  reusedCount: v.number(),
+  isReused: v.boolean(),
+  takeaways: v.array(v.string()),
+  content: v.string(),
+  youtubeId: v.optional(v.string()),
+  youtubeTitle: v.optional(v.string()),
+  sources: v.array(v.object({ title: v.string(), url: v.string() })),
+  generatedFromPrompt: v.optional(v.string()),
+})
+  .index("by_slug", ["slug"])
+  .index("by_category", ["category"])
+  .searchIndex("search_content", {
+    searchField: "content",
+    filterFields: ["category"],
+  })
+```
+
+## Relationships
+
+```
+users
+  └── (1:many) agents           via userId
+  └── (1:many) userInterests    via userId
+  └── (1:many) requests          via userId
+  └── (1:many) content           via authorId (optional)
+```
+
+## Storage Decision
+
+**Article body & takeaways** → stored in the Convex database document (`content: v.string()`) for:
+- Instant reader latency (single reactive query)
+- Native full-text search for content reuse matching
+- Atomic 1-step publishing mutations
+
+**Cover images & photos** → stored in Convex File Storage (`_storage`) with CDN delivery URLs, referenced via `coverImageStorageId`.

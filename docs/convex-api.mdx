@@ -1,0 +1,195 @@
+---
+title: Convex API Reference
+description: Complete reference for all Convex queries, mutations, and schema tables used by the Moitrii frontend.
+---
+
+# Convex API Reference
+
+All backend functions live in `convex/`. The frontend imports them via `api.<module>.<function>`.
+
+## Auth
+
+Configured in `convex/auth.ts` using Google as the sole OAuth provider. Routes are mounted in `convex/http.ts`.
+
+## Files (`convex/files.ts`)
+
+### `getBrandAssets` (query)
+
+Returns CDN URLs for the brand logo and hero artwork, with fallback to local images.
+
+**Args:** None
+
+**Returns:** `{ logoUrl: string, heroUrl: string }`
+
+## Users (`convex/users.ts`)
+
+### `viewer` (query)
+
+Returns the authenticated user document, or `null` if unauthenticated.
+
+**Args:** None
+
+**Returns:** User document | `null`
+
+### `getInterests` (query)
+
+Returns the authenticated user's selected topic IDs.
+
+**Args:** None
+
+**Returns:** `string[]` (empty array if unauthenticated or no interests set)
+
+### `updateInterests` (mutation)
+
+Creates or updates the authenticated user's topic subscriptions.
+
+**Args:**
+```ts
+{ topicIds: string[] }
+```
+
+## Agents (`convex/agents.ts`)
+
+### `getAgentState` (query)
+
+Returns the personal agent state for the authenticated user. Auto-initializes a default agent document on first login return.
+
+**Args:** None
+
+**Returns:** Agent document | default SLEEPING state object
+
+### `initializeAgent` (mutation)
+
+Ensures an agent record exists for the authenticated user.
+
+**Args:**
+```ts
+{
+  wakeFrequency?: string,
+  subscriptionTier?: string
+}
+```
+
+**Returns:** `Id<"agents">`
+
+### `updateAgentFrequency` (mutation)
+
+Updates the wake frequency for the authenticated user's agent.
+
+**Args:**
+```ts
+{ wakeFrequency: string }
+```
+
+**Returns:** `Id<"agents">`
+
+## Requests (`convex/requests.ts`)
+
+### `listUserRequests` (query)
+
+Lists all research requests for the authenticated user, sorted by most recent.
+
+**Args:** None
+
+**Returns:** `Array<Doc<"requests">>`
+
+### `createRequest` (mutation)
+
+Creates a new research request in the agent's durable queue. Remains stored while the agent sleeps.
+
+**Args:**
+```ts
+{
+  prompt: string,
+  category?: string,       // defaults to "General Wellness"
+  scheduledFor?: string    // defaults to next wake window
+}
+```
+
+**Returns:** `Id<"requests">`
+
+**Request lifecycle:** `PENDING` → `PROCESSING` → `COMPLETED` | `FAILED`
+
+## Content (`convex/content.ts`)
+
+### `getPublishedContent` (query)
+
+Lists published articles with optional category filtering and limit.
+
+**Args:**
+```ts
+{
+  category?: string,   // filter by category; "all" or omitted returns all
+  limit?: number       // optional cap on results
+}
+```
+
+**Returns:** `Array<Doc<"content">>`
+
+### `getWhatsHot` (query)
+
+Returns trending articles sorted by `reusedCount` (descending).
+
+**Args:**
+```ts
+{ limit?: number }     // defaults to 4
+```
+
+### `getContentBySlug` (query)
+
+Retrieves a single article by its URL slug. Falls back to document ID lookup if the slug isn't a valid ID.
+
+**Args:**
+```ts
+{ slug: string }
+```
+
+**Returns:** Content document | `null`
+
+### `generateUploadUrl` (mutation)
+
+Generates a short-lived upload URL for direct image uploads to Convex File Storage.
+
+**Args:** None
+
+**Returns:** `string` (upload URL)
+
+**Auth required.**
+
+### `publishContent` (mutation)
+
+Publishes a new guide to the Shared Knowledge Ecosystem. Auto-generates a unique slug.
+
+**Args:**
+```ts
+{
+  title: string,
+  slug: string,
+  subtitle: string,
+  category: string,
+  author: string,
+  authorType?: "human" | "agent",
+  readTime: string,
+  coverImage: string,
+  coverImageStorageId?: Id<"_storage">,
+  reusedCount?: number,
+  isReused?: boolean,
+  takeaways: string[],
+  content: string,
+  youtubeId?: string,
+  youtubeTitle?: string,
+  sources: { title: string; url: string }[],
+  generatedFromPrompt?: string
+}
+```
+
+**Returns:** `{ contentId: Id<"content">, slug: string }`
+
+**Auth required.**
+
+## Frontend Client Imports
+
+```ts
+import { api } from "../../convex/_generated/api";
+import { useQuery, useMutation } from "convex/react";
+```
