@@ -39,7 +39,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand Identity */}
           <Link href="/" className="flex items-center space-x-3.5 group">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow-md transition-transform group-hover:scale-105">
+            <div className="relative w-11 h-11 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow-sm shrink-0 group-hover:ring-forest-700/40 transition-colors">
               <Image
                 src="/images/moitrii_logo.jpg"
                 alt="Moitrii Logo"
