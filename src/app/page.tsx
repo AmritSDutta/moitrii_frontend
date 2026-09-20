@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useApp } from "@/lib/AppContext";
+import { useBrandAssets } from "@/lib/useBrandAssets";
 import {
   Search,
   Sparkles,
@@ -20,6 +21,7 @@ import {
 
 export default function HomePage() {
   const { articles, topics, videos, searchQuery, setSearchQuery } = useApp();
+  const { heroUrl } = useBrandAssets();
   const [selectedTopicFilter, setSelectedTopicFilter] = useState<string>("all");
   const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null);
 
@@ -136,7 +138,7 @@ export default function HomePage() {
             <div className="lg:col-span-6 relative flex flex-col items-center">
               <div className="relative w-full max-w-[540px] aspect-square rounded-[2rem] overflow-hidden shadow-editorial ring-1 ring-petal-300/80 bg-white group">
                 <Image
-                  src="/images/moitrii.jpg"
+                  src={heroUrl}
                   alt="Moitrii - A friend for a more beautiful you"
                   fill
                   className="object-contain transition-transform duration-700 group-hover:scale-[1.02]"

@@ -8,11 +8,11 @@
 - **Frontend:** not deployed
 - **Convex deployment:** not deployed
 - **Components:** none
-- **Convex features:** none yet
-- **Auth:** none
+- **Auth:** @convex-dev/auth (Password/Email, Sessions)
+- **Convex features:** Convex Cloud Database, Convex File Storage (CDN asset serving), Auth, Scheduled Actions (planned)
 - **AI models:** none
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T17:20:44Z
+- **Last updated:** 2026-09-20T18:40:00Z
 
 ## Log
 
@@ -24,3 +24,10 @@ Documented UI-specific goals, screen specifications, and design system tokens (w
 
 ### 2026-09-20 - 7e134b4
 Shipped Phase 1 Next.js/React frontend with 6 core screens: Public Landing with full editorial hero and reader-favorite articles, Topic Onboarding, Agent Dashboard with sleeping indicator & countdown, Request Center, Editorial Content Reader with YouTube companion player, and Publisher Studio. Configured luminous pastel rainbow ambient backdrop and brand navigation (`src/app/**`, `src/components/**`, `src/lib/**`).
+
+### 2026-09-20 - fbbe951
+Configured Git exclusions for agent workspaces in .gitignore and initialized Convex backend structure (`.gitignore`, `convex/tsconfig.json`, `convex/README.md`).
+
+### 2026-09-20 - pending
+Integrated `@convex-dev/auth` for full user authentication flow with server-side middleware and glassmorphic `AuthModal`. Connected Convex File Storage CDN IDs (`convex/files.ts`, `src/lib/useBrandAssets.ts`) to serve dynamic brand assets (`moitrii_logo.jpg` and `moitrii.jpg`) across Navbar, Hero, AuthModal, and Footer. Verified zero-error production build (`npm run build`).
+

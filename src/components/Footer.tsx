@@ -1,9 +1,14 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Sparkles, Heart, ShieldCheck, RefreshCw, Feather } from "lucide-react";
+import { useBrandAssets } from "@/lib/useBrandAssets";
 
 export const Footer: React.FC = () => {
+  const { logoUrl } = useBrandAssets();
+
   return (
     <footer className="bg-petal-100/90 border-t border-petal-200 mt-20 pt-16 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -13,7 +18,7 @@ export const Footer: React.FC = () => {
             <div className="flex items-center space-x-3">
               <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow">
                 <Image
-                  src="/images/moitrii_logo.jpg"
+                  src={logoUrl}
                   alt="Moitrii Emblem"
                   fill
                   className="object-cover object-top"
