@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js build output
+.next/
+out/
+
+# Production
+build/
+dist/
+
+# Misc
+.DS_Store
+*.pem
+
+# Local env files (strict confidentiality)
+.env*
+
+# Local Phase Plan
+phasewise_plan.md
+phase_wise_plan.md
+
+# Convex generated
+convex/_generated/

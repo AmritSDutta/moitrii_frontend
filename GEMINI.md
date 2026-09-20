@@ -28,7 +28,7 @@ Every user has a dedicated personal AI agent that persists state, sleeps, wakes 
 
 ## 3. UI Theme & Design System
 
-- **Aesthetic:** Warm, editorial lifestyle magazine + calm technology. Not a generic dark/cold SaaS dashboard.
+- **Aesthetic:** Warm, editorial lifestyle agentic companion magazine site + calm technology. Not a generic dark/cold SaaS dashboard.
 - **Color Palette:**
   - Background: Warm off-white / soft cream (`#FDFBF7` / `#FAF7F2`)
   - Primary Text: Deep charcoal / near-black (`#1A1A1A` / `#2D2D2D`)
