@@ -97,11 +97,11 @@ flowchart TD
 
     subgraph ConvexBackend ["Convex Cloud Realtime Backend (brazen-rook-983)"]
       F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent / internalPublishGuide<br/>• generateUploadUrl"]
-      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (9PM-9AM window)"]
+      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (24h customizable IST)"]
       F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest (isActive guard)"]
       F_Users["convex/users.ts<br/>• viewer / setUserActiveStatus<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
       F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 validation)"]
-      F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (:30 UTC)"]
+      F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (crons.hourly off-peak)"]
        F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• checkContentReuse (reuse engine)<br/>• markAgentWorking / revertAgentWorking<br/>• completeAgentTask mutation"]
       F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
       F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• POST /api/agent/complete"]
@@ -161,7 +161,7 @@ flowchart TD
     5. AgentMail Notification (`sendAgentCompletionNotification` from `agent-...@agentmail.to`)
     6. Atomic Publish (`internalPublishGuide` → shared knowledge library)
   - `markAgentWorking` / `revertAgentWorking` / `completeAgentTask`: State transitions for the dispatch window (60 min, `DISPATCH_WINDOW_MINUTES`). On pipeline error, agent reverts to `SLEEPING` and requests return to `PENDING` for the next cycle.
-  - Dispatch logic: cron at `:30` UTC aligns to `:00` IST; `isWakeDue` checks if the agent's configured `wakeTimeOfDay` falls in the elapsed 60-minute window.
+  - Dispatch logic: `crons.hourly` runs with automatic off-peak spreading away from top-of-the-hour; `isWakeDue` checks if the agent's configured `wakeTimeOfDay` falls in the elapsed 60-minute window.
 - **`convex/requests.ts`:**
   - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
   - `createRequest(prompt, category?)`: Mutation queueing research tasks (blocked if user `isActive: false`).
@@ -320,6 +320,9 @@ npm run preview
 
 # Run two-tier Vitest test suite (UI + Convex tests)
 npm test
+
+# checking documentation with docs7
+docs7 dev docs --port 3333 
 ```
 
 ---

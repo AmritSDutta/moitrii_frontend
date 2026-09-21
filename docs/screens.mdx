@@ -116,8 +116,8 @@ Moitrii's agent operates on a **sleeping agent model** with autonomous scheduled
 
 ### Sleep / Wake Cycle
 
-- Each agent has a user-configurable wake schedule in IST (default **11:00 PM IST**, adjustable to any 24h time between **9:00 PM – 9:00 AM**).
-- A Convex cron job (`convex/crons.ts`) fires **hourly at `:30` UTC**, which aligns to `:00` IST boundaries (IST = UTC+5:30).
+- Each agent has a user-configurable wake schedule in IST (default **11:00 PM IST**, fully customizable to any 24h time of day in IST).
+- A Convex cron job (`convex/crons.ts`) fires **hourly using `crons.hourly`**, with `minuteUTC` omitted so Convex assigns an off-peak minute and spreads execution away from the top of the hour.
 - The cron dispatches `triggerScheduledWakes` for every agent whose scheduled wake time falls inside the **60-minute dispatch window** that just elapsed.
 - Agents without pending requests are skipped — the scheduler is request-driven, not time-driven alone.
 

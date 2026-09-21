@@ -5,12 +5,13 @@ const crons = cronJobs();
 
 /**
  * Autonomous hourly cron job that evaluates due wake cycles (gated by each
- * agent's IST wakeTimeOfDay), checks for queued user research requests, and
- * dispatches wake execution webhooks to the Python agent backend.
+ * agent's IST wakeTimeOfDay) and processes queued user research requests.
+ * Uses crons.hourly without minuteUTC so Convex automatically selects an
+ * off-peak minute and spreads execution away from the top of the hour.
  */
-crons.cron(
+crons.hourly(
   "autonomous-agent-wake-cycle",
-  "30 * * * *", // 30 mins past each hour; IST offset is +5:30, so this aligns with :00 IST boundaries
+  {},
   internal.agentRunner.triggerScheduledWakes,
   {}
 );

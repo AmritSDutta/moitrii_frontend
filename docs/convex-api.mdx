@@ -287,10 +287,15 @@ Dispatches a personalized HTML research report directly from the user's dedicate
 ### `convex/crons.ts` — Hourly Cron
 
 ```ts
-crons.cron("autonomous-agent-wake-cycle", "30 * * * *", internal.agentRunner.triggerScheduledWakes, {});
+crons.hourly(
+  "autonomous-agent-wake-cycle",
+  {},
+  internal.agentRunner.triggerScheduledWakes,
+  {}
+);
 ```
 
-Fires every hour at `:30` UTC, aligning to `:00` IST boundaries (IST = UTC+5:30). Dispatches `triggerScheduledWakes` for all due agents.
+Fires every hour using Convex's native `crons.hourly` helper without `minuteUTC`, allowing Convex to automatically select an off-peak minute and spread execution away from the top of the hour. Dispatches `triggerScheduledWakes` for all due agents.
 
 ### `triggerScheduledWakes` (internal action)
 

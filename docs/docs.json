@@ -9,7 +9,7 @@
   "navigation": {
     "groups": [
       { "group": "Getting Started", "pages": ["index", "getting-started"] },
-      { "group": "Architecture", "pages": ["architecture", "data-model"] },
+      { "group": "Architecture", "pages": ["architecture", "data-model", "convex-best-practices"] },
       { "group": "Product", "pages": ["design-system", "screens"] },
       { "group": "Reference", "pages": ["convex-api"] },
       { "group": "FAQ", "pages": ["faq"] }
