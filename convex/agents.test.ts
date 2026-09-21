@@ -57,49 +57,52 @@ test("initializeAgent and updateWakeSchedule reject inactive or disputed users",
   ).rejects.toThrow(/Account is inactive or under review/);
 });
 
-test("updateWakeSchedule allows valid night/early morning hours", async () => {
-  const t = convexTest(schema, modules);
-  const userId = await seedUser(t);
-  const asUser = t.withIdentity({ subject: userId });
-
-  // Test 10:00 PM (22:00)
-  const res1 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "22:00" });
-  expect(res1.wakeFrequency).toBe("Daily (10:00 PM IST)");
-  expect(res1.wakeTimeOfDay).toBe("22:00");
-
-  // Test 6:30 AM (06:30)
-  const res2 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "06:30" });
-  expect(res2.wakeFrequency).toBe("Daily (6:30 AM IST)");
-  expect(res2.wakeTimeOfDay).toBe("06:30");
-
-  // Test 9:00 PM boundary (21:00)
-  const res3 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "21:00" });
-  expect(res3.wakeFrequency).toBe("Daily (9:00 PM IST)");
-
-  // Test 9:00 AM boundary (09:00)
-  const res4 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "09:00" });
-  expect(res4.wakeFrequency).toBe("Daily (9:00 AM IST)");
-});
-
-test("updateWakeSchedule rejects daytime hours between 9:00 AM and 9:00 PM IST", async () => {
+test("updateWakeSchedule allows any valid 24-hour time format across day and night", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);
   const asUser = t.withIdentity({ subject: userId });
 
   // Afternoon 2:00 PM (14:00)
-  await expect(
-    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "14:00" })
-  ).rejects.toThrow(/Wake time must be scheduled between 9:00 PM and 9:00 AM IST/);
+  const res1 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "14:00" });
+  expect(res1.wakeFrequency).toBe("Daily (2:00 PM IST)");
+  expect(res1.wakeTimeOfDay).toBe("14:00");
 
   // Morning 9:30 AM (09:30)
-  await expect(
-    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "09:30" })
-  ).rejects.toThrow(/Wake time must be scheduled between 9:00 PM and 9:00 AM IST/);
+  const res2 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "09:30" });
+  expect(res2.wakeFrequency).toBe("Daily (9:30 AM IST)");
+  expect(res2.wakeTimeOfDay).toBe("09:30");
 
   // Evening 8:00 PM (20:00)
+  const res3 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "20:00" });
+  expect(res3.wakeFrequency).toBe("Daily (8:00 PM IST)");
+
+  // Night 10:00 PM (22:00)
+  const res4 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "22:00" });
+  expect(res4.wakeFrequency).toBe("Daily (10:00 PM IST)");
+  expect(res4.wakeTimeOfDay).toBe("22:00");
+
+  // Early morning 6:30 AM (06:30)
+  const res5 = await asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "06:30" });
+  expect(res5.wakeFrequency).toBe("Daily (6:30 AM IST)");
+  expect(res5.wakeTimeOfDay).toBe("06:30");
+});
+
+test("updateWakeSchedule rejects malformed or invalid time strings", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const asUser = t.withIdentity({ subject: userId });
+
   await expect(
-    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "20:00" })
-  ).rejects.toThrow(/Wake time must be scheduled between 9:00 PM and 9:00 AM IST/);
+    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "25:00" })
+  ).rejects.toThrow(/Invalid time format/);
+
+  await expect(
+    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "12:65" })
+  ).rejects.toThrow(/Invalid time format/);
+
+  await expect(
+    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "invalid-time" })
+  ).rejects.toThrow(/Invalid time format/);
 });
 
 test("updateWakeSchedule rejects unauthenticated callers", async () => {

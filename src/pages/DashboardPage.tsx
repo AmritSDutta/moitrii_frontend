@@ -120,35 +120,20 @@ export function DashboardPage() {
     }
   };
 
-  const NIGHT_SCHEDULE_PRESETS = [
+  const WAKE_SCHEDULE_PRESETS = [
+    { label: "07:00 AM IST (Morning)", value: "07:00" },
+    { label: "09:00 AM IST", value: "09:00" },
+    { label: "12:00 PM IST (Noon)", value: "12:00" },
+    { label: "03:00 PM IST (Afternoon)", value: "15:00" },
+    { label: "06:00 PM IST (Evening)", value: "18:00" },
     { label: "09:00 PM IST", value: "21:00" },
-    { label: "10:00 PM IST", value: "22:00" },
     { label: "11:00 PM IST (Default)", value: "23:00" },
     { label: "12:00 AM IST (Midnight)", value: "00:00" },
-    { label: "05:00 AM IST (Early)", value: "05:00" },
-    { label: "06:00 AM IST", value: "06:00" },
-    { label: "07:00 AM IST", value: "07:00" },
-    { label: "08:00 AM IST", value: "08:00" },
-    { label: "09:00 AM IST", value: "09:00" },
   ];
-
-  const isDisallowedDaytime = (timeStr: string) => {
-    const match = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/.exec(timeStr.trim());
-    if (!match) return false;
-    const hour = parseInt(match[1], 10);
-    const minute = parseInt(match[2], 10);
-    return (hour > 9 && hour < 21) || (hour === 9 && minute > 0);
-  };
 
   const handleScheduleSave = async (timeToSet?: string) => {
     const target = timeToSet || selectedWakeTime;
     setScheduleError("");
-    if (isDisallowedDaytime(target)) {
-      setScheduleError(
-        "Calm Tech Policy: Agents rest during daytime hours (9:00 AM – 9:00 PM IST) to avoid interruptions. Please choose a night or morning time between 9:00 PM and 9:00 AM IST."
-      );
-      return;
-    }
 
     setSavingSchedule(true);
     try {
@@ -624,12 +609,11 @@ export function DashboardPage() {
             <div className="p-4 bg-forest-50/70 border border-forest-200/50 rounded-2xl text-xs text-forest-900 space-y-1">
               <div className="font-bold flex items-center space-x-1.5 text-forest-800">
                 <Sparkles className="w-3.5 h-3.5 text-forest-700" />
-                <span>Calm Technology Night Window</span>
+                <span>Personalized Wake Schedule</span>
               </div>
               <p className="text-forest-700 text-[11px] leading-relaxed">
-                To prevent daytime interruptions and peak API loads, your personal agent works
-                overnight while you rest. Wake times are permitted only between{" "}
-                <strong className="text-forest-900">9:00 PM and 9:00 AM IST</strong>.
+                Choose any time of day (IST) for your dedicated AI companion to wake, research,
+                and deliver lifestyle insights to your queue.
               </p>
             </div>
 
@@ -639,7 +623,7 @@ export function DashboardPage() {
                 Quick Presets (IST)
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {NIGHT_SCHEDULE_PRESETS.map((preset) => {
+                {WAKE_SCHEDULE_PRESETS.map((preset) => {
                   const isSelected = selectedWakeTime === preset.value;
                   return (
                     <button
@@ -665,7 +649,7 @@ export function DashboardPage() {
             {/* Custom Time Picker */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-charcoal-700 uppercase tracking-wider block">
-                Or Custom Night Time
+                Or Custom Wake Time
               </label>
               <input
                 type="time"
@@ -706,7 +690,7 @@ export function DashboardPage() {
               <button
                 type="button"
                 onClick={() => handleScheduleSave()}
-                disabled={savingSchedule || isDisallowedDaytime(selectedWakeTime)}
+                disabled={savingSchedule || !selectedWakeTime}
                 className="px-6 py-2.5 text-xs bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center space-x-2"
               >
                 {savingSchedule && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

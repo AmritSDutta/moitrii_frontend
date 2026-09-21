@@ -3,8 +3,8 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 /**
- * Validates that the requested wake time falls in the calm night/morning window:
- * between 9:00 PM and 9:00 AM IST (i.e. outside 09:01 - 20:59).
+ * Validates that the requested wake time is in valid 24h format (HH:mm)
+ * and normalizes the 12-hour and 24-hour string representations.
  */
 export function validateWakeTime(timeStr: string): { hour: number; minute: number; formatted12h: string; normalized24h: string } {
   const match = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/.exec(timeStr.trim());
@@ -13,12 +13,6 @@ export function validateWakeTime(timeStr: string): { hour: number; minute: numbe
   }
   const hour = parseInt(match[1], 10);
   const minute = parseInt(match[2], 10);
-
-  // Reject daytime hours: between 9:01 AM and 8:59 PM (09:01 to 20:59)
-  const isDaytime = (hour > 9 && hour < 21) || (hour === 9 && minute > 0);
-  if (isDaytime) {
-    throw new Error("Wake time must be scheduled between 9:00 PM and 9:00 AM IST. Agents rest during daytime hours (9:00 AM - 9:00 PM) for calm background processing.");
-  }
 
   const period = hour >= 12 ? "PM" : "AM";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;

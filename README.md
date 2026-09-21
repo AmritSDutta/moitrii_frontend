@@ -51,7 +51,7 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 
 ### 3. Agent Dashboard (`/dashboard`)
 - **Agent Status Indicator:** Visual state badge (`SLEEPING`, `ACTIVE`, `WORKING`, `WAITING`, `ERROR`) with calm pulsing indicator.
-- **Wake Schedule Card:** Configurable schedule defaulting to **11:00 PM IST** with night-window restriction (9:00 PM – 9:00 AM IST) and countdown to next cycle.
+- **Wake Schedule Card:** Configurable schedule defaulting to **11:00 PM IST** (customizable to any 24h time in IST) and countdown to next cycle.
 - **Preferred Language Selector:** Warm editorial segmented pill control for **English** (`EN`), **বাংলা** (`BN`), and **हिन्दी** (`HI`) with localized synthesis micro-copy.
 - **Quick Request Input:** Natural language prompt box ("What would you like your agent to work on?").
 - **Followed Topics:** Quick filter tags for active subscriptions.
@@ -102,7 +102,7 @@ flowchart TD
       F_Users["convex/users.ts<br/>• viewer / setUserActiveStatus<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
       F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 validation)"]
       F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (:30 UTC)"]
-      F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• completeAgentTask mutation"]
+       F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• checkContentReuse (reuse engine)<br/>• markAgentWorking / revertAgentWorking<br/>• completeAgentTask mutation"]
       F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
       F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• POST /api/agent/complete"]
       F_Storage["Convex File Storage<br/>• _storage for Cover, Media & TTS Audio"]
@@ -151,10 +151,17 @@ flowchart TD
 - **`convex/agents.ts`:**
   - `getAgentState()`: Persistent personal agent state query with 11:00 PM IST auto-initialization.
   - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists with dedicated AgentMail address (`agent-...@agentmail.to`) and persona name `"Moitrii Companion"`.
-  - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation enforcing calm-tech 9:00 PM – 9:00 AM IST night window.
+  - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation updating agent wake schedule to any valid 24h time in IST.
 - **`convex/agentRunner.ts` & `convex/crons.ts`:**
-  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the modular AI pipeline (reuse check $\rightarrow$ synthesis $\rightarrow$ TTS narration $\rightarrow$ YouTube discovery $\rightarrow$ AgentMail dispatch $\rightarrow$ publishing), with graceful fallback.
-  - `completeAgentTask(agentId, deliverables)`: Internal mutation transitioning requests to `COMPLETED` and agent to `SLEEPING`.
+  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the modular AI pipeline with graceful fallback and automatic rollback on failure:
+    1. Content Reuse Check (`checkContentReuse` → `reuseEngine.ts`) — matches prompt against existing guides; on reuse, increments `reusedCount` (the shared social knowledge signal)
+    2. Multilingual Synthesis (`synthesizeLifestyleGuide` in EN/BN/HI)
+    3. Audio Narration (`generateAndStoreAudioNarration` → Convex `_storage`)
+    4. Video Discovery (`discoverVideoCompanion`)
+    5. AgentMail Notification (`sendAgentCompletionNotification` from `agent-...@agentmail.to`)
+    6. Atomic Publish (`internalPublishGuide` → shared knowledge library)
+  - `markAgentWorking` / `revertAgentWorking` / `completeAgentTask`: State transitions for the dispatch window (60 min, `DISPATCH_WINDOW_MINUTES`). On pipeline error, agent reverts to `SLEEPING` and requests return to `PENDING` for the next cycle.
+  - Dispatch logic: cron at `:30` UTC aligns to `:00` IST; `isWakeDue` checks if the agent's configured `wakeTimeOfDay` falls in the elapsed 60-minute window.
 - **`convex/requests.ts`:**
   - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
   - `createRequest(prompt, category?)`: Mutation queueing research tasks (blocked if user `isActive: false`).
@@ -181,7 +188,12 @@ flowchart TD
 
 ---
 
-## 🛡️ Security, Privacy & PII Anonymization
+## 🌐 Social & Community Features
+
+- **Shared Knowledge Library:** All published guides are available for reuse by any agent across the platform — building a collective, growing content library that reduces duplicate generation costs.
+- **Reuse-Powered Rankings:** The "What's Hot" carousel on the landing page ranks by `reusedCount`, surfacing the most-reused lifestyle guides community-wide.
+- **Transparent Reuse Reporting:** Request history distinguishes **"Shared Knowledge Reuse"** (matched existing guide, `reusedCount` incremented) from **"Freshly Researched & Synthesized"** (novel generation).
+- **PII-Safe Agent Identity:** Every agent has a distinct virtual inbox (`agent-<userId>@agentmail.to`) and a persona name (`Moitii Companion`) — zero human PII stored in the `agents` table.
 
 1. **Strict PII Anonymization Policy:**
    - Real user names and personal email addresses exist **exclusively in the `users` table**.

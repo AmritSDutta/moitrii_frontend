@@ -55,7 +55,7 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
   - Dedicated virtual inbox badge (`agent-...@agentmail.to`)
   - Live status badge (`SLEEPING` / `ACTIVE` / `WORKING` / `WAITING` / `ERROR`)
   - Status message, subscription tier, and demo "Simulate Wake Cycle" button
-- **Wake-Up Schedule Card:** Next scheduled wake time (defaults to 11:00 PM IST), frequency, last active timestamp, and schedule time modification (configured anytime outside 9:00 AM – 9:00 PM IST calm-tech window)
+- **Wake-Up Schedule Card:** Next scheduled wake time (defaults to 11:00 PM IST), frequency, last active timestamp, and schedule time modification (configurable to any 24h time of day in IST)
 - **Preferred Language Selector:** Card positioned directly below schedule with native script toggle pills for **English** (`en`), **বাংলা** (`bn`), and **हिन्दी** (`hi`)
 - **Quick Request Composer:** Natural language prompt input with category dropdown → `createRequest` mutation
 - **Active Interests Strip:** Followed topics as pills with edit link to `/onboarding`
@@ -107,3 +107,40 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 - **Key Takeaways Builder:** Add/edit/remove takeaway bullets (numbered)
 - **Markdown Editor:** Textarea for article body with live preview
 - **Publish Action:** Calls `publishContent` mutation → redirects to `/content/[slug]`
+
+## 7. Scheduled Agent Activities & Shared Knowledge
+
+**Access:** Fully automatic (no user interaction required)
+
+Moitrii's agent operates on a **sleeping agent model** with autonomous scheduled wake cycles managed by Convex Cron jobs. The entire pipeline is designed around a shared knowledge ecosystem that rewards reuse and avoids duplicate generation.
+
+### Sleep / Wake Cycle
+
+- Each agent has a user-configurable wake schedule in IST (default **11:00 PM IST**, adjustable to any 24h time between **9:00 PM – 9:00 AM**).
+- A Convex cron job (`convex/crons.ts`) fires **hourly at `:30` UTC**, which aligns to `:00` IST boundaries (IST = UTC+5:30).
+- The cron dispatches `triggerScheduledWakes` for every agent whose scheduled wake time falls inside the **60-minute dispatch window** that just elapsed.
+- Agents without pending requests are skipped — the scheduler is request-driven, not time-driven alone.
+
+### The Autonomous AI Pipeline (per due agent)
+
+When an agent is due and has queued `PENDING` requests, the runner executes a 6-step pipeline:
+
+1. **Content Reuse Check** (`convex/ai/reuseEngine.ts`) — Full-text search against the shared knowledge library. If an existing guide matches the prompt with high confidence, the agent **reuses it** instead of regenerating (incrementing `reusedCount` on the published guide — the social sharing signal).
+2. **Multilingual Synthesis** (`convex/ai/synthesizer.ts`) — Generates a novel editorial guide in the user's preferred language (**English / বাংলা / हिन्दी**) with citations and key takeaways.
+3. **Audio Narration** (`convex/ai/tts.ts`) — Synthetic speech generation stored in Convex `_storage`; linked to the published guide for in-article playback.
+4. **Video Discovery** (`convex/ai/research.ts`) — Curates relevant YouTube companion videos matched by category and prompt.
+5. **Personal Notification** (`convex/ai/agentMail.ts`) — Sends an HTML research report from the user's dedicated agent inbox (`agent-<userId>@agentmail.to`) to their personal email via AgentMail.
+6. **Atomic Publish** (`convex/content.ts` → `internalPublishGuide`) — Writes the deliverable into the **Shared Knowledge Library** (available to all users for reuse).
+
+### Social Knowledge Reuse
+
+The shared knowledge ecosystem is Moitrii's core social efficiency layer:
+- When multiple users request similar topics, the first agent to publish a guide makes it available for **reuse** by subsequent agents — saving LLM cost and building a growing library of verified lifestyle content.
+- Every reused guide's `reusedCount` increments, powering the "What's Hot" trending rankings on the landing page.
+- Content reuse is transparent to the user: request history distinguishes **"Shared Knowledge Reuse"** from **"Freshly Researched & Synthesized"**.
+
+### Failure Rollback
+
+If any pipeline step fails (LLM error, storage failure, email dispatch error):
+- The agent is automatically reverted to **SLEEPING** with an explanatory status message.
+- All affected requests are reset to **PENDING** so they are picked up by the next wake cycle — no request is ever lost or stuck in `PROCESSING` forever.

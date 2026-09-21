@@ -112,7 +112,7 @@ Ensures an agent record exists for the authenticated user.
 
 ### `updateWakeSchedule` (mutation)
 
-Updates the scheduled wake time for the authenticated user's agent. Enforces the calm-tech policy: wake time must fall strictly between **9:00 PM and 9:00 AM IST** (daytime hours 09:01–20:59 are rejected).
+Updates the scheduled wake time for the authenticated user's agent to any user-selected 24-hour time of day (`00:00` - `23:59` in IST).
 
 **Args:**
 ```ts
@@ -284,27 +284,57 @@ Dispatches a personalized HTML research report directly from the user's dedicate
 
 ## Agent Runner & Crons (`convex/agentRunner.ts`, `convex/crons.ts`)
 
+### `convex/crons.ts` — Hourly Cron
+
+```ts
+crons.cron("autonomous-agent-wake-cycle", "30 * * * *", internal.agentRunner.triggerScheduledWakes, {});
+```
+
+Fires every hour at `:30` UTC, aligning to `:00` IST boundaries (IST = UTC+5:30). Dispatches `triggerScheduledWakes` for all due agents.
+
 ### `triggerScheduledWakes` (internal action)
 
-Triggered on an hourly schedule (at `:30` minute UTC to align with IST `:00` boundaries) by `convex/crons.ts`.
-- Queries all agents due for execution that have `PENDING` research requests.
-- Filters out inactive users (`users.isActive === false`) for dispute safety.
-- Sets agent status to `WORKING` and requests to `PROCESSING`.
-- Executes the native modular AI pipeline:
-  1. Content Reuse Check (`convex/ai/reuseEngine.ts`)
-  2. Multilingual Synthesis (`convex/ai/synthesizer.ts` in English, Bengali, or Hindi)
-  3. Audio Narration (`convex/ai/tts.ts` saved to Convex `_storage`)
-  4. Video Discovery (`convex/ai/research.ts` YouTube embeds)
-  5. Personal Notification (`convex/ai/agentMail.ts` from `agent.email`)
-  6. Atomic Publishing (`convex/content.ts` `internalPublishGuide`)
-- **Failure Rollback:** If any unhandled pipeline error occurs, automatically rolls back: reverts the agent state to `SLEEPING` with an explanatory message and resets requests back to `PENDING` so tasks never become stuck.
+The autonomous scheduler:
+
+1. Calls `getDueAgentsWithRequests` with the current ISO timestamp.
+2. Filters due agents to those with at least one `PENDING` request.
+3. For each due agent, transitions agent → `WORKING` and requests → `PROCESSING`.
+4. Executes the 6-step AI pipeline per request (see below).
+5. On success: calls `completeAgentTask` → agent → `SLEEPING`, requests → `COMPLETED`, sends AgentMail notification.
+6. On failure: calls `revertAgentWorking` → agent → `SLEEPING`, requests → `PENDING` (next cycle retries).
+
+**Dispatch Window:** An agent is "due" when its scheduled `wakeTimeOfDay` (IST) falls within the last 60 minutes (`DISPATCH_WINDOW_MINUTES = 60`). This matches the hourly cron cadence — each agent fires once per 24h cycle.
+
+### `getDueAgentsWithRequests` (internal query)
+
+- Parses the current wall-clock time into IST minutes-since-midnight.
+- Collects all `PENDING` requests, groups them by `userId`.
+- For each user: loads their agent, skips inactive users (`users.isActive === false`), checks `isWakeDue(agent.wakeTimeOfDay, nowIstMinutes)`.
+- Returns the due list with user info, agent identity, and queued request summaries.
+
+### Pipeline Steps (executed per due agent, per request)
+
+1. **Content Reuse Check** (`checkContentReuse` internal mutation) — Full-text search against published guides. If a high-confidence match exists, returns `{ isReused: true, contentId, contentTitle, reuseNote }`. The matched guide's `reusedCount` increments — this is the **social sharing signal** that powers "What's Hot".
+2. **Multilingual Synthesis** (`synthesizeLifestyleGuide`) — Novel guide generation in the user's preferred language (`en` / `bn` / `hi`).
+3. **Audio Narration** (`generateAndStoreAudioNarration`) — TTS stored in Convex `_storage`, URL attached to the published guide.
+4. **Video Discovery** (`discoverVideoCompanion`) — YouTube video matching by category and prompt keywords.
+5. **AgentMail Notification** (`sendAgentCompletionNotification`) — HTML research report dispatched from `agent-<userId>@agentmail.to` to the user's personal email.
+6. **Atomic Publish** (`internalPublishGuide`) — Writes the deliverable into the shared knowledge library; available for reuse by other agents.
+
+### State-Management Mutations
+
+| Mutation | Purpose |
+|---|---|
+| `markAgentWorking` | Sets agent → `WORKING`, requests → `PROCESSING`, records `lastRunAt` |
+| `revertAgentWorking` | On failure: agent → `SLEEPING`, requests → `PENDING` |
+| `completeAgentTask` | On success: requests → `COMPLETED`, agent → `SLEEPING`, records `lastActiveTime` |
 
 ### `POST /api/agent/complete` (HTTP endpoint)
 
-Callback endpoint mounted in `convex/http.ts` for external agent backends to submit completed research deliverables.
-- **Fail-Closed Security:** Rejects requests with `503 Service Unavailable` if `AGENT_SERVICE_SECRET` is not configured in the backend environment, and `401 Unauthorized` if the `Authorization: Bearer <secret>` or `x-agent-secret` header is invalid.
-- **Runtime Payload Validation:** Parses and shape-checks the untrusted request body via `parseCompletionBody` (`agentId` string and `deliverables` array) before invoking the internal `completeAgentTask` mutation.
-- Transitions requests to `COMPLETED` and resets agent state to `SLEEPING`.
+Callback mounted in `convex/http.ts` for external agent backends to submit completed research deliverables.
+- **Fail-Closed Security:** Rejects with `503` if `AGENT_SERVICE_SECRET` is not configured; `401` if the `Authorization: Bearer <secret>` or `x-agent-secret` header is invalid.
+- **Runtime Payload Validation:** Parses and shape-checks the untrusted body via `parseCompletionBody` (`agentId` string, `deliverables` array) before invoking `completeAgentTask`.
+- Transitions requests to `COMPLETED` and resets agent to `SLEEPING`.
 
 ## Frontend Client Imports
 
