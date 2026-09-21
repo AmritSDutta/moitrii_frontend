@@ -11,6 +11,7 @@ import { RequestsPage } from "@/pages/RequestsPage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 import { ContentReaderPage } from "@/pages/ContentReaderPage";
 import { PublisherPage } from "@/pages/PublisherPage";
+import { UnsubscribePage } from "@/pages/UnsubscribePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export function App() {
@@ -58,6 +59,7 @@ export function App() {
                   }
                 />
                 <Route path="/content/:id" element={<ContentReaderPage />} />
+                <Route path="/unsubscribe" element={<UnsubscribePage />} />
                 <Route
                   path="/publisher"
                   element={

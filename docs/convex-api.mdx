@@ -268,15 +268,62 @@ Subscribes an email address to the weekly curated lifestyle digest. Validates em
 }
 ```
 
+## Subscribers (`convex/subscribers.ts`)
+
+### `subscribeDigest` (mutation)
+
+Subscribes an email address (anonymous or authenticated) to the weekly intentional lifestyle digest. Idempotently reactivates previously unsubscribed addresses.
+
+**Args:**
+```ts
+{
+  email: string,
+  source?: string,
+  preferredLanguage?: "en" | "bn" | "hi"
+}
+```
+
+### `unsubscribeDigest` (mutation)
+
+One-click unsubscribe mutation that transitions subscriber status to `UNSUBSCRIBED` and records `unsubscribedAt`.
+
+**Args:**
+```ts
+{ email: string }
+```
+
+### `getSubscriberStatus` (query)
+
+Checks the subscription status of an email address.
+
+**Args:**
+```ts
+{ email: string }
+```
+
+**Returns:** `{ isSubscribed: boolean, status: string | null }`
+
+### `listActiveSubscribers` (internal query)
+
+Returns a list of all active subscriber emails excluding unsubscribed accounts.
+
+### `getTopWeeklyDigestArticles` (internal query)
+
+Selects the top 10 published articles ordered by `reusedCount` descending without spending LLM tokens.
+
+### `dispatchWeeklyDigestCron` (internal action)
+
+Coordinates the autonomous Sunday digest delivery, querying active subscribers and top 10 articles and dispatching via Brevo.
+
 ## Email Communications (`convex/emails/brevo.ts` & `convex/ai/agentMail.ts`)
 
 ### `sendSubscriberWelcomeEmail` (Brevo action)
 
-Dispatches a warm, branded welcome email via Brevo REST API when a user subscribes to the Moitrii lifestyle newsletter.
+Dispatches a warm, branded welcome email with a one-click unsubscribe link via Brevo REST API when a user subscribes to the Moitrii lifestyle newsletter.
 
 ### `sendWeeklyDigestBroadcast` (Brevo action)
 
-Dispatches a curated weekly digest of top lifestyle stories to all active subscribers via Brevo batch broadcasting.
+Dispatches a curated weekly digest of top 10 lifestyle guides with read times, takeaways, and personalized unsubscribe links to all active subscribers via Brevo.
 
 ### `sendAgentCompletionNotification` (AgentMail action)
 
@@ -284,8 +331,9 @@ Dispatches a personalized HTML research report directly from the user's dedicate
 
 ## Agent Runner & Crons (`convex/agentRunner.ts`, `convex/crons.ts`)
 
-### `convex/crons.ts` — Hourly Cron
+### `convex/crons.ts` — Scheduled Jobs
 
+1. **Hourly Autonomous Wake Cycle:**
 ```ts
 crons.hourly(
   "autonomous-agent-wake-cycle",
@@ -294,8 +342,28 @@ crons.hourly(
   {}
 );
 ```
+Fires every hour using Convex's native `crons.hourly` helper without `minuteUTC`, allowing Convex to automatically select an off-peak minute and spread execution away from the top of the hour.
 
-Fires every hour using Convex's native `crons.hourly` helper without `minuteUTC`, allowing Convex to automatically select an off-peak minute and spread execution away from the top of the hour. Dispatches `triggerScheduledWakes` for all due agents.
+2. **Sunday Weekly Digest Broadcast:**
+```ts
+crons.weekly(
+  "sunday-weekly-digest-broadcast",
+  { dayOfWeek: "sunday", hourUTC: 12 },
+  internal.subscribers.dispatchWeeklyDigestCron,
+  {}
+);
+```
+Delivers the top 10 guides of the week to all active subscribers every Sunday. Uses `crons.weekly` without `minuteUTC` to let Convex automatically select an off-peak minute.
+
+3. **Daily Retention Cleanup:**
+```ts
+crons.interval(
+  "daily-todo-retention-cleanup",
+  { hours: 24 },
+  internal.requests.cleanupExpiredRequests,
+  {}
+);
+```
 
 ### `triggerScheduledWakes` (internal action)
 

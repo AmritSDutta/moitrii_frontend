@@ -154,10 +154,14 @@ Stores weekly curated lifestyle digest email subscriptions for anonymous visitor
 ```ts
 subscribers: defineTable({
   email: v.string(),
-  subscribedAt: v.string(),
+  status: v.optional(v.union(v.literal("ACTIVE"), v.literal("UNSUBSCRIBED"))),
   source: v.optional(v.string()),
-  status: v.union(v.literal("ACTIVE"), v.literal("UNSUBSCRIBED")),
-}).index("by_email", ["email"])
+  preferredLanguage: v.optional(v.union(v.literal("en"), v.literal("bn"), v.literal("hi"))),
+  subscribedAt: v.string(),
+  unsubscribedAt: v.optional(v.string()),
+})
+  .index("by_email", ["email"])
+  .index("by_status", ["status"]),
 ```
 
 ## Relationships

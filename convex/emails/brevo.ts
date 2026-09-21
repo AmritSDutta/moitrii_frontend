@@ -7,10 +7,62 @@ export interface DigestArticle {
   readTime?: string;
 }
 
+const DEFAULT_APP_ORIGIN = "https://moitrii.ai";
+const DEFAULT_SENDER_EMAIL = "newsletter@moitrii.ai";
+const SENDER_NAME = "Moitrii Digest";
+
+/**
+ * Resolves the Brevo sender address: BREVO_SENDER_EMAIL env var > hardcoded
+ * default. The address must be a verified sender in the Brevo dashboard.
+ */
+function resolveSenderEmail(): string {
+  return process.env.BREVO_SENDER_EMAIL ?? DEFAULT_SENDER_EMAIL;
+}
+
+/**
+ * Resolves the public app origin used in email links:
+ * explicit argument > APP_ORIGIN environment variable > hardcoded default.
+ */
+function resolveAppOrigin(baseUrl?: string): string {
+  return (baseUrl ?? process.env.APP_ORIGIN ?? DEFAULT_APP_ORIGIN).replace(/\/+$/, "");
+}
+
+/**
+ * Escapes user- and LLM-derived strings before interpolating them into email HTML.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Renders the Moitrii logo from Convex file storage as an email-safe <img>.
+ * Returns an empty string when no URL is available so callers can fall back to emoji.
+ */
+function renderLogoImg(logoUrl: string | undefined, size = 36, isInline = false): string {
+  if (!logoUrl) return "";
+  const displayStyle = isInline
+    ? `display: inline-block; vertical-align: -3px; margin-right: 6px;`
+    : `display: block;`;
+  return `<img src="${escapeHtml(logoUrl)}" width="${size}" height="${size}" alt="Moitrii" style="${displayStyle} width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;">`;
+}
+
 /**
  * Renders an editorial welcome email for new newsletter subscribers.
  */
-export function renderSubscriberWelcomeHtml(email: string): string {
+export function renderSubscriberWelcomeHtml(
+  email: string,
+  baseUrl?: string,
+  logoUrl?: string
+): string {
+  const cleanBase = resolveAppOrigin(baseUrl);
+  const unsubscribeUrl = `${cleanBase}/unsubscribe?email=${encodeURIComponent(email)}`;
+  const headerLogo = renderLogoImg(logoUrl, 40);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -27,12 +79,19 @@ export function renderSubscriberWelcomeHtml(email: string): string {
           <!-- Header -->
           <tr>
             <td style="padding-bottom: 24px; text-align: left;">
-              <h1 style="margin: 0; font-family: Georgia, serif; font-size: 28px; color: #1A1A1A; letter-spacing: -0.5px;">
-                Moitrii
-              </h1>
-              <p style="margin: 4px 0 0 0; font-size: 13px; color: #7C9082; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">
-                Mindful Living & Calm Technology
-              </p>
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  ${headerLogo ? `<td style="width: 52px; vertical-align: middle; padding-right: 12px;">${headerLogo}</td>` : ""}
+                  <td style="vertical-align: middle;">
+                    <h1 style="margin: 0; font-family: Georgia, serif; font-size: 28px; color: #1A1A1A; letter-spacing: -0.5px;">
+                      Moitrii
+                    </h1>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #7C9082; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Mindful Living & Calm Technology
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
@@ -43,15 +102,15 @@ export function renderSubscriberWelcomeHtml(email: string): string {
                 Welcome to your weekly intentional digest ✨
               </h2>
               <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #4A4A4A;">
-                Thank you for subscribing with <strong style="color: #2D4A34;">${email}</strong>. Every Sunday evening, you will receive curated insights on holistic wellness, mindful nutrition, calm productivity, and verified lifestyle research.
+                Thank you for subscribing with <strong style="color: #2D4A34;">${escapeHtml(email)}</strong>. Every Sunday, you will receive our top 10 curated insights on holistic wellness, mindful nutrition, calm productivity, and verified lifestyle research.
               </p>
               <div style="background-color: #F8F5EE; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
                 <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #555555;">
-                  🌿 <strong>Our Editorial Promise:</strong> No clickbait, no spam, no algorithmic noise. Only intentional, high-signal reads crafted to nurture calm vitality.
+                  ${logoUrl ? renderLogoImg(logoUrl, 18, true) : "🌿"} <strong>Our Editorial Promise:</strong> No clickbait, no spam, no algorithmic noise. Only intentional, high-signal reads crafted to nurture calm vitality.
                 </p>
               </div>
               <div style="text-align: center;">
-                <a href="https://brazen-rook-983.convex.site" style="display: inline-block; background-color: #2D4A34; color: #FAF7F2; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: 500; font-size: 15px;">
+                <a href="${cleanBase}" style="display: inline-block; background-color: #2D4A34; color: #FAF7F2; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: 500; font-size: 15px;">
                   Explore Latest Stories
                 </a>
               </div>
@@ -60,9 +119,12 @@ export function renderSubscriberWelcomeHtml(email: string): string {
 
           <!-- Footer -->
           <tr>
-            <td style="padding-top: 24px; text-align: center; color: #8C8C8C; font-size: 12px; line-height: 1.5;">
+            <td style="padding-top: 24px; text-align: center; color: #8C8C8C; font-size: 12px; line-height: 1.6;">
               <p style="margin: 0;">
-                You are receiving this because you subscribed on <a href="https://brazen-rook-983.convex.site" style="color: #7C9082; text-decoration: underline;">moitrii.ai</a>.
+                You are receiving this because you subscribed on <a href="${cleanBase}" style="color: #7C9082; text-decoration: underline;">moitrii.ai</a>.
+              </p>
+              <p style="margin: 6px 0 0 0;">
+                <a href="${unsubscribeUrl}" style="color: #A39E93; text-decoration: underline;">Unsubscribe from weekly digest</a>
               </p>
               <p style="margin: 6px 0 0 0;">
                 Moitrii Platform • Powered by Brevo Delivery
@@ -79,28 +141,58 @@ export function renderSubscriberWelcomeHtml(email: string): string {
 }
 
 /**
- * Renders the weekly curated lifestyle digest email template.
+ * Renders the weekly curated top 10 lifestyle digest email template with zero LLM cost.
  */
-export function renderWeeklyDigestHtml(articles: DigestArticle[]): string {
+export function renderWeeklyDigestHtml(
+  articles: DigestArticle[],
+  recipientEmail?: string,
+  baseUrl?: string,
+  logoUrl?: string
+): string {
+  const cleanBase = resolveAppOrigin(baseUrl);
+  const unsubscribeUrl = recipientEmail
+    ? `${cleanBase}/unsubscribe?email=${encodeURIComponent(recipientEmail)}`
+    : `${cleanBase}/unsubscribe`;
+  const headerLogo = renderLogoImg(logoUrl, 40);
+
   const articleCards = articles
-    .map(
-      (a) => `
+    .slice(0, 10)
+    .map((a, index) => {
+      const takeawaysHtml =
+        a.takeaways && a.takeaways.length > 0
+          ? `<ul style="margin: 8px 0 12px 18px; padding: 0; font-size: 13px; line-height: 1.5; color: #555555;">
+              ${a.takeaways
+                .slice(0, 5)
+                .map((t) => `<li style="margin-bottom: 4px;">${escapeHtml(t)}</li>`)
+                .join("")}
+            </ul>`
+          : "";
+
+      return `
     <div style="background-color: #FFFFFF; border: 1px solid #EBE7DF; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
-      <span style="display: inline-block; background-color: #E8F0EA; color: #2D4A34; font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: 9999px; margin-bottom: 8px;">
-        ${a.category}
-      </span>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span style="display: inline-block; background-color: #E8F0EA; color: #2D4A34; font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: 9999px;">
+          #${index + 1} • ${escapeHtml(a.category)}
+        </span>
+        ${
+          a.readTime
+            ? `<span style="font-size: 12px; color: #8C8C8C;">${escapeHtml(a.readTime)}</span>`
+            : ""
+        }
+      </div>
       <h3 style="margin: 0 0 6px 0; font-family: Georgia, serif; font-size: 18px; color: #1A1A1A;">
-        ${a.title}
+        ${escapeHtml(a.title)}
       </h3>
-      <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.5; color: #555555;">
-        ${a.subtitle}
+      <p style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.5; color: #555555;">
+        ${escapeHtml(a.subtitle)}
       </p>
-      <a href="https://brazen-rook-983.convex.site/content/${a.slug}" style="color: #2D4A34; font-size: 13px; font-weight: 600; text-decoration: none;">
+      ${takeawaysHtml}
+      <a href="${cleanBase}/content/${encodeURIComponent(a.slug)}" style="color: #2D4A34; font-size: 13px; font-weight: 600; text-decoration: none;">
         Read full guide & listen &rarr;
       </a>
     </div>
-  `
-    )
+  `;
+    })
     .join("");
 
   return `
@@ -109,7 +201,7 @@ export function renderWeeklyDigestHtml(articles: DigestArticle[]): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>This Week on Moitrii</title>
+  <title>This Week on Moitrii: Top 10 Lifestyle Insights</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #FAF7F2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2D2D2D;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #FAF7F2; padding: 40px 16px;">
@@ -118,13 +210,35 @@ export function renderWeeklyDigestHtml(articles: DigestArticle[]): string {
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #FAF7F2;">
           <tr>
             <td style="padding-bottom: 24px; text-align: left;">
-              <h1 style="margin: 0; font-family: Georgia, serif; font-size: 28px; color: #1A1A1A;">Moitrii</h1>
-              <p style="margin: 4px 0 0 0; font-size: 13px; color: #7C9082; font-weight: 500; text-transform: uppercase;">Weekly Intentional Digest</p>
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  ${headerLogo ? `<td style="width: 52px; vertical-align: middle; padding-right: 12px;">${headerLogo}</td>` : ""}
+                  <td style="vertical-align: middle;">
+                    <h1 style="margin: 0; font-family: Georgia, serif; font-size: 28px; color: #1A1A1A;">Moitrii</h1>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #7C9082; font-weight: 500; text-transform: uppercase;">
+                      Weekly Intentional Digest • Top 10 Guides
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
             <td>
               ${articleCards}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 24px; text-align: center; color: #8C8C8C; font-size: 12px; line-height: 1.6;">
+              <p style="margin: 0;">
+                You are receiving this digest because you subscribed to Moitrii Intentional Living.
+              </p>
+              <p style="margin: 6px 0 0 0;">
+                <a href="${unsubscribeUrl}" style="color: #A39E93; text-decoration: underline;">Unsubscribe from weekly digest</a>
+              </p>
+              <p style="margin: 6px 0 0 0;">
+                Moitrii Platform • Powered by Brevo Delivery
+              </p>
             </td>
           </tr>
         </table>
@@ -141,9 +255,11 @@ export function renderWeeklyDigestHtml(articles: DigestArticle[]): string {
  */
 export async function sendSubscriberWelcomeEmail(
   email: string,
-  apiKey?: string
+  apiKey?: string,
+  baseUrl?: string,
+  logoUrl?: string
 ): Promise<boolean> {
-  const htmlContent = renderSubscriberWelcomeHtml(email);
+  const htmlContent = renderSubscriberWelcomeHtml(email, baseUrl, logoUrl);
   const subject = "✨ Welcome to Moitrii: Your Weekly Intentional Digest";
 
   console.log(`[Brevo] Preparing welcome confirmation email for subscriber: ${email}`);
@@ -157,7 +273,7 @@ export async function sendSubscriberWelcomeEmail(
           "api-key": apiKey,
         },
         body: JSON.stringify({
-          sender: { name: "Moitrii Digest", email: "newsletter@moitrii.ai" },
+          sender: { name: SENDER_NAME, email: resolveSenderEmail() },
           to: [{ email }],
           subject,
           htmlContent,
@@ -186,36 +302,37 @@ export async function sendSubscriberWelcomeEmail(
 export async function sendWeeklyDigestBroadcast(
   subscriberEmails: string[],
   articles: DigestArticle[],
-  apiKey?: string
+  apiKey?: string,
+  baseUrl?: string,
+  logoUrl?: string
 ): Promise<{ sentCount: number }> {
   if (subscriberEmails.length === 0 || articles.length === 0) {
     return { sentCount: 0 };
   }
 
-  const htmlContent = renderWeeklyDigestHtml(articles);
-  const subject = "🌿 This Week on Moitrii: Mindful Insights & Stories";
-
+  const subject = "🌿 This Week on Moitrii: Top 10 Mindful Guides & Insights";
   console.log(`[Brevo] Broadcasting weekly digest to ${subscriberEmails.length} subscriber(s)`);
 
   if (apiKey) {
     try {
-      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": apiKey,
-        },
-        body: JSON.stringify({
-          sender: { name: "Moitrii Digest", email: "newsletter@moitrii.ai" },
-          to: subscriberEmails.map((email) => ({ email })),
-          subject,
-          htmlContent,
-        }),
-      });
-
-      if (response.ok) {
-        return { sentCount: subscriberEmails.length };
+      // Send individual personalized digests with customized unsubscribe links
+      for (const email of subscriberEmails) {
+        const htmlContent = renderWeeklyDigestHtml(articles, email, baseUrl, logoUrl);
+        await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: JSON.stringify({
+            sender: { name: SENDER_NAME, email: resolveSenderEmail() },
+            to: [{ email }],
+            subject,
+            htmlContent,
+          }),
+        });
       }
+      return { sentCount: subscriberEmails.length };
     } catch (err) {
       console.warn("[Brevo] Broadcast failed:", err);
     }

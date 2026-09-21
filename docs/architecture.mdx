@@ -63,15 +63,15 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 | `agents.ts` | Agent state query, auto-initialization with `Moitrii Companion` persona, and schedule updates |
 | `requests.ts` | User request queue, `isActive` user validation, and lifecycle management |
 | `users.ts` | Viewer resolution, interests queries/mutations, preferred language updates, and `setUserActiveStatus` |
-| `subscribers.ts` | Weekly digest newsletter subscription with email validation, deduplication & Brevo welcome trigger |
-| `emails/brevo.ts` | Brevo REST integration for subscriber welcome confirmations and weekly digest broadcasts |
+| `subscribers.ts` | Weekly digest newsletter subscription, one-click unsubscribe, active subscriber list, and top 10 digest dispatcher |
+| `emails/brevo.ts` | Brevo REST integration for subscriber welcome confirmations, unsubscribe links, and weekly top 10 digest broadcasts |
 | `ai/reuseEngine.ts` | Full-text search and keyword similarity engine for knowledge reuse |
 | `ai/synthesizer.ts` | Multilingual editorial guide synthesis (English, Bengali, Hindi) with citations |
 | `ai/tts.ts` | Synthetic speech narration generated and stored in Convex `_storage` |
 | `ai/research.ts` | YouTube lifestyle video discovery and embed linking |
 | `ai/agentMail.ts` | HTML email rendering and delivery from dedicated `agent.email` inboxes |
 | `agentRunner.ts` | Autonomous wake scheduler action & modular AI pipeline executor |
-| `crons.ts` | Recurring hourly cron jobs for agent wake evaluation |
+| `crons.ts` | Recurring crons: hourly agent wake cycle, Sunday top 10 digest broadcast, and 24h retention cleanup |
 
 ### Dual-Channel Messaging Architecture
 

@@ -27,4 +27,16 @@ crons.interval(
   {}
 );
 
+/**
+ * Autonomous weekly digest cron job that delivers the top 10 guides of the week
+ * to all active subscribers every Sunday.
+ * Uses crons.weekly without minuteUTC so Convex automatically selects an off-peak minute.
+ */
+crons.weekly(
+  "sunday-weekly-digest-broadcast",
+  { dayOfWeek: "sunday", hourUTC: 12 },
+  internal.subscribers.dispatchWeeklyDigestCron,
+  {}
+);
+
 export default crons;

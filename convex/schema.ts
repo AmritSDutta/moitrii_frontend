@@ -120,8 +120,14 @@ export default defineSchema({
   // Newsletter & intentional weekly digest subscribers
   subscribers: defineTable({
     email: v.string(),
+    status: v.optional(v.union(v.literal("ACTIVE"), v.literal("UNSUBSCRIBED"))),
+    source: v.optional(v.string()),
+    preferredLanguage: v.optional(v.union(v.literal("en"), v.literal("bn"), v.literal("hi"))),
     subscribedAt: v.string(),
-  }).index("by_email", ["email"]),
+    unsubscribedAt: v.optional(v.string()),
+  })
+    .index("by_email", ["email"])
+    .index("by_status", ["status"]),
 });
 
 

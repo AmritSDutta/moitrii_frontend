@@ -171,10 +171,18 @@ flowchart TD
   - `getInterests()` & `updateInterests(topicIds)`: User topic preferences.
   - `updatePreferredLanguage(language)`: Sets preferred synthesis language (`en`, `bn`, `hi`).
 - **`convex/subscribers.ts`:**
-  - `subscribeDigest(email, source?)`: Public/authenticated newsletter subscription with RFC 5322 validation and Brevo welcome email trigger.
+  - `subscribeDigest(email, source?, preferredLanguage?)`: Public/authenticated newsletter subscription with RFC 5322 validation, idempotent reactivation of unsubscribed records, and Brevo welcome email trigger.
+  - `unsubscribeDigest(email)`: One-click unsubscribe mutation that transitions subscriber status to `UNSUBSCRIBED` and records `unsubscribedAt`.
+  - `getSubscriberStatus(email)`: Query returning subscription status for `/unsubscribe` and UI components.
+  - `listActiveSubscribers()`: Internal query returning all active subscriber emails.
+  - `getTopWeeklyDigestArticles()`: Internal query retrieving the top 10 published guides ordered by `reusedCount` (descending) without spending LLM tokens.
+  - `dispatchWeeklyDigestCron()`: Internal action triggered by Sunday cron to broadcast the top 10 digest via Brevo.
 - **`convex/emails/brevo.ts`:**
-  - `sendSubscriberWelcomeEmail(email)`: Transactional welcome confirmation via Brevo REST API.
-  - `sendWeeklyDigestBroadcast(articles)`: Weekly broadcast newsletter to all active subscribers.
+  - `sendSubscriberWelcomeEmail(email, apiKey?, baseUrl?)`: Transactional welcome confirmation via Brevo REST API with one-click unsubscribe footer link.
+  - `sendWeeklyDigestBroadcast(subscriberEmails, articles, apiKey?, baseUrl?)`: Weekly top 10 broadcast newsletter to all active subscribers with direct links, read times, takeaways, and personalized unsubscribe links.
+  - Zero-LLM rendering pipeline utilizing existing database content and stored takeaways.
+  - Link origin resolution: explicit `baseUrl` argument → `APP_ORIGIN` environment variable → `https://moitrii.ai` fallback. Set `APP_ORIGIN` (e.g. your deployment or `http://localhost:3000` for demos) so email links resolve.
+  - Sender resolution: `BREVO_SENDER_EMAIL` environment variable → `newsletter@moitrii.ai` fallback. The address must be a verified sender in the Brevo dashboard (`Senders & IP → Senders`).
 - **`convex/ai/` Modular AI Engine:**
   - `reuseEngine.ts`: Full-text search match score against existing published guides.
   - `synthesizer.ts`: Multilingual editorial guide synthesis (English, Bengali, Hindi) with citations.
@@ -322,8 +330,66 @@ npm run preview
 npm test
 
 # checking documentation with docs7
-docs7 dev docs --port 3333 
+docs7 dev docs --port 3333
 ```
+
+---
+
+## 🧪 Manual Testing: Weekly Digest & Unsubscribe
+
+### 1. Brevo Setup (free tier = 300 emails/day)
+
+In the [Brevo dashboard](https://app.brevo.com):
+
+1. **SMTP & API → API Keys → Generate new key (v3)** — copy the `xkeysib-...` key.
+2. **Senders & IP → Senders → Add a Sender** — enter an email you own (your Gmail is fine) and click the verification link Brevo emails you. Brevo rejects sends from unverified addresses.
+
+### 2. Environment Variables (dev deployment)
+
+```bash
+npx convex env set BREVO_API_KEY xkeysib-your-key-here
+npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set APP_ORIGIN http://localhost:3000
+```
+
+Then restart `npx convex dev` so running functions pick up the new values. Without `BREVO_API_KEY` the pipeline runs in demo mode: nothing is sent, delivery is only logged.
+
+### 3. Prerequisites for a Digest Run
+
+- At least one **ACTIVE subscriber** — subscribe with your own email via the site footer.
+- At least one row in the `content` table — publish one via the Publisher page (the dispatcher skips with `No published articles found` otherwise).
+
+### 4. Trigger the Digest Without Waiting for Sunday
+
+Run the dispatcher directly:
+
+```bash
+npx convex run subscribers:dispatchWeeklyDigestCron
+```
+
+Alternatively, exercise the real cron wiring: temporarily register an interval cron in `convex/crons.ts` while `npx convex dev` is running, watch it fire in the dashboard logs, then remove it:
+
+```ts
+crons.interval(
+  "test-digest-every-minute",
+  { seconds: 60 },
+  internal.subscribers.dispatchWeeklyDigestCron,
+  {}
+);
+```
+
+### 5. Verify the Full Loop
+
+1. The email arrives from your verified sender with ranked top 10 cards and `/content/[slug]` links pointing at `APP_ORIGIN`.
+2. Click **Unsubscribe from weekly digest** (with `npm run dev` running) — the page confirms unsubscription.
+3. Confirm the status flip from the CLI:
+   ```bash
+   npx convex run subscribers:getSubscriberStatus '{"email":"your-email@gmail.com"}'
+   ```
+   → `{ isSubscribed: false, status: "UNSUBSCRIBED" }`
+4. Click **resubscribe** on the page — the same command returns `ACTIVE`, and a re-run of the dispatcher proves unsubscribed addresses are skipped.
+
+For a zero-cost template check before any of this, `npx vitest run convex/emails/brevo.test.ts` renders the digest HTML offline (no keys, no sending).
 
 ---
 

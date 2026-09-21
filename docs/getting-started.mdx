@@ -107,12 +107,70 @@ Set these configuration variables in your Convex Dashboard for your deployment (
 
 ### 2. Email & Messaging Channels
 - `BREVO_API_KEY` — API key for Brevo transactional welcome emails and weekly broadcasts
-- `BREVO_SENDER_EMAIL` — Verified sender email (e.g., `newsletter@moitrii.com`)
-- `BREVO_SENDER_NAME` — Sender display name (`Moitrii Lifestyle`)
+- `BREVO_SENDER_EMAIL` — Verified sender address in Brevo (Senders & IP → Senders); sends from unverified addresses are rejected
+- `APP_ORIGIN` — Public origin used for links inside emails (unsubscribe footer, article CTAs), e.g. `http://localhost:3000` locally
 - `AGENTMAIL_API_KEY` — API key for AgentMail 1:1 agent dispatch
-- `AGENTMAIL_DOMAIN` — Custom agent domain (defaults to `agentmail.to`)
 
 ### 3. AI & Synthesis Pipeline
 - `OPENAI_API_KEY` — API key for LLM guide synthesis and TTS audio narration
+- `FIRECRAWL_API_KEY` — API key for live web search grounding during synthesis (deterministic offline fallback when unset)
 - `AGENT_SERVICE_SECRET` — Shared secret for securing HTTP webhook callbacks (`POST /api/agent/complete`)
 - `PYTHON_AGENT_ENDPOINT` — Optional fallback external agent webhook URL
+
+## Manual Testing: Weekly Digest & Unsubscribe
+
+### 1. Brevo Setup (free tier = 300 emails/day)
+
+In the [Brevo dashboard](https://app.brevo.com):
+
+1. **SMTP & API → API Keys → Generate new key (v3)** — copy the `xkeysib-...` key.
+2. **Senders & IP → Senders → Add a Sender** — enter an email you own (your Gmail is fine) and click the verification link Brevo emails you. Brevo rejects sends from unverified addresses.
+
+### 2. Environment Variables
+
+Set these on your dev deployment, then restart `npx convex dev`:
+
+```bash
+npx convex env set BREVO_API_KEY xkeysib-your-key-here
+npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set APP_ORIGIN http://localhost:3000
+```
+
+Without `BREVO_API_KEY` the pipeline runs in demo mode: nothing is sent, delivery is only logged.
+
+### 3. Prerequisites for a Digest Run
+
+- At least one **ACTIVE subscriber** — subscribe with your own email via the site footer.
+- At least one row in the `content` table — publish one via the Publisher page (the dispatcher skips with `No published articles found` otherwise).
+
+### 4. Trigger the Digest Without Waiting for Sunday
+
+Run the dispatcher directly:
+
+```bash
+npx convex run subscribers:dispatchWeeklyDigestCron
+```
+
+Alternatively, exercise the real cron wiring: temporarily register an interval cron in `convex/crons.ts` while `npx convex dev` is running, watch it fire in the dashboard logs, then remove it:
+
+```ts
+crons.interval(
+  "test-digest-every-minute",
+  { seconds: 60 },
+  internal.subscribers.dispatchWeeklyDigestCron,
+  {}
+);
+```
+
+### 5. Verify the Full Loop
+
+1. The email arrives from your verified sender with ranked top 10 cards and `/content/[slug]` links pointing at `APP_ORIGIN`.
+2. Click **Unsubscribe from weekly digest** (with `npm run dev` running) — the page confirms unsubscription.
+3. Confirm the status flip from the CLI:
+   ```bash
+   npx convex run subscribers:getSubscriberStatus '{"email":"your-email@gmail.com"}'
+   ```
+   → `{ isSubscribed: false, status: "UNSUBSCRIBED" }`
+4. Click **resubscribe** on the page — the same command returns `ACTIVE`, and a re-run of the dispatcher proves unsubscribed addresses are skipped.
+
+For a zero-cost template check before any of this, `npx vitest run convex/emails/brevo.test.ts` renders the digest HTML offline (no keys, no sending).
