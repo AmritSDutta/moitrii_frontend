@@ -150,7 +150,8 @@ flowchart TD
   - `generateUploadUrl()`: Upload URL generator for direct image uploads to Convex File Storage.
 - **`convex/agents.ts`:**
   - `getAgentState()`: Persistent personal agent state query with 11:00 PM IST auto-initialization.
-  - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists with dedicated AgentMail address (`agent-...@agentmail.to`) and persona name `"Moitrii Companion"`.
+  - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists with companion AgentMail address (`moitrii@agentmail.to` on free tier; scaling roadmap provisions 1 address per user) and persona name `"Moitrii Companion"`.
+
   - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation updating agent wake schedule to any valid 24h time in IST.
 - **`convex/agentRunner.ts` & `convex/crons.ts`:**
   - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the modular AI pipeline with graceful fallback and automatic rollback on failure:
@@ -205,8 +206,9 @@ flowchart TD
 
 1. **Strict PII Anonymization Policy:**
    - Real user names and personal email addresses exist **exclusively in the `users` table**.
-   - The `agents` table stores persona names (`"Moitrii Companion"`) and virtual AgentMail addresses (`agent-...@agentmail.to`).
+   - The `agents` table stores persona names (`"Moitrii Companion"`) and companion AgentMail address (`moitrii@agentmail.to` on free tier; scaling roadmap provisions 1 virtual address per user).
    - Downstream tables (`requests`, `content`, `userInterests`) reference only opaque `userId: v.id("users")`.
+
 2. **Dispute & Moderation Safety:**
    - `users.isActive` defaults to `true`. If set to `false`, agent wake evaluation, request creation, and profile modifications are blocked immediately.
 3. **Dual-Channel Separation:**
@@ -344,16 +346,25 @@ In the [Brevo dashboard](https://app.brevo.com):
 1. **SMTP & API → API Keys → Generate new key (v3)** — copy the `xkeysib-...` key.
 2. **Senders & IP → Senders → Add a Sender** — enter an email you own (your Gmail is fine) and click the verification link Brevo emails you. Brevo rejects sends from unverified addresses.
 
-### 2. Environment Variables (dev & production deployments)
+### 2. Environment Variables
 
+#### For Development (Local Testing):
 ```bash
 npx convex env set BREVO_API_KEY xkeysib-your-key-here
 npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
-# For local development:
+npx convex env set AGENTMAIL_API_KEY your-agentmail-key-here
 npx convex env set APP_ORIGIN http://localhost:3000
-# For Cloudflare Pages production:
-# npx convex env set APP_ORIGIN https://moitrii-frontend.pages.dev
 ```
+
+#### For Production (Cloudflare Pages + Convex Prod):
+```bash
+npx convex env set --prod BREVO_API_KEY xkeysib-your-key-here
+npx convex env set --prod BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set --prod AGENTMAIL_API_KEY your-agentmail-key-here
+npx convex env set --prod APP_ORIGIN https://moitrii-frontend.pages.dev
+```
+
+
 
 
 Then restart `npx convex dev` so running functions pick up the new values. Without `BREVO_API_KEY` the pipeline runs in demo mode: nothing is sent, delivery is only logged.

@@ -74,14 +74,15 @@ npx convex dev
 
 Moitrii uses a **dual-channel messaging separation**:
 - **Brevo (`convex/emails/brevo.ts`):** Handles marketing, subscriber welcome emails, and batch weekly lifestyle digests. These are platform-wide broadcasts directed to users on the `subscribers` list.
-- **AgentMail (`convex/ai/agentMail.ts`):** Handles 1:1 personal agent deliverables. Every user has a dedicated personal companion (`Moitrii Companion`) with its own virtual inbox (`agent-...@agentmail.to`). Research deliverables are delivered directly from the agent's identity to the user's email, maintaining context and personalization.
+- **AgentMail (`convex/ai/agentMail.ts`):** Handles 1:1 personal agent deliverables. Every user has a dedicated personal companion (`Moitrii Companion`). As of now, sender address is fixed to `moitrii@agentmail.to` due to AgentMail's free-tier single custom inbox constraint. The production architecture is planned for 1 dedicated virtual AgentMail address dynamically provisioned per user (`agent-${userId.slice(-6)}@agentmail.to`). Research deliverables are delivered directly from the companion identity to the user's email, maintaining context and personalization.
 
 ## How does Moitrii handle user data privacy and PII anonymization?
 
 To ensure strict privacy and future anonymization readiness:
 1. **Isolated PII:** Real user names and personal emails exist solely in the `users` table.
-2. **Generic Companion Personas:** The `agents` table stores only persona name `"Moitrii Companion"` and a generated AgentMail address. It never stores the user's real name or email.
+2. **Generic Companion Personas:** The `agents` table stores only persona name `"Moitrii Companion"` and the companion AgentMail address (`moitrii@agentmail.to`). It never stores the user's real name or email.
 3. **Opaque References:** All other tables (`requests`, `content`, `userInterests`) reference users only through opaque database IDs (`userId: v.id("users")`).
+
 
 ## Why were images missing on reload with `net::ERR_FILE_NOT_FOUND`, and how is it prevented?
 

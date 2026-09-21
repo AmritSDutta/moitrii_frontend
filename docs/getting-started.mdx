@@ -109,7 +109,8 @@ Set these configuration variables in your Convex Dashboard for your deployment (
 - `BREVO_API_KEY` — API key for Brevo transactional welcome emails and weekly broadcasts
 - `BREVO_SENDER_EMAIL` — Verified sender address in Brevo (Senders & IP → Senders); sends from unverified addresses are rejected
 - `APP_ORIGIN` — Public origin used for links inside emails (unsubscribe footer, article CTAs), e.g. `http://localhost:3000` locally
-- `AGENTMAIL_API_KEY` — API key for AgentMail 1:1 agent dispatch
+- `AGENTMAIL_API_KEY` — API key for AgentMail 1:1 personal agent deliverable dispatch (Sender address: `moitrii@agentmail.to` on free tier; scaling roadmap provisions 1 virtual address per user)
+
 
 ### 3. AI & Synthesis Pipeline
 - `OPENAI_API_KEY` — API key for LLM guide synthesis and TTS audio narration
@@ -128,13 +129,23 @@ In the [Brevo dashboard](https://app.brevo.com):
 
 ### 2. Environment Variables
 
-Set these on your dev deployment, then restart `npx convex dev`:
-
+#### For Development (Local Testing):
 ```bash
 npx convex env set BREVO_API_KEY xkeysib-your-key-here
 npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set AGENTMAIL_API_KEY your-agentmail-key-here
 npx convex env set APP_ORIGIN http://localhost:3000
 ```
+
+#### For Production (Cloudflare Pages + Convex Prod):
+```bash
+npx convex env set --prod BREVO_API_KEY xkeysib-your-key-here
+npx convex env set --prod BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set --prod AGENTMAIL_API_KEY your-agentmail-key-here
+npx convex env set --prod APP_ORIGIN https://moitrii-frontend.pages.dev
+```
+
+
 
 Without `BREVO_API_KEY` the pipeline runs in demo mode: nothing is sent, delivery is only logged.
 

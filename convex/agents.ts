@@ -34,13 +34,14 @@ export function computeNextWakeString(hour: number, minute: number): string {
 }
 
 /**
- * Computes a distinct AgentMail inbox address for a user.
+ * Computes the AgentMail inbox address for a user.
+ * Currently fixed to "moitrii@agentmail.to" due to AgentMail free-tier single-inbox limits.
+ * The production roadmap provisions 1 distinct AgentMail address per user (e.g. agent-${suffix}@agentmail.to).
  */
-export function computeAgentEmail(userId: string): string {
-  const clean = userId.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-  const suffix = clean.length >= 6 ? clean.slice(-6) : clean.padEnd(6, "0");
-  return `agent-${suffix}@agentmail.to`;
+export function computeAgentEmail(userId?: string): string {
+  return "moitrii@agentmail.to";
 }
+
 
 /**
  * Computes the persona companion name (preserving zero human PII in agents table).
