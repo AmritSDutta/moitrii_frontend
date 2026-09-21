@@ -13,11 +13,16 @@ All users receive **identical** agent capabilities. Subscription tiers determine
 
 ## Key Features
 
-- **Sleeping Agent Model** — Agent sleeps and wakes periodically based on subscription tier
-- **Shared Knowledge Ecosystem** — Agents reuse verified guides to avoid duplicate generation costs
-- **Convex Realtime Backend** — End-to-end TypeScript with type-safe queries, mutations, and full-text search
-- **Google OAuth Authentication** — Built on `@convex-dev/auth`
-- **Editorial Lifestyle Aesthetic** — Warm, calm, magazine-like UI distinct from generic SaaS dashboards
+- **1 User ➔ 1 Distinct Personal Agent** — Dedicated personal AI companion (`Moitrii Companion`) with its own virtual inbox (`agent-...@agentmail.to`).
+- **Sleeping Agent Model** — Agent sleeps and wakes periodically based on subscription tier (defaults to 11:00 PM IST with 9 PM–9 AM calm-tech window).
+- **Modular Cloud AI Engine (`convex/ai/`)** — Realtime reuse engine, multilingual synthesis (English, Bengali, Hindi), TTS audio narration, and YouTube video discovery.
+- **Dual-Channel Messaging Separation** — Brevo for newsletter broadcasts & welcome emails; AgentMail for 1:1 personal agent research updates.
+- **Strict PII Anonymization** — Human names and personal emails exist solely in `users` table; all agent state and content references use opaque IDs.
+- **Dispute & Moderation Safety** — `users.isActive` safety switch instantly guards agent execution and request queues.
+- **Shared Knowledge Ecosystem** — Agents reuse verified guides to avoid duplicate generation costs.
+- **Convex Realtime Backend** — End-to-end TypeScript with type-safe queries, mutations, full-text search, and File Storage.
+- **Google OAuth Authentication** — Built on `@convex-dev/auth`.
+- **Editorial Lifestyle Aesthetic** — Warm, calm, magazine-like UI distinct from generic SaaS dashboards.
 
 ## Technology Stack
 
@@ -25,7 +30,9 @@ All users receive **identical** agent capabilities. Subscription tiers determine
 |-------|-----------|
 | Frontend | Next.js 14 (App Router), React 18, TypeScript |
 | Styling | Tailwind CSS 3, custom editorial color palette |
-| Backend | Convex Cloud (Database, Queries, Mutations, File Storage) |
+| Backend | Convex Cloud (`brazen-rook-983` — Database, Queries, Mutations, File Storage, Crons) |
+| AI Engine | Modular Convex AI Pipeline (`convex/ai/` — reuse, synthesis, TTS narration, research) |
+| Email & Messaging | Brevo (platform/subscribers) & AgentMail (1:1 personal agent inboxes) |
 | Auth | `@convex-dev/auth` with Google OAuth |
 | Icons | Lucide React |
 

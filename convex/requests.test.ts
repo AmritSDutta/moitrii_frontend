@@ -62,3 +62,14 @@ test("createRequest rejects an empty prompt", async () => {
     t.withIdentity({ subject: userId }).mutation(api.requests.createRequest, { prompt: "   " })
   ).rejects.toThrow(/empty/i);
 });
+
+test("createRequest rejects inactive or disputed users", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await t.run((ctx) => ctx.db.patch(userId, { isActive: false }));
+
+  await expect(
+    t.withIdentity({ subject: userId }).mutation(api.requests.createRequest, { prompt: "A valid prompt" })
+  ).rejects.toThrow(/Account is inactive or under review/);
+});
+

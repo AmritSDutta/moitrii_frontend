@@ -85,7 +85,7 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 Documentation for this project lives at [`docs/`](docs/index.mdx) (preview locally with `docs7 dev docs --port 3333`).
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Frontend ["Next.js React Frontend"]
       P_Home["Explore (/)"]
       P_Dash["Dashboard (/dashboard)"]
@@ -95,21 +95,30 @@ flowchart LR
       P_Onb["Interests (/onboarding)"]
     end
 
-    subgraph ConvexBackend ["Convex Cloud Realtime Backend"]
-      F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent<br/>• generateUploadUrl"]
-      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent<br/>• updateWakeSchedule (9PM-9AM window)"]
-      F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest"]
-      F_Users["convex/users.ts<br/>• viewer<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
-      F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 regex)"]
+    subgraph ConvexBackend ["Convex Cloud Realtime Backend (brazen-rook-983)"]
+      F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent / internalPublishGuide<br/>• generateUploadUrl"]
+      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (9PM-9AM window)"]
+      F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest (isActive guard)"]
+      F_Users["convex/users.ts<br/>• viewer / setUserActiveStatus<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
+      F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 validation)"]
       F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (:30 UTC)"]
       F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• completeAgentTask mutation"]
       F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
       F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• POST /api/agent/complete"]
-      F_Storage["Convex File Storage<br/>• _storage for Cover & Media"]
+      F_Storage["Convex File Storage<br/>• _storage for Cover, Media & TTS Audio"]
     end
 
-    subgraph ExternalAgent ["Python Agent Service"]
-      AgentService["agent/ service<br/>• Researches, generates &<br/>• synthesizes lifestyle guides"]
+    subgraph ModularAIEngine ["Modular Convex AI Engine (convex/ai/)"]
+      AI_Reuse["reuseEngine.ts<br/>• checkContentReuse"]
+      AI_Synth["synthesizer.ts<br/>• synthesizeLifestyleGuide (EN/BN/HI)"]
+      AI_TTS["tts.ts<br/>• generateAndStoreNarration"]
+      AI_Res["research.ts<br/>• discoverLifestyleVideos"]
+      AI_Mail["agentMail.ts<br/>• sendAgentCompletionNotification"]
+    end
+
+    subgraph DualMessaging ["Dual-Channel Email Communications"]
+      M_Brevo["convex/emails/brevo.ts<br/>• Marketing & Newsletter Digests<br/>• Welcome Confirmations"]
+      M_AgentMail["AgentMail Integration<br/>• 1:1 Personal Agent Updates<br/>• From: agent-...@agentmail.to"]
     end
 
     P_Home <-->|useQuery| F_Content
@@ -123,38 +132,66 @@ flowchart LR
     P_Req <-->|useQuery & useMutation| F_Requests
     P_Onb <-->|useQuery & useMutation| F_Users
 
+    F_Subscribers -->|Dispatch| M_Brevo
     F_Crons -->|hourly| F_Runner
-    F_Runner -->|HTTPS POST Webhook| AgentService
-    AgentService -->|POST /api/agent/complete| F_Auth
+    F_Runner -->|Execute Pipeline| ModularAIEngine
+    ModularAIEngine -->|Dispatch| M_AgentMail
+    ModularAIEngine -->|Store Audio| F_Storage
 ```
 
-### Convex Function & Realtime Responsibilities
+### Convex Function & Subsystem Responsibilities
 - **`convex/content.ts`:**
   - `getPublishedContent(category?, limit?)`: Realtime listing with category projections (capped at 50).
   - `getWhatsHot(limit?)`: Trending articles querying `.index("by_reused_count")` in descending order.
   - `getContentBySlug(slug)`: Full markdown guide, key takeaways, and companion media for `/content/[id]`.
   - `publishContent(...)`: Secure mutation with slug sanitization, collision deduplication, audio metadata, and author type.
+  - `internalPublishGuide(...)`: Internal mutation used by AI agent pipeline to atomically publish research deliverables.
+  - `checkContentReuse(prompt, category)`: Full-text search and keyword similarity engine for knowledge reuse.
   - `generateUploadUrl()`: Upload URL generator for direct image uploads to Convex File Storage.
 - **`convex/agents.ts`:**
   - `getAgentState()`: Persistent personal agent state query with 11:00 PM IST auto-initialization.
-  - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists.
+  - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists with dedicated AgentMail address (`agent-...@agentmail.to`) and persona name `"Moitrii Companion"`.
   - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation enforcing calm-tech 9:00 PM – 9:00 AM IST night window.
 - **`convex/agentRunner.ts` & `convex/crons.ts`:**
-  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents and dispatching HTTPS webhook to Python agent service with 15s timeout and automatic state rollback on failure.
+  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the modular AI pipeline (reuse check $\rightarrow$ synthesis $\rightarrow$ TTS narration $\rightarrow$ YouTube discovery $\rightarrow$ AgentMail dispatch $\rightarrow$ publishing), with graceful fallback.
   - `completeAgentTask(agentId, deliverables)`: Internal mutation transitioning requests to `COMPLETED` and agent to `SLEEPING`.
 - **`convex/requests.ts`:**
   - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
-  - `createRequest(prompt, category?)`: Mutation queueing research tasks for the agent's next wake cycle.
+  - `createRequest(prompt, category?)`: Mutation queueing research tasks (blocked if user `isActive: false`).
 - **`convex/users.ts`:**
   - `viewer()`: Authenticated Google user profile resolution with default `"en"` language.
+  - `setUserActiveStatus(userId, isActive)`: Internal moderation mutation for dispute safety.
   - `getInterests()` & `updateInterests(topicIds)`: User topic preferences.
   - `updatePreferredLanguage(language)`: Sets preferred synthesis language (`en`, `bn`, `hi`).
 - **`convex/subscribers.ts`:**
-  - `subscribeDigest(email, source?)`: Public/authenticated newsletter subscription with RFC 5322 validation.
+  - `subscribeDigest(email, source?)`: Public/authenticated newsletter subscription with RFC 5322 validation and Brevo welcome email trigger.
+- **`convex/emails/brevo.ts`:**
+  - `sendSubscriberWelcomeEmail(email)`: Transactional welcome confirmation via Brevo REST API.
+  - `sendWeeklyDigestBroadcast(articles)`: Weekly broadcast newsletter to all active subscribers.
+- **`convex/ai/` Modular AI Engine:**
+  - `reuseEngine.ts`: Full-text search match score against existing published guides.
+  - `synthesizer.ts`: Multilingual editorial guide synthesis (English, Bengali, Hindi) with citations.
+  - `tts.ts`: Synthetic speech generation stored in Convex `_storage`.
+  - `research.ts`: Relevant YouTube video discovery and embed linking.
+  - `agentMail.ts`: HTML formatted research report dispatch from `agent.email` to user.
 - **`convex/files.ts`:**
   - `getBrandAssets()`: Serves dynamic Convex CDN URLs for logo and hero images.
 - **`convex/auth.ts` & `convex/http.ts`:**
-  - Google OAuth routes and `POST /api/agent/complete` with fail-closed token authorization and `parseCompletionBody` schema validation.
+  - Google OAuth routes and `POST /api/agent/complete` with fail-closed token authorization.
+
+---
+
+## 🛡️ Security, Privacy & PII Anonymization
+
+1. **Strict PII Anonymization Policy:**
+   - Real user names and personal email addresses exist **exclusively in the `users` table**.
+   - The `agents` table stores persona names (`"Moitrii Companion"`) and virtual AgentMail addresses (`agent-...@agentmail.to`).
+   - Downstream tables (`requests`, `content`, `userInterests`) reference only opaque `userId: v.id("users")`.
+2. **Dispute & Moderation Safety:**
+   - `users.isActive` defaults to `true`. If set to `false`, agent wake evaluation, request creation, and profile modifications are blocked immediately.
+3. **Dual-Channel Separation:**
+   - **Brevo:** Used exclusively for platform newsletter digests and welcome notifications.
+   - **AgentMail:** Used exclusively for 1:1 personal AI agent research deliverables.
 
 
 ---

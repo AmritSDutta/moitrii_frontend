@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useQuery } from "convex/react";
@@ -21,11 +22,27 @@ import {
   CheckCircle2
 } from "lucide-react";
 
-export default function HomePage() {
+function HomeContent() {
   const { articles: fallbackArticles, topics, videos, searchQuery, setSearchQuery } = useApp();
   const { heroUrl } = useBrandAssets();
+  const searchParams = useSearchParams();
+  const topicParam = searchParams.get("topic");
+
   const [selectedTopicFilter, setSelectedTopicFilter] = useState<string>("all");
   const [activeVideoModal, setActiveVideoModal] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (topicParam) {
+      const matched = topics.find(
+        (t) => t.id.toLowerCase() === topicParam.toLowerCase() || t.name.toLowerCase() === topicParam.toLowerCase()
+      );
+      if (matched) {
+        setSelectedTopicFilter(matched.name);
+      } else {
+        setSelectedTopicFilter(topicParam);
+      }
+    }
+  }, [topicParam, topics]);
 
   const convexArticles = useQuery(api.content.getPublishedContent, {
     category: selectedTopicFilter === "all" ? undefined : selectedTopicFilter,
@@ -465,5 +482,13 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen py-24 text-center text-xs text-charcoal-500">Loading Moitrii...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }

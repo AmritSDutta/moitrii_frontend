@@ -1,10 +1,10 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 /**
  * Returns the currently authenticated user document or null if unauthenticated.
- * Defaults preferredLanguage to "en" if not yet set.
+ * Defaults preferredLanguage to "en" and isActive to true if not yet set.
  */
 export const viewer = query({
   args: {},
@@ -19,6 +19,7 @@ export const viewer = query({
     return {
       ...user,
       preferredLanguage: (user as any).preferredLanguage ?? "en",
+      isActive: (user as any).isActive ?? true,
     };
   },
 });
@@ -55,6 +56,11 @@ export const updateInterests = mutation({
       throw new Error("Unauthorized: Must be logged in to update interests");
     }
 
+    const user = await ctx.db.get(userId);
+    if (user && (user as any).isActive === false) {
+      throw new Error("Account is inactive or under review");
+    }
+
     const existing = await ctx.db
       .query("userInterests")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -84,6 +90,11 @@ export const updatePreferredLanguage = mutation({
       throw new Error("Unauthorized: Must be logged in to update language preferences");
     }
 
+    const user = await ctx.db.get(userId);
+    if (user && (user as any).isActive === false) {
+      throw new Error("Account is inactive or under review");
+    }
+
     await ctx.db.patch(userId, {
       preferredLanguage: args.language,
     });
@@ -95,4 +106,22 @@ export const updatePreferredLanguage = mutation({
   },
 });
 
-
+/**
+ * Sets active/inactive status for user account moderation and dispute resolution.
+ */
+export const setUserActiveStatus = internalMutation({
+  args: {
+    userId: v.id("users"),
+    isActive: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    await ctx.db.patch(args.userId, {
+      isActive: args.isActive,
+    });
+    return { success: true, userId: args.userId, isActive: args.isActive };
+  },
+});

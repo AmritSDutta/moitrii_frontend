@@ -11,13 +11,13 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 
 **Access:** Public (no auth required)
 
-- Editorial header with category navigation strip (Health, Food, Beauty, Wellness, Kids, Home, Travel, Anime, Gen-Z)
+- **Persistent Header & Navigation:** Responsive navigation with persistent Sign In button across all viewports (mobile, tablet, desktop) and editorial topic links (`?category=...#articles-section`)
 - Hero section with warm lifestyle banner, search bar, and popular search pills
 - "What's Hot" — featured articles sorted by reuse count
 - "Popular Categories" — interactive topic grid cards
-- "Latest Stories" — browsable article grid with reuse badges
+- "Latest Stories" — browsable article grid with reuse badges and dynamic category filtering
 - "Trending Videos" — curated YouTube video cards with modal player
-- "About Moitrii" mission footer with multi-language greetings and weekly curated lifestyle digest subscription input (subscribers mutation)
+- "About Moitrii" mission footer with multi-language greetings and weekly curated lifestyle digest subscription input (subscribers mutation with Brevo welcome trigger)
 
 ## 2. Onboarding & Interest Selection (`/onboarding`)
 
@@ -49,8 +49,12 @@ Moitrii has six core user-facing screens covering the full lifestyle agent lifec
 
 **Access:** Auth required (AuthGuard)
 
-- **Greeting Hero:** Personalized "Good Morning, {name}" with agent logo
-- **Agent Status Box:** Live status badge (`SLEEPING` / `ACTIVE` / `WORKING` / `WAITING` / `ERROR`), status message, subscription tier, and demo "Simulate Wake Cycle" button
+- **Greeting Hero:** Personalized "Good Morning, {name}" with agent companion logo
+- **Agent Companion Box:**
+  - Dedicated virtual agent identity (`Moitrii Companion`)
+  - Dedicated virtual inbox badge (`agent-...@agentmail.to`)
+  - Live status badge (`SLEEPING` / `ACTIVE` / `WORKING` / `WAITING` / `ERROR`)
+  - Status message, subscription tier, and demo "Simulate Wake Cycle" button
 - **Wake-Up Schedule Card:** Next scheduled wake time (defaults to 11:00 PM IST), frequency, last active timestamp, and schedule time modification (configured anytime outside 9:00 AM – 9:00 PM IST calm-tech window)
 - **Preferred Language Selector:** Card positioned directly below schedule with native script toggle pills for **English** (`en`), **বাংলা** (`bn`), and **हिन्दी** (`hi`)
 - **Quick Request Composer:** Natural language prompt input with category dropdown → `createRequest` mutation

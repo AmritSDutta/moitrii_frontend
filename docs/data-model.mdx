@@ -18,13 +18,39 @@ The Convex schema is defined in `convex/schema.ts`. It extends the built-in `aut
 | `content` | Published guides/articles in the shared knowledge library |
 | `subscribers` | Weekly curated lifestyle digest email subscribers |
 
+## Table: users
+
+Extended from `@convex-dev/auth` with dispute moderation and language preferences.
+
+```ts
+// users table (managed by @convex-dev/auth + extended by Moitrii)
+users: defineTable({
+  name: v.optional(v.string()),        // Sole location of human name
+  email: v.optional(v.string()),       // Sole location of human email
+  image: v.optional(v.string()),
+  emailVerificationTime: v.optional(v.number()),
+  phone: v.optional(v.string()),
+  phoneVerificationTime: v.optional(v.number()),
+  isAnonymous: v.optional(v.boolean()),
+  preferredLanguage: v.optional(v.union(
+    v.literal("en"),
+    v.literal("bn"),
+    v.literal("hi")
+  )),
+  isActive: v.optional(v.boolean()),   // Dispute safety flag (defaults to true)
+})
+  .index("email", ["email"])
+```
+
 ## Table: agents
 
-Stores the persistent state of each user's personal AI agent.
+Stores the persistent state of each user's personal AI agent with virtual inbox identity.
 
 ```ts
 agents: defineTable({
   userId: v.id("users"),           // FK → users
+  name: v.optional(v.string()),    // Persona name: "Moitrii Companion"
+  email: v.optional(v.string()),   // AgentMail inbox: agent-<userId>@agentmail.to
   status: v.union(
     v.literal("SLEEPING"),
     v.literal("ACTIVE"),
@@ -44,6 +70,7 @@ agents: defineTable({
 })
   .index("by_user", ["userId"])
   .index("by_wake_time", ["wakeTimeOfDay"])
+  .index("by_email", ["email"])
 ```
 
 ## Table: userInterests
@@ -137,13 +164,21 @@ subscribers: defineTable({
 
 ```
 users
-  └── (1:many) agents           via userId
-  └── (1:many) userInterests    via userId
-  └── (1:many) requests          via userId
-  └── (1:many) content           via authorId (optional)
+  └── (1:1) agents              via userId (agent name: "Moitrii Companion", email: agent-<userId>@agentmail.to)
+  └── (1:1) userInterests       via userId
+  └── (1:many) requests         via userId
+  └── (1:many) content          via authorId (optional)
 
 subscribers (standalone collection for anonymous & authenticated email recipients)
 ```
+
+## Privacy & PII Boundary Invariants
+
+To guarantee strict user privacy and seamless future anonymization:
+1. **Zero Downstream PII:** Only the `users` table contains the human user's real name and personal email.
+2. **Dedicated Agent Identity:** The `agents` table never copies human names or emails. It stores `name: "Moitrii Companion"` and a dedicated AgentMail address (`agent-<userId>@agentmail.to`).
+3. **Opaque Foreign Keys:** All application records (`requests`, `content`, `userInterests`) link to users strictly through opaque `userId: v.id("users")`.
+4. **Dispute Moderation (`users.isActive`):** When `isActive` is set to `false`, the platform immediately rejects new requests from the user and excludes their agent from scheduled wake cycles.
 
 ## Storage Decision
 
@@ -152,4 +187,4 @@ subscribers (standalone collection for anonymous & authenticated email recipient
 - Native full-text search for content reuse matching
 - Atomic 1-step publishing mutations
 
-**Cover images & photos** → stored in Convex File Storage (`_storage`) with CDN delivery URLs, referenced via `coverImageStorageId`.
+**Cover images & photos & TTS audio** → stored in Convex File Storage (`_storage`) with CDN delivery URLs, referenced via `coverImageStorageId` and `audioStorageId`.

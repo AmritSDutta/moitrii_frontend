@@ -21,9 +21,11 @@ test("getAgentState returns 11:00 PM IST default fallback for uninitialized user
   expect(state?.wakeTimeOfDay).toBe("23:00");
   expect(state?.wakeFrequency).toContain("11:00 PM IST");
   expect(state?.status).toBe("SLEEPING");
+  expect(state?.email).toContain("@agentmail.to");
+  expect(state?.name).toBe("Moitrii Companion");
 });
 
-test("initializeAgent writes record with 11:00 PM IST default schedule", async () => {
+test("initializeAgent writes record with 11:00 PM IST default schedule, distinct agent email, and persona name", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);
   const asUser = t.withIdentity({ subject: userId });
@@ -35,6 +37,24 @@ test("initializeAgent writes record with 11:00 PM IST default schedule", async (
   expect((stored as any)?.wakeTimeOfDay).toBe("23:00");
   expect((stored as any)?.timezone).toBe("Asia/Kolkata");
   expect((stored as any)?.wakeFrequency).toBe("Daily (11:00 PM IST)");
+  expect((stored as any)?.email).toContain("@agentmail.to");
+  // Strict PII Anonymization: Companion persona name stored, zero human PII
+  expect((stored as any)?.name).toBe("Moitrii Companion");
+});
+
+test("initializeAgent and updateWakeSchedule reject inactive or disputed users", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await t.run((ctx) => ctx.db.patch(userId, { isActive: false }));
+  const asUser = t.withIdentity({ subject: userId });
+
+  await expect(asUser.mutation(api.agents.initializeAgent, {})).rejects.toThrow(
+    /Account is inactive or under review/
+  );
+
+  await expect(
+    asUser.mutation(api.agents.updateWakeSchedule, { wakeTimeOfDay: "23:00" })
+  ).rejects.toThrow(/Account is inactive or under review/);
 });
 
 test("updateWakeSchedule allows valid night/early morning hours", async () => {

@@ -2,6 +2,13 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import { computeAgentEmail, computeAgentName } from "./agents";
+import { evaluateContentReuse } from "./ai/reuseEngine";
+import { synthesizeLifestyleGuide } from "./ai/synthesizer";
+import { generateAndStoreAudioNarration } from "./ai/tts";
+import { discoverVideoCompanion } from "./ai/research";
+import { sendAgentCompletionNotification } from "./ai/agentMail";
+import type { SupportedLanguage } from "./ai/types";
 
 const IST_OFFSET_MINUTES = 5 * 60 + 30;
 
@@ -71,7 +78,11 @@ export const getDueAgentsWithRequests = internalQuery({
         .first();
 
       if (!agent) continue;
+      if (user && (user as any).isActive === false) continue;
       if (!isWakeDue(agent.wakeTimeOfDay ?? "23:00", nowIstMinutes)) continue;
+
+      const agentName = agent.name ?? computeAgentName();
+      const agentEmail = agent.email ?? computeAgentEmail(userId);
 
       dueList.push({
         userId,
@@ -79,6 +90,8 @@ export const getDueAgentsWithRequests = internalQuery({
         userName: user?.name ?? "User",
         preferredLanguage: user?.preferredLanguage ?? "en",
         agentId: agent._id,
+        agentName,
+        agentEmail,
         wakeTimeOfDay: agent.wakeTimeOfDay ?? "23:00",
         timezone: agent.timezone ?? "Asia/Kolkata",
         requests: reqs.map((r) => ({
@@ -90,6 +103,19 @@ export const getDueAgentsWithRequests = internalQuery({
     }
 
     return dueList;
+  },
+});
+
+/**
+ * Evaluates whether a prompt matches an existing guide in the shared knowledge ecosystem.
+ */
+export const checkContentReuse = internalMutation({
+  args: {
+    prompt: v.string(),
+    category: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await evaluateContentReuse(ctx, args.prompt, args.category);
   },
 });
 
@@ -131,7 +157,7 @@ export const revertAgentWorking = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.agentId, {
       status: "SLEEPING",
-      statusMessage: "The agent service was unreachable; your queued requests stay safe and will run at the next wake cycle.",
+      statusMessage: "The agent service encountered an issue; your queued requests stay safe and will run at the next wake cycle.",
       activeTask: undefined,
     });
 
@@ -188,14 +214,16 @@ export interface DueAgent {
   userName: string;
   preferredLanguage: string;
   agentId: Id<"agents">;
+  agentName: string;
+  agentEmail: string;
   wakeTimeOfDay: string;
   timezone: string;
   requests: Array<{ id: Id<"requests">; prompt: string; category: string }>;
 }
 
 /**
- * Autonomous action triggered on schedule to query due requests and dispatch
- * an HTTPS POST webhook call to the Python agent backend.
+ * Autonomous action triggered on schedule or manual simulation to execute
+ * the native modular Convex AI pipeline for due agents.
  */
 export const triggerScheduledWakes = internalAction({
   args: {
@@ -216,10 +244,6 @@ export const triggerScheduledWakes = internalAction({
       return { triggeredCount: 0 };
     }
 
-    const pythonEndpoint =
-      process.env.PYTHON_AGENT_ENDPOINT || "http://localhost:8000/api/agent/wake";
-    const agentSecret = process.env.AGENT_SERVICE_SECRET;
-
     let successCount = 0;
 
     for (const target of targets) {
@@ -229,45 +253,126 @@ export const triggerScheduledWakes = internalAction({
       await ctx.runMutation(internal.agentRunner.markAgentWorking, {
         agentId: target.agentId,
         requestIds,
-        activeTask: `Researching ${target.requests.length} prompt(s)`,
+        activeTask: `Researching ${target.requests.length} lifestyle prompt(s)`,
       });
 
       try {
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-        if (agentSecret) {
-          headers["Authorization"] = `Bearer ${agentSecret}`;
-          headers["x-agent-secret"] = agentSecret;
+        const deliverables: Array<{
+          requestId: Id<"requests">;
+          contentId?: string;
+          contentTitle?: string;
+          isReused: boolean;
+          reuseNote?: string;
+          slug?: string;
+          takeaways?: string[];
+          audioUrl?: string;
+        }> = [];
+
+        for (const req of target.requests) {
+          // 1. Check knowledge reuse
+          const reuseResult = await ctx.runMutation(internal.agentRunner.checkContentReuse, {
+            prompt: req.prompt,
+            category: req.category,
+          });
+
+          if (reuseResult.isReused && reuseResult.contentId) {
+            deliverables.push({
+              requestId: req.id,
+              contentId: reuseResult.contentId,
+              contentTitle: reuseResult.contentTitle,
+              isReused: true,
+              reuseNote: reuseResult.reuseNote,
+              slug: reuseResult.matchedSlug,
+            });
+          } else {
+            // 2. Synthesize novel guide in user's preferred language
+            const guide = await synthesizeLifestyleGuide(
+              req.prompt,
+              req.category,
+              (target.preferredLanguage as SupportedLanguage) || "en",
+              process.env.OPENAI_API_KEY
+            );
+
+            // 3. Companion video discovery
+            const companion = discoverVideoCompanion(req.category, req.prompt);
+            guide.youtubeId = companion.youtubeId;
+            guide.youtubeTitle = companion.youtubeTitle;
+
+            // 4. Audio Narration & Convex Storage Upload
+            const audio = await generateAndStoreAudioNarration(
+              ctx,
+              guide.takeaways.join(". "),
+              process.env.OPENAI_API_KEY
+            );
+
+            // 5. Publish to Shared Knowledge Library
+            const published = await ctx.runMutation(internal.content.internalPublishGuide, {
+              userId: target.userId,
+              title: guide.title,
+              slug: guide.slug,
+              subtitle: guide.subtitle,
+              category: guide.category,
+              author: target.agentName,
+              readTime: guide.readTime,
+              coverImage: guide.coverImage,
+              audioUrl: audio.audioUrl,
+              audioStorageId: audio.audioStorageId,
+              takeaways: guide.takeaways,
+              content: guide.markdownBody,
+              youtubeId: guide.youtubeId,
+              youtubeTitle: guide.youtubeTitle,
+              sources: guide.sources,
+              generatedFromPrompt: req.prompt,
+            });
+
+            deliverables.push({
+              requestId: req.id,
+              contentId: published.contentId,
+              contentTitle: guide.title,
+              isReused: false,
+              slug: published.slug,
+              takeaways: guide.takeaways,
+              audioUrl: audio.audioUrl,
+            });
+          }
         }
 
-        const response = await fetch(pythonEndpoint, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            userId: target.userId,
+        // Atomically complete deliverables and transition agent to SLEEPING
+        await ctx.runMutation(internal.agentRunner.completeAgentTask, {
+          agentId: target.agentId,
+          deliverables: deliverables.map((d) => ({
+            requestId: d.requestId,
+            contentId: d.contentId,
+            contentTitle: d.contentTitle,
+            isReused: d.isReused,
+            reuseNote: d.reuseNote,
+          })),
+        });
+
+        // 6. Send AgentMail notification to user from agent.email
+        await sendAgentCompletionNotification(
+          {
+            agentName: target.agentName,
+            agentEmail: target.agentEmail,
             userEmail: target.userEmail,
             userName: target.userName,
             preferredLanguage: target.preferredLanguage,
-            agentId: target.agentId,
-            wakeTimeOfDay: target.wakeTimeOfDay,
-            timezone: target.timezone,
-            requests: target.requests,
-          }),
-        });
+            deliverables: deliverables.map((d) => ({
+              requestId: d.requestId,
+              title: d.contentTitle ?? "Lifestyle Guide",
+              slug: d.slug,
+              takeaways: d.takeaways,
+              isReused: d.isReused,
+              audioUrl: d.audioUrl,
+            })),
+          },
+          process.env.AGENTMAIL_API_KEY
+        );
 
-        if (response.ok) {
-          successCount++;
-          console.log(`Dispatched agent wake to Python service for user ${target.userId}`);
-        } else {
-          console.warn(`Python agent service responded with HTTP ${response.status} for user ${target.userId}`);
-          await ctx.runMutation(internal.agentRunner.revertAgentWorking, {
-            agentId: target.agentId,
-            requestIds,
-          });
-        }
+        successCount++;
+        console.log(`Completed autonomous agent wake & notification for user ${target.userId}`);
       } catch (err) {
-        console.error(`Failed to reach Python agent service at ${pythonEndpoint}:`, err);
+        console.error(`Autonomous agent execution failed for user ${target.userId}:`, err);
         await ctx
           .runMutation(internal.agentRunner.revertAgentWorking, {
             agentId: target.agentId,

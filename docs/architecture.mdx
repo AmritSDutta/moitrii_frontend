@@ -16,19 +16,24 @@ User Interaction / Browser
 Next.js App Router (src/app/)
   │  useQuery / useMutation
   ▼
-Convex Cloud Realtime Backend (convex/)
+Convex Cloud Realtime Backend (convex/) [brazen-rook-983]
   ├── Schema & Database      (convex/schema.ts)
   ├── Auth (Google OAuth)    (convex/auth.ts)
   ├── File Storage CDN       (convex/files.ts)
   ├── Content, Agents, Users (convex/*.ts)
+  ├── Newsletter Engine      (convex/emails/brevo.ts)
   ├── Autonomous Crons       (convex/crons.ts)
   │     │ triggers hourly (:30 UTC)
   │     ▼
   ├── Agent Runner Action    (convex/agentRunner.ts)
-  │     │ HTTPS POST dispatch
+  │     │ executes modular pipeline
   │     ▼
-  │   External Python Agent Backend (agent/)
-  │     │ POST /api/agent/complete
+  ├── Modular AI Engine      (convex/ai/)
+  │     ├── reuseEngine.ts   (Search reuse check)
+  │     ├── synthesizer.ts   (Multilingual EN/BN/HI generation)
+  │     ├── tts.ts           (Audio narration + _storage)
+  │     ├── research.ts      (YouTube video discovery)
+  │     └── agentMail.ts     (Personal Agent update dispatch)
   └── HTTP Router Webhook    (convex/http.ts)
 ```
 
@@ -42,25 +47,46 @@ All UI lives under `src/app/` using the App Router. Key patterns:
 - **React Context** (`src/lib/AppContext.tsx`) provides fallback mock data when Convex is not yet connected.
 - **Convex Client Provider** (`src/components/ConvexClientProvider.tsx`) wraps the app with `ConvexAuthNextjsProvider` and `ConvexReactClient`.
 - **AuthGuard** wraps all member-only routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`), protecting them with Google OAuth.
+- **Persistent Navbar Navigation** (`src/components/Navbar.tsx`) ensures Sign In and navigation buttons remain visible across mobile, tablet, and desktop viewports.
 - **useBrandAssets** hook dynamically resolves logo and hero image URLs from Convex File Storage CDN, with local fallback.
 
 ### Backend (Convex Cloud)
 
 All backend logic lives in `convex/`. Every function is a serializable, type-safe transaction.
 
-| File | Responsibility |
+| File / Subsystem | Responsibility |
 |------|---------------|
-| `schema.ts` | Defines all tables with validators, indexes, and full-text search |
+| `schema.ts` | Defines all tables (`users`, `agents`, `userInterests`, `requests`, `content`, `subscribers`) with validators, indexes, and full-text search |
 | `auth.ts` | Configures `@convex-dev/auth` with Google as the sole provider |
 | `http.ts` | Sets up the HTTP router and mounts auth routes |
 | `files.ts` | Serves static brand assets (logo, hero) via Convex CDN |
-| `content.ts` | Content queries (list, search, by-slug) and publish mutation |
-| `agents.ts` | Agent state query and mutations (auto-initialization) |
-| `requests.ts` | User request queue and lifecycle management |
-| `users.ts` | Viewer resolution, interests queries and mutations |
-| `subscribers.ts` | Weekly digest newsletter subscription with email validation & deduplication |
-| `agentRunner.ts` | Autonomous wake scheduler action & Python backend webhook dispatcher |
+| `content.ts` | Content queries (list, search, by-slug), publish mutation, and internal guide publishing |
+| `agents.ts` | Agent state query, auto-initialization with `Moitrii Companion` persona, and schedule updates |
+| `requests.ts` | User request queue, `isActive` user validation, and lifecycle management |
+| `users.ts` | Viewer resolution, interests queries/mutations, preferred language updates, and `setUserActiveStatus` |
+| `subscribers.ts` | Weekly digest newsletter subscription with email validation, deduplication & Brevo welcome trigger |
+| `emails/brevo.ts` | Brevo REST integration for subscriber welcome confirmations and weekly digest broadcasts |
+| `ai/reuseEngine.ts` | Full-text search and keyword similarity engine for knowledge reuse |
+| `ai/synthesizer.ts` | Multilingual editorial guide synthesis (English, Bengali, Hindi) with citations |
+| `ai/tts.ts` | Synthetic speech narration generated and stored in Convex `_storage` |
+| `ai/research.ts` | YouTube lifestyle video discovery and embed linking |
+| `ai/agentMail.ts` | HTML email rendering and delivery from dedicated `agent.email` inboxes |
+| `agentRunner.ts` | Autonomous wake scheduler action & modular AI pipeline executor |
 | `crons.ts` | Recurring hourly cron jobs for agent wake evaluation |
+
+### Dual-Channel Messaging Architecture
+
+1. **Brevo Channel (`convex/emails/brevo.ts`):**
+   - Handles public and member platform communications (e.g., newsletter welcome emails, weekly curated lifestyle digests).
+   - Operates on the `subscribers` table list.
+2. **AgentMail Channel (`convex/ai/agentMail.ts`):**
+   - Handles 1:1 dedicated personal AI agent communications.
+   - Dispatches completed research guides directly from the user's personal agent address (`agent-<userId>@agentmail.to`) to the user's verified email.
+
+### Security, Privacy & PII Boundary
+
+- **PII Isolation:** Real human names and personal emails exist strictly in the `users` table. The `agents` table stores companion persona names (`"Moitrii Companion"`) and virtual AgentMail addresses (`agent-...@agentmail.to`). All downstream tables (`requests`, `content`, `userInterests`) reference only opaque `userId` keys.
+- **Dispute & Moderation Safety:** `users.isActive` defaults to `true`. If set to `false`, agent wake evaluation, request creation, and profile modifications are blocked immediately.
 
 ### Routing & Protection
 

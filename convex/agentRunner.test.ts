@@ -82,6 +82,17 @@ test("getDueAgentsWithRequests only returns agents inside their wake window", as
   expect(notDue).toHaveLength(0);
 });
 
+test("getDueAgentsWithRequests skips agents belonging to inactive or disputed users", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedAgentWithPendingRequest(t, "23:00");
+  await t.run((ctx) => ctx.db.patch(userId, { isActive: false }));
+
+  const due = await t.query(internal.agentRunner.getDueAgentsWithRequests, {
+    nowIso: "2026-09-21T18:00:00.000Z",
+  });
+  expect(due).toHaveLength(0);
+});
+
 test("revertAgentWorking restores PENDING requests and SLEEPING agents after a failed dispatch", async () => {
   const t = convexTest(schema, modules);
   const { agentId, requestId } = await seedAgentWithPendingRequest(t, "23:00");

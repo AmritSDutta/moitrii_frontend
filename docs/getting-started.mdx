@@ -59,8 +59,8 @@ moitrii_frontend/
 │   │   ├── not-found.tsx       # Custom 404
 │   │   └── middleware.ts       # Auth middleware
 │   ├── components/
-│   │   ├── Navbar.tsx          # Editorial navigation
-│   │   ├── Footer.tsx          # Mission footer
+│   │   ├── Navbar.tsx          # Editorial navigation with persistent Sign In
+│   │   ├── Footer.tsx          # Mission footer & newsletter input
 │   │   ├── AuthModal.tsx       # Google OAuth modal
 │   │   ├── AuthGuard.tsx       # Protected route wrapper
 │   │   └── ConvexClientProvider.tsx  # Convex provider
@@ -68,35 +68,49 @@ moitrii_frontend/
 │       ├── AppContext.tsx      # Shared React context
 │       ├── mockData.ts         # Fallback mock data
 │       └── useBrandAssets.ts   # Dynamic CDN asset hook
-├── convex/                     # Convex backend
-│   ├── schema.ts               # Database schema
-│   ├── content.ts              # Content queries & mutations
-│   ├── agents.ts               # Agent state management
-│   ├── requests.ts             # Request queue lifecycle
-│   ├── users.ts                # User profile & interests
+├── convex/                     # Convex backend (Deployment: brazen-rook-983)
+│   ├── schema.ts               # Database schema with PII anonymization
+│   ├── content.ts              # Content queries, mutations & reuse search
+│   ├── agents.ts               # Agent state & AgentMail inbox initialization
+│   ├── requests.ts             # Request queue lifecycle & isActive guard
+│   ├── users.ts                # User profile, interests & moderation
 │   ├── subscribers.ts          # Weekly digest newsletter subscribers
-│   ├── agentRunner.ts          # Background wake runner & Python webhook
+│   ├── agentRunner.ts          # Background wake runner & AI orchestrator
 │   ├── crons.ts                # Recurring scheduled wake jobs
 │   ├── files.ts                # Brand asset CDN serving
 │   ├── auth.ts                 # Convex Auth config (Google)
 │   ├── auth.config.ts          # Auth configuration
-│   ├── http.ts                 # HTTP router for auth
-│   └── tsconfig.json
+│   ├── http.ts                 # HTTP router for auth & webhooks
+│   ├── ai/                     # Modular Convex Cloud AI Engine
+│   │   ├── types.ts            # Research and guide types
+│   │   ├── reuseEngine.ts      # Full-text search match score engine
+│   │   ├── synthesizer.ts      # Multilingual guide synthesis (EN/BN/HI)
+│   │   ├── tts.ts              # Speech synthesis & Convex _storage
+│   │   ├── research.ts         # YouTube video discovery
+│   │   └── agentMail.ts        # AgentMail inbox dispatch
+│   └── emails/                 # Platform messaging
+│       └── brevo.ts            # Brevo welcome emails & weekly broadcasts
 ├── public/                     # Static assets
-├── docs/                       # This docs7 documentation site
+├── docs/                       # Docs7 documentation site
 └── ...
 ```
 
-## Google OAuth Setup
+## Environment Variables & Credentials
 
-To enable authentication locally:
+Set these configuration variables in your Convex Dashboard for your deployment (`brazen-rook-983`):
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com)
-2. Create or select a project
-3. Navigate to **APIs & Credentials** → **OAuth consent screen**
-4. Configure the consent screen with:
-   - **Authorized JavaScript origins**: `http://localhost:3000`
-   - **Redirect URIs**: `http://localhost:3000/auth/google/callback`
-5. Set the OAuth client ID and secret as environment variables in your Convex dashboard:
-   - `AUTH_GOOGLE_ID` — Google OAuth client ID
-   - `AUTH_GOOGLE_SECRET` — Google OAuth client secret
+### 1. Google OAuth
+- `AUTH_GOOGLE_ID` — Google OAuth Client ID
+- `AUTH_GOOGLE_SECRET` — Google OAuth Client Secret
+
+### 2. Email & Messaging Channels
+- `BREVO_API_KEY` — API key for Brevo transactional welcome emails and weekly broadcasts
+- `BREVO_SENDER_EMAIL` — Verified sender email (e.g., `newsletter@moitrii.com`)
+- `BREVO_SENDER_NAME` — Sender display name (`Moitrii Lifestyle`)
+- `AGENTMAIL_API_KEY` — API key for AgentMail 1:1 agent dispatch
+- `AGENTMAIL_DOMAIN` — Custom agent domain (defaults to `agentmail.to`)
+
+### 3. AI & Synthesis Pipeline
+- `OPENAI_API_KEY` — API key for LLM guide synthesis and TTS audio narration
+- `AGENT_SERVICE_SECRET` — Shared secret for securing HTTP webhook callbacks (`POST /api/agent/complete`)
+- `PYTHON_AGENT_ENDPOINT` — Optional fallback external agent webhook URL

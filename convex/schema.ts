@@ -17,6 +17,7 @@ export default defineSchema({
     preferredLanguage: v.optional(
       v.union(v.literal("en"), v.literal("bn"), v.literal("hi"))
     ),
+    isActive: v.optional(v.boolean()), // Account status: defaults to true; false blocks wake/requests during disputes
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
@@ -24,6 +25,8 @@ export default defineSchema({
   // Persistent personal agent states
   agents: defineTable({
     userId: v.id("users"),
+    name: v.optional(v.string()),         // e.g. "Moitrii Companion for Priya"
+    email: v.optional(v.string()),        // Dedicated AgentMail inbox: agent-...@agentmail.to
     status: v.union(
       v.literal("SLEEPING"),
       v.literal("ACTIVE"),
@@ -42,6 +45,7 @@ export default defineSchema({
     lastRunAt: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
+    .index("by_email", ["email"])
     .index("by_wake_time", ["wakeTimeOfDay"]),
 
   // User topic subscriptions and preferences

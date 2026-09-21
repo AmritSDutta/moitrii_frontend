@@ -65,6 +65,27 @@ Updates the user's preferred language for AI agent deliverables (English, Bengal
 }
 ```
 
+### `setUserActiveStatus` (internal mutation)
+
+Admin and dispute moderation mutation to enable or disable a user account. Disabling a user halts scheduled agent wake evaluation and blocks new request submissions.
+
+**Args:**
+```ts
+{
+  userId: Id<"users">,
+  isActive: boolean
+}
+```
+
+**Returns:**
+```ts
+{
+  success: boolean,
+  userId: Id<"users">,
+  isActive: boolean
+}
+```
+
 ## Agents (`convex/agents.ts`)
 
 ### `getAgentState` (query)
@@ -217,11 +238,19 @@ Publishes a new guide to the Shared Knowledge Ecosystem. Features automatic slug
 
 **Auth required.**
 
+### `internalPublishGuide` (internal mutation)
+
+Internal mutation used exclusively by the AI agent execution pipeline to atomically write research deliverables into the Shared Knowledge library.
+
+### `checkContentReuse` (internal query helper)
+
+Performs full-text search against the `content` table to match user prompts with high-confidence existing guides, incrementing reuse counters rather than duplicating LLM generation.
+
 ## Subscribers (`convex/subscribers.ts`)
 
 ### `subscribeDigest` (mutation)
 
-Subscribes an email address to the weekly curated lifestyle digest. Validates email format with RFC 5322 regex and ensures idempotency by checking for existing active subscriptions. Available to both anonymous visitors and authenticated users.
+Subscribes an email address to the weekly curated lifestyle digest. Validates email format with RFC 5322 regex, ensures idempotency by checking for existing active subscriptions, and dispatches a Brevo welcome confirmation email asynchronously.
 
 **Args:**
 ```ts
@@ -239,19 +268,40 @@ Subscribes an email address to the weekly curated lifestyle digest. Validates em
 }
 ```
 
+## Email Communications (`convex/emails/brevo.ts` & `convex/ai/agentMail.ts`)
+
+### `sendSubscriberWelcomeEmail` (Brevo action)
+
+Dispatches a warm, branded welcome email via Brevo REST API when a user subscribes to the Moitrii lifestyle newsletter.
+
+### `sendWeeklyDigestBroadcast` (Brevo action)
+
+Dispatches a curated weekly digest of top lifestyle stories to all active subscribers via Brevo batch broadcasting.
+
+### `sendAgentCompletionNotification` (AgentMail action)
+
+Dispatches a personalized HTML research report directly from the user's dedicated agent inbox (`agent-<userId>@agentmail.to`) to their personal email address upon wake completion.
+
 ## Agent Runner & Crons (`convex/agentRunner.ts`, `convex/crons.ts`)
 
 ### `triggerScheduledWakes` (internal action)
 
 Triggered on an hourly schedule (at `:30` minute UTC to align with IST `:00` boundaries) by `convex/crons.ts`.
 - Queries all agents due for execution that have `PENDING` research requests.
+- Filters out inactive users (`users.isActive === false`) for dispute safety.
 - Sets agent status to `WORKING` and requests to `PROCESSING`.
-- Dispatches an HTTPS POST webhook to the external Python AI agent backend (`PYTHON_AGENT_ENDPOINT`) with a 15-second timeout (`AbortSignal.timeout(15000)`).
-- **Failure Rollback:** If the webhook request fails, times out, or returns a non-200 status, automatically rolls back: reverts the agent state to `SLEEPING` with an explanatory message and resets requests back to `PENDING` so tasks never become stuck.
+- Executes the native modular AI pipeline:
+  1. Content Reuse Check (`convex/ai/reuseEngine.ts`)
+  2. Multilingual Synthesis (`convex/ai/synthesizer.ts` in English, Bengali, or Hindi)
+  3. Audio Narration (`convex/ai/tts.ts` saved to Convex `_storage`)
+  4. Video Discovery (`convex/ai/research.ts` YouTube embeds)
+  5. Personal Notification (`convex/ai/agentMail.ts` from `agent.email`)
+  6. Atomic Publishing (`convex/content.ts` `internalPublishGuide`)
+- **Failure Rollback:** If any unhandled pipeline error occurs, automatically rolls back: reverts the agent state to `SLEEPING` with an explanatory message and resets requests back to `PENDING` so tasks never become stuck.
 
 ### `POST /api/agent/complete` (HTTP endpoint)
 
-Callback endpoint mounted in `convex/http.ts` for the Python agent backend to submit completed research deliverables.
+Callback endpoint mounted in `convex/http.ts` for external agent backends to submit completed research deliverables.
 - **Fail-Closed Security:** Rejects requests with `503 Service Unavailable` if `AGENT_SERVICE_SECRET` is not configured in the backend environment, and `401 Unauthorized` if the `Authorization: Bearer <secret>` or `x-agent-secret` header is invalid.
 - **Runtime Payload Validation:** Parses and shape-checks the untrusted request body via `parseCompletionBody` (`agentId` string and `deliverables` array) before invoking the internal `completeAgentTask` mutation.
 - Transitions requests to `COMPLETED` and resets agent state to `SLEEPING`.

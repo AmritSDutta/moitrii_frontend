@@ -95,3 +95,24 @@ npm run test:watch  # watch mode
 ```bash
 npx convex dev
 ```
+
+## Why are subscriber emails and agent notifications sent via different providers?
+
+Moitrii uses a **dual-channel messaging separation**:
+- **Brevo (`convex/emails/brevo.ts`):** Handles marketing, subscriber welcome emails, and batch weekly lifestyle digests. These are platform-wide broadcasts directed to users on the `subscribers` list.
+- **AgentMail (`convex/ai/agentMail.ts`):** Handles 1:1 personal agent deliverables. Every user has a dedicated personal companion (`Moitrii Companion`) with its own virtual inbox (`agent-...@agentmail.to`). Research deliverables are delivered directly from the agent's identity to the user's email, maintaining context and personalization.
+
+## How does Moitrii handle user data privacy and PII anonymization?
+
+To ensure strict privacy and future anonymization readiness:
+1. **Isolated PII:** Real user names and personal emails exist solely in the `users` table.
+2. **Generic Companion Personas:** The `agents` table stores only persona name `"Moitrii Companion"` and a generated AgentMail address. It never stores the user's real name or email.
+3. **Opaque References:** All other tables (`requests`, `content`, `userInterests`) reference users only through opaque database IDs (`userId: v.id("users")`).
+
+## How does account deactivation (`users.isActive: false`) work?
+
+Every user record contains an `isActive` boolean flag (defaulting to `true`). In the event of a dispute, abuse report, or account freeze:
+- An admin can invoke `setUserActiveStatus(userId, false)`.
+- Scheduled agent wake cron jobs immediately skip the user's agent.
+- `createRequest` mutations and profile edits reject further actions with an error.
+- All existing data remains securely stored until the dispute is resolved.

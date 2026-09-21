@@ -40,6 +40,22 @@ export function computeNextWakeString(hour: number, minute: number): string {
 }
 
 /**
+ * Computes a distinct AgentMail inbox address for a user.
+ */
+export function computeAgentEmail(userId: string): string {
+  const clean = userId.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const suffix = clean.length >= 6 ? clean.slice(-6) : clean.padEnd(6, "0");
+  return `agent-${suffix}@agentmail.to`;
+}
+
+/**
+ * Computes the persona companion name (preserving zero human PII in agents table).
+ */
+export function computeAgentName(): string {
+  return "Moitrii Companion";
+}
+
+/**
  * Returns the personal agent state for the currently authenticated user.
  * Auto-initializes an agent document if this is the user's first session.
  */
@@ -57,12 +73,18 @@ export const getAgentState = query({
       .first();
 
     if (agent) {
-      return agent;
+      return {
+        ...agent,
+        name: agent.name ?? "Moitrii Companion",
+        email: agent.email ?? computeAgentEmail(userId),
+      };
     }
 
     // Default fallback representation (11:00 PM IST) if not yet written by mutation
     return {
       userId,
+      name: "Moitrii Companion",
+      email: computeAgentEmail(userId),
       status: "SLEEPING" as const,
       statusMessage: "Your agent is resting and preparing for the next scheduled research cycle.",
       nextWakeTime: "Tonight, 11:00 PM IST",
@@ -93,6 +115,11 @@ export const initializeAgent = mutation({
       throw new Error("Unauthorized: Must be logged in to initialize agent");
     }
 
+    const user = await ctx.db.get(userId);
+    if (user && (user as any).isActive === false) {
+      throw new Error("Account is inactive or under review");
+    }
+
     const existing = await ctx.db
       .query("agents")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -102,6 +129,9 @@ export const initializeAgent = mutation({
       return existing._id;
     }
 
+    const agentEmail = computeAgentEmail(userId);
+    const agentName = computeAgentName();
+
     const defaultTime = args.wakeTimeOfDay ?? "23:00";
     const validated = validateWakeTime(defaultTime);
     const timezone = args.timezone ?? "Asia/Kolkata";
@@ -110,6 +140,8 @@ export const initializeAgent = mutation({
 
     return await ctx.db.insert("agents", {
       userId,
+      name: agentName,
+      email: agentEmail,
       status: "SLEEPING",
       statusMessage: "Your agent is resting and preparing for the next scheduled research cycle.",
       nextWakeTime,
@@ -135,6 +167,11 @@ export const updateAgentFrequency = mutation({
       throw new Error("Unauthorized: Must be logged in to update agent frequency");
     }
 
+    const user = await ctx.db.get(userId);
+    if (user && (user as any).isActive === false) {
+      throw new Error("Account is inactive or under review");
+    }
+
     const agent = await ctx.db
       .query("agents")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -148,6 +185,8 @@ export const updateAgentFrequency = mutation({
     } else {
       return await ctx.db.insert("agents", {
         userId,
+        name: computeAgentName(),
+        email: computeAgentEmail(userId),
         status: "SLEEPING",
         statusMessage: "Your agent is resting and preparing for the next scheduled research cycle.",
         nextWakeTime: "Tonight, 11:00 PM IST",
@@ -176,6 +215,11 @@ export const updateWakeSchedule = mutation({
       throw new Error("Unauthorized: Must be logged in to update wake schedule");
     }
 
+    const user = await ctx.db.get(userId);
+    if (user && (user as any).isActive === false) {
+      throw new Error("Account is inactive or under review");
+    }
+
     const validated = validateWakeTime(args.wakeTimeOfDay);
     const timezone = args.timezone ?? "Asia/Kolkata";
     const wakeFrequency = `Daily (${validated.formatted12h} IST)`;
@@ -202,6 +246,8 @@ export const updateWakeSchedule = mutation({
     } else {
       const newId = await ctx.db.insert("agents", {
         userId,
+        name: computeAgentName(),
+        email: computeAgentEmail(userId),
         status: "SLEEPING",
         statusMessage: "Your agent is resting and preparing for the next scheduled research cycle.",
         nextWakeTime,

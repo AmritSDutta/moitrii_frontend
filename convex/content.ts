@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
@@ -194,3 +194,77 @@ export const publishContent = mutation({
     return { contentId, slug: targetSlug };
   },
 });
+
+/**
+ * Autonomous publisher for personal AI agents executing scheduled wakes.
+ */
+export const internalPublishGuide = internalMutation({
+  args: {
+    userId: v.id("users"),
+    title: v.string(),
+    slug: v.string(),
+    subtitle: v.string(),
+    category: v.string(),
+    author: v.string(),
+    readTime: v.string(),
+    coverImage: v.string(),
+    coverImageStorageId: v.optional(v.id("_storage")),
+    audioUrl: v.optional(v.string()),
+    audioStorageId: v.optional(v.id("_storage")),
+    reusedCount: v.optional(v.number()),
+    isReused: v.optional(v.boolean()),
+    takeaways: v.array(v.string()),
+    content: v.string(),
+    youtubeId: v.optional(v.string()),
+    youtubeTitle: v.optional(v.string()),
+    sources: v.array(
+      v.object({
+        title: v.string(),
+        url: v.string(),
+      })
+    ),
+    generatedFromPrompt: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let targetSlug = args.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (!targetSlug) {
+      targetSlug = `article-${Date.now()}`;
+    }
+
+    const existing = await ctx.db
+      .query("content")
+      .withIndex("by_slug", (q) => q.eq("slug", targetSlug))
+      .first();
+
+    if (existing) {
+      targetSlug = `${targetSlug}-${Date.now().toString().slice(-4)}`;
+    }
+
+    const contentId = await ctx.db.insert("content", {
+      title: args.title,
+      slug: targetSlug,
+      subtitle: args.subtitle,
+      category: args.category,
+      author: args.author,
+      authorId: args.userId,
+      authorType: "agent",
+      readTime: args.readTime,
+      publishedAt: new Date().toISOString(),
+      coverImage: args.coverImage,
+      coverImageStorageId: args.coverImageStorageId,
+      audioUrl: args.audioUrl,
+      audioStorageId: args.audioStorageId,
+      reusedCount: args.reusedCount ?? 0,
+      isReused: args.isReused ?? false,
+      takeaways: args.takeaways,
+      content: args.content,
+      youtubeId: args.youtubeId,
+      youtubeTitle: args.youtubeTitle,
+      sources: args.sources,
+      generatedFromPrompt: args.generatedFromPrompt,
+    });
+
+    return { contentId, slug: targetSlug };
+  },
+});
+

@@ -90,19 +90,6 @@ export const Navbar: React.FC = () => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
 
-                if (!link.public && !isAuthenticated) {
-                  return (
-                    <button
-                      key={link.href}
-                      onClick={() => setAuthModalOpen(true)}
-                      className="flex items-center space-x-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all text-charcoal-700 hover:text-charcoal-900 hover:bg-petal-100/80"
-                    >
-                      <Icon className="w-4 h-4 text-charcoal-500" />
-                      <span>{link.name}</span>
-                    </button>
-                  );
-                }
-
                 return (
                   <Link
                     key={link.href}
@@ -120,13 +107,13 @@ export const Navbar: React.FC = () => {
               })}
             </nav>
 
-            {/* Right Status & Auth/Profile Controls */}
-            <div className="hidden lg:flex items-center space-x-3">
-              {/* Agent Live Badge */}
+            {/* Right Status & Auth/Profile Controls (Persistently Visible) */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Agent Live Badge (visible on sm+) */}
               {isAuthenticated ? (
                 <Link
                   href="/dashboard"
-                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100 border border-petal-200 shadow-sm hover:border-forest-500/40 transition-colors"
+                  className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100 border border-petal-200 shadow-sm hover:border-forest-500/40 transition-colors"
                 >
                   <div className="relative flex items-center justify-center">
                     {agentState.status === "SLEEPING" ? (
@@ -153,7 +140,7 @@ export const Navbar: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setAuthModalOpen(true)}
-                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100/70 hover:bg-cream-100 border border-petal-200 shadow-xs transition-colors"
+                  className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100/70 hover:bg-cream-100 border border-petal-200 shadow-xs transition-colors"
                 >
                   <Moon className="w-3.5 h-3.5 text-indigo-400" />
                   <div className="text-left">
@@ -245,16 +232,16 @@ export const Navbar: React.FC = () => {
                   <span>Sign In</span>
                 </button>
               )}
-            </div>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-charcoal-700 hover:bg-petal-100"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+              {/* Mobile menu toggle button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg text-charcoal-700 hover:bg-petal-100"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -267,7 +254,7 @@ export const Navbar: React.FC = () => {
             {topics.map((t) => (
               <Link
                 key={t.id}
-                href={`/?topic=${t.id}`}
+                href={`/?topic=${t.id}#articles-section`}
                 className="whitespace-nowrap hover:text-forest-800 hover:font-medium transition-colors"
               >
                 {t.name}
@@ -282,22 +269,6 @@ export const Navbar: React.FC = () => {
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
-
-              if (!link.public && !isAuthenticated) {
-                return (
-                  <button
-                    key={link.href}
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setAuthModalOpen(true);
-                    }}
-                    className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium text-charcoal-800 hover:bg-petal-100 text-left"
-                  >
-                    <Icon className="w-4 h-4 text-charcoal-500" />
-                    <span>{link.name}</span>
-                  </button>
-                );
-              }
 
               return (
                 <Link

@@ -38,6 +38,11 @@ export const createRequest = mutation({
       throw new Error("Unauthorized: Must be logged in to create a request");
     }
 
+    const user = await ctx.db.get(userId);
+    if (user && (user as any).isActive === false) {
+      throw new Error("Account is inactive or under review");
+    }
+
     const trimmedPrompt = args.prompt.trim();
     if (!trimmedPrompt) {
       throw new Error("Prompt cannot be empty");

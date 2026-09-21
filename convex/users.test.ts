@@ -87,4 +87,33 @@ test("updatePreferredLanguage rejects unauthenticated caller", async () => {
   ).rejects.toThrow(/Unauthorized/);
 });
 
+test("viewer returns isActive as true by default, and setUserActiveStatus toggles account status", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const asUser = t.withIdentity({ subject: userId });
+
+  // Default active
+  let profile = await asUser.query(api.users.viewer, {});
+  expect((profile as any)?.isActive).toBe(true);
+
+  // Deactivate account via internal mutation
+  await t.run(async (ctx) => {
+    await ctx.db.patch(userId, { isActive: false });
+  });
+
+  profile = await asUser.query(api.users.viewer, {});
+  expect((profile as any)?.isActive).toBe(false);
+
+  // Inactive user is blocked from updating language
+  await expect(
+    asUser.mutation(api.users.updatePreferredLanguage, { language: "hi" })
+  ).rejects.toThrow(/Account is inactive or under review/);
+
+  // Inactive user is blocked from updating interests
+  await expect(
+    asUser.mutation(api.users.updateInterests, { topicIds: ["health"] })
+  ).rejects.toThrow(/Account is inactive or under review/);
+});
+
+
 

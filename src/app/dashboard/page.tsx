@@ -25,7 +25,8 @@ import {
   X,
   AlertCircle,
   Globe,
-  Languages
+  Languages,
+  Mail
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -217,12 +218,16 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                     <span className="text-xs font-bold uppercase tracking-wider text-charcoal-900">
                       Agent Status: {agentState.status}
                     </span>
                     <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-petal-200 text-charcoal-600">
                       Tier: {agentState.subscriptionTier}
+                    </span>
+                    <span className="text-[10px] bg-forest-50 px-2 py-0.5 rounded-full border border-forest-200/60 text-forest-800 font-medium flex items-center space-x-1">
+                      <Mail className="w-2.5 h-2.5" />
+                      <span>{(liveAgent as any)?.email || (agentState as any).email || "agent@agentmail.to"}</span>
                     </span>
                   </div>
                   <p className="text-xs text-charcoal-600 mt-0.5">
