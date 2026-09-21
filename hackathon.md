@@ -3,16 +3,18 @@
 - **Project:** Moitrii
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Affordable personal AI agent platform where users select interests, submit requests, and receive persistent, periodically executed assistance.
-- **Live app:** not deployed
+- **Live app:** https://moitrii-frontend.pages.dev
 - **Repo:** https://github.com/AmritSDutta/moitrii_frontend
-- **Frontend:** not deployed
+- **Frontend:** Cloudflare Pages
 - **Convex deployment:** not deployed
 - **Components:** @convex-dev/workflow
 - **Convex features:** schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http, workflows, components
 - **Auth:** Convex Auth
 - **AI models:** gpt-4o-mini, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-21T23:20:00Z
+- **Last updated:** 2026-09-21T23:30:00Z
+
+
 
 ## Log
 

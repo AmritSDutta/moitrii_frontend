@@ -103,3 +103,17 @@ To ensure strict privacy and future anonymization readiness:
 **Fix:**
 1. **YouTube ID Extractor:** `src/lib/youtube.ts` provides `extractYouTubeId()` which parses standard watch URLs, short links, embed links, and raw IDs using regex to extract the clean 11-character ID.
 2. **Safe Embed Rendering:** `ContentReaderPage.tsx` and `HomePage.tsx` wrap all iframe embeds with `extractYouTubeId()`, safely omitting or disabling the player if the video ID is invalid or missing.
+
+## Why does refreshing a subroute on Cloudflare Pages return 404 Not Found?
+
+**Symptom:** Opening `https://<app>.pages.dev` works, but directly refreshing or pasting a link to `https://<app>.pages.dev/dashboard`, `https://<app>.pages.dev/requests`, or `https://<app>.pages.dev/content/:slug` returns an HTTP 404 error.
+
+**Cause:** React Router handles routing entirely on the client side (in the browser). When you refresh or type a subroute URL directly, the browser asks Cloudflare Pages for a file at `/dashboard.html` or `/dashboard/index.html`. Since Vite creates a single static `index.html` at the root of `dist/`, Cloudflare Pages does not find a static file matching that path and serves a 404 error.
+
+**Fix:**
+Create a `_redirects` file in `public/_redirects` with the rewrite rule:
+```text
+/*    /index.html   200
+```
+When Vite runs `npm run build`, it copies `public/_redirects` to `dist/_redirects`. Cloudflare Pages reads this rule and redirects all non-static asset requests to `/index.html` with an HTTP 200 status code, allowing React Router to boot up and render the correct subpage.
+

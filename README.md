@@ -344,13 +344,17 @@ In the [Brevo dashboard](https://app.brevo.com):
 1. **SMTP & API → API Keys → Generate new key (v3)** — copy the `xkeysib-...` key.
 2. **Senders & IP → Senders → Add a Sender** — enter an email you own (your Gmail is fine) and click the verification link Brevo emails you. Brevo rejects sends from unverified addresses.
 
-### 2. Environment Variables (dev deployment)
+### 2. Environment Variables (dev & production deployments)
 
 ```bash
 npx convex env set BREVO_API_KEY xkeysib-your-key-here
 npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
+# For local development:
 npx convex env set APP_ORIGIN http://localhost:3000
+# For Cloudflare Pages production:
+# npx convex env set APP_ORIGIN https://moitrii-frontend.pages.dev
 ```
+
 
 Then restart `npx convex dev` so running functions pick up the new values. Without `BREVO_API_KEY` the pipeline runs in demo mode: nothing is sent, delivery is only logged.
 
@@ -421,6 +425,12 @@ npm install --include=dev
 
 **Invariant:** Always route video parameters through `extractYouTubeId()` (`src/lib/youtube.ts`) before constructing embed iframes, safely omitting or disabling invalid players.
 
+### Why does refreshing a subroute on Cloudflare Pages return 404?
+
+**Cause:** React Router manages routing in the browser. When refreshing or typing deep links like `/dashboard` or `/content/:slug`, Cloudflare Pages searches for a static file named `/dashboard.html` which does not exist in a Vite SPA.
+
+**Fix:** A `public/_redirects` file contains `/* /index.html 200`. Vite automatically includes this in `dist/`, instructing Cloudflare Pages to serve `index.html` with status 200 for all client-side routes.
+
 ### How do I run and write tests?
 
 Tests run across two projects under `vitest.config.ts`:
@@ -430,5 +440,6 @@ Tests run across two projects under `vitest.config.ts`:
 ```bash
 npm test
 ```
+
 
 

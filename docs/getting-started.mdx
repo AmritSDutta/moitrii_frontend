@@ -174,3 +174,34 @@ crons.interval(
 4. Click **resubscribe** on the page — the same command returns `ACTIVE`, and a re-run of the dispatcher proves unsubscribed addresses are skipped.
 
 For a zero-cost template check before any of this, `npx vitest run convex/emails/brevo.test.ts` renders the digest HTML offline (no keys, no sending).
+
+## Deploying to Cloudflare Pages
+
+Moitrii is built as a pure React 18 / Vite Single Page Application and deploys to **Cloudflare Pages**:
+
+### 1. Cloudflare Pages Build Configuration
+- **Framework preset:** `None` / `Vite`
+- **Build command:** `npm run build`
+- **Build output directory:** `dist`
+- **Root directory:** `/`
+- **Node.js version:** `18` or higher
+
+### 2. Build Environment Variables (Cloudflare Dashboard)
+Set the following environment variable in **Cloudflare Pages $\rightarrow$ Settings $\rightarrow$ Environment variables**:
+- `VITE_CONVEX_URL`: Your Convex Cloud deployment URL (e.g. `https://brazen-rook-983.convex.cloud`).
+
+### 3. SPA Client-Side Routing (`_redirects`)
+To prevent `404 Not Found` when visitors refresh deep pages (e.g. `/dashboard`, `/requests`, `/content/:slug`, `/unsubscribe`), a `_redirects` file in `public/_redirects` contains:
+```text
+/*    /index.html   200
+```
+This instructs Cloudflare Pages to serve `index.html` on all client paths, allowing React Router to render the appropriate view.
+
+### 4. Convex Cloud Sync (`APP_ORIGIN`)
+Update `APP_ORIGIN` in your Convex deployment environment variables to your Cloudflare Pages domain (`https://moitrii-frontend.pages.dev`):
+```bash
+npx convex env set APP_ORIGIN https://moitrii-frontend.pages.dev
+```
+This ensures email links dispatched via Brevo and AgentMail resolve to your live Cloudflare Pages URL.
+
+
