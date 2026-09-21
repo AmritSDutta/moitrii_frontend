@@ -409,6 +409,18 @@ Authentication is powered by `@convex-dev/auth/react`. The app root is wrapped i
 npm install --include=dev
 ```
 
+### Why do images fail with `net::ERR_FILE_NOT_FOUND` on reload?
+
+**Cause:** Ephemeral `blob:http://...` strings from `URL.createObjectURL(file)` expire on page refresh or session restart.
+
+**Invariant:** Upload files to Convex File Storage (`_storage`) and store `coverImageStorageId`. Query endpoints (`getContentBySlug`, `getPublishedContent`, `getWhatsHot`) dynamically resolve permanent CDN URLs via `ctx.storage.getUrl(storageId)`. Frontend images implement `onError` fallbacks to `/images/moitrii.jpg`.
+
+### Why do embedded YouTube videos fail with "Video unavailable"?
+
+**Cause:** Iframe players require an exact 11-character video ID, but users/publishers often provide full watch URLs (`youtube.com/watch?v=...`) or shortlinks (`youtu.be/...`).
+
+**Invariant:** Always route video parameters through `extractYouTubeId()` (`src/lib/youtube.ts`) before constructing embed iframes, safely omitting or disabling invalid players.
+
 ### How do I run and write tests?
 
 Tests run across two projects under `vitest.config.ts`:
@@ -418,4 +430,5 @@ Tests run across two projects under `vitest.config.ts`:
 ```bash
 npm test
 ```
+
 

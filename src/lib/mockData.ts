@@ -284,7 +284,7 @@ How we spend the first twenty minutes of our waking state sets the emotional res
 2. **Abhyanga Face & Scalp Massage:** Warm sesame or kumkumadi oil gently massaged onto temple points to ease overnight tension.
 3. **Centering Breath:** Five cycles of box breathing (inhale 4s, hold 4s, exhale 4s, hold 4s).
     `,
-    youtubeId: "input-yoga-sample",
+    youtubeId: "v7AYKMP6rOE",
     youtubeTitle: "10-Minute Morning Yoga Flow for Gentle Energy",
     sources: [
       { title: "Charaka Samhita: Principles of Dinacharya", url: "https://example.com/charaka-dinacharya" }

@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Play
 } from "lucide-react";
+import { extractYouTubeId } from "@/lib/youtube";
 
 export function HomePage() {
   const { articles: fallbackArticles, topics, videos, searchQuery, setSearchQuery } = useApp();
@@ -261,6 +262,10 @@ export function HomePage() {
                   alt={article.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/images/moitrii.jpg";
+                  }}
                 />
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                   <span className="bg-white/90 backdrop-blur-sm text-charcoal-900 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-xs">
@@ -390,6 +395,10 @@ export function HomePage() {
                   alt={vid.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/images/moitrii.jpg";
+                  }}
                 />
                 <div className="absolute inset-0 bg-charcoal-900/30 group-hover:bg-charcoal-900/20 transition-colors flex items-center justify-center">
                   <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -416,27 +425,36 @@ export function HomePage() {
       </section>
 
       {/* Video Modal */}
-      {activeVideoModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl overflow-hidden max-w-3xl w-full shadow-2xl relative">
-            <button
-              onClick={() => setActiveVideoModal(null)}
-              className="absolute top-3 right-3 z-10 bg-black/50 text-white rounded-full p-2 hover:bg-black text-xs"
-            >
-              ✕
-            </button>
-            <div className="aspect-video w-full">
-              <iframe
-                src={`https://www.youtube.com/embed/${activeVideoModal}?autoplay=1`}
-                title="YouTube Video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full border-0"
-              />
+      {activeVideoModal && (() => {
+        const cleanVideoId = extractYouTubeId(activeVideoModal);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl overflow-hidden max-w-3xl w-full shadow-2xl relative">
+              <button
+                onClick={() => setActiveVideoModal(null)}
+                className="absolute top-3 right-3 z-10 bg-black/50 text-white rounded-full p-2 hover:bg-black text-xs"
+              >
+                ✕
+              </button>
+              <div className="aspect-video w-full">
+                {cleanVideoId ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${cleanVideoId}?autoplay=1`}
+                    title="YouTube Video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full border-0"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full bg-charcoal-900 text-white text-xs">
+                    Video unavailable
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 5. ABOUT MOITRII & CALM TECHNOLOGY BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

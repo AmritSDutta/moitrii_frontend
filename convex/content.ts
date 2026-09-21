@@ -4,12 +4,24 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 
 const DEFAULT_CONTENT_LIMIT = 24;
+const FALLBACK_COVER_IMAGE =
+  "https://images.unsplash.com/photo-1540420773420-3366772f4999?q=80&w=1200&auto=format&fit=crop";
 
 /**
- * Card-facing projection for list views. Keeps landing/related grids light by
- * omitting the full markdown body, takeaways, and sources.
+ * Card-facing projection for list views. Resolves storage URLs and ensures stable cover image fallback.
  */
-function toContentCard(doc: Doc<"content">) {
+async function toContentCard(ctx: any, doc: Doc<"content">) {
+  let coverImage = doc.coverImage;
+  if (doc.coverImageStorageId) {
+    const storageUrl = await ctx.storage.getUrl(doc.coverImageStorageId);
+    if (storageUrl) {
+      coverImage = storageUrl;
+    }
+  }
+  if (!coverImage || coverImage.startsWith("blob:")) {
+    coverImage = FALLBACK_COVER_IMAGE;
+  }
+
   return {
     _id: doc._id,
     slug: doc.slug,
@@ -20,7 +32,7 @@ function toContentCard(doc: Doc<"content">) {
     authorType: doc.authorType,
     readTime: doc.readTime,
     publishedAt: doc.publishedAt,
-    coverImage: doc.coverImage,
+    coverImage,
     reusedCount: doc.reusedCount,
     isReused: doc.isReused,
     youtubeId: doc.youtubeId,
@@ -30,7 +42,7 @@ function toContentCard(doc: Doc<"content">) {
 
 /**
  * Lists published articles with optional category filtering and limit.
- * Bounded read returning only card metadata.
+ * Bounded read returning card metadata with resolved CDN image URLs.
  */
 export const getPublishedContent = query({
   args: {
@@ -49,7 +61,7 @@ export const getPublishedContent = query({
             .take(limit)
         : await ctx.db.query("content").order("desc").take(limit);
 
-    return results.map(toContentCard);
+    return await Promise.all(results.map((doc) => toContentCard(ctx, doc)));
   },
 });
 
@@ -69,33 +81,59 @@ export const getWhatsHot = query({
       .order("desc")
       .take(limit);
 
-    return results.map(toContentCard);
+    return await Promise.all(results.map((doc) => toContentCard(ctx, doc)));
   },
 });
 
 /**
- * Retrieves a single article by its URL slug.
+ * Retrieves a single article by its URL slug or ID, resolving storage CDN URLs.
  */
 export const getContentBySlug = query({
   args: {
     slug: v.string(),
   },
   handler: async (ctx, args) => {
-    const article = await ctx.db
+    let article = await ctx.db
       .query("content")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
 
-    if (article) {
-      return article;
+    if (!article) {
+      try {
+        const byId = await ctx.db.get(args.slug as any);
+        if (byId && "title" in byId && "slug" in byId) {
+          article = byId as Doc<"content">;
+        }
+      } catch {
+        // not a valid Convex ID
+      }
     }
 
-    // Fallback: try finding by document _id if slug was passed as an ID
-    try {
-      const byId = await ctx.db.get(args.slug as any);
-      if (byId) return byId;
-    } catch {
-      // not a valid Convex ID
+    if (article) {
+      let coverImage = article.coverImage;
+      if (article.coverImageStorageId) {
+        const storageUrl = await ctx.storage.getUrl(article.coverImageStorageId);
+        if (storageUrl) {
+          coverImage = storageUrl;
+        }
+      }
+      if (!coverImage || coverImage.startsWith("blob:")) {
+        coverImage = FALLBACK_COVER_IMAGE;
+      }
+
+      let audioUrl = article.audioUrl;
+      if (article.audioStorageId) {
+        const storageAudioUrl = await ctx.storage.getUrl(article.audioStorageId);
+        if (storageAudioUrl) {
+          audioUrl = storageAudioUrl;
+        }
+      }
+
+      return {
+        ...article,
+        coverImage,
+        audioUrl,
+      };
     }
 
     return null;
@@ -167,6 +205,17 @@ export const publishContent = mutation({
       targetSlug = `${targetSlug}-${Date.now().toString().slice(-4)}`;
     }
 
+    let resolvedCover = args.coverImage;
+    if (args.coverImageStorageId) {
+      const storageUrl = await ctx.storage.getUrl(args.coverImageStorageId);
+      if (storageUrl) {
+        resolvedCover = storageUrl;
+      }
+    }
+    if (!resolvedCover || resolvedCover.startsWith("blob:")) {
+      resolvedCover = FALLBACK_COVER_IMAGE;
+    }
+
     const contentId = await ctx.db.insert("content", {
       title: args.title,
       slug: targetSlug,
@@ -177,7 +226,7 @@ export const publishContent = mutation({
       authorType: args.authorType ?? "human",
       readTime: args.readTime,
       publishedAt: new Date().toISOString(),
-      coverImage: args.coverImage,
+      coverImage: resolvedCover,
       coverImageStorageId: args.coverImageStorageId,
       audioUrl: args.audioUrl,
       audioStorageId: args.audioStorageId,
@@ -228,7 +277,7 @@ export const internalPublishGuide = internalMutation({
   handler: async (ctx, args) => {
     let targetSlug = args.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     if (!targetSlug) {
-      targetSlug = `article-${Date.now()}`;
+      targetSlug = `guide-${Date.now()}`;
     }
 
     const existing = await ctx.db
@@ -238,6 +287,17 @@ export const internalPublishGuide = internalMutation({
 
     if (existing) {
       targetSlug = `${targetSlug}-${Date.now().toString().slice(-4)}`;
+    }
+
+    let resolvedCover = args.coverImage;
+    if (args.coverImageStorageId) {
+      const storageUrl = await ctx.storage.getUrl(args.coverImageStorageId);
+      if (storageUrl) {
+        resolvedCover = storageUrl;
+      }
+    }
+    if (!resolvedCover || resolvedCover.startsWith("blob:")) {
+      resolvedCover = FALLBACK_COVER_IMAGE;
     }
 
     const contentId = await ctx.db.insert("content", {
@@ -250,7 +310,7 @@ export const internalPublishGuide = internalMutation({
       authorType: "agent",
       readTime: args.readTime,
       publishedAt: new Date().toISOString(),
-      coverImage: args.coverImage,
+      coverImage: resolvedCover,
       coverImageStorageId: args.coverImageStorageId,
       audioUrl: args.audioUrl,
       audioStorageId: args.audioStorageId,
@@ -267,4 +327,3 @@ export const internalPublishGuide = internalMutation({
     return { contentId, slug: targetSlug };
   },
 });
-

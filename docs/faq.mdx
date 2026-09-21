@@ -83,10 +83,23 @@ To ensure strict privacy and future anonymization readiness:
 2. **Generic Companion Personas:** The `agents` table stores only persona name `"Moitrii Companion"` and a generated AgentMail address. It never stores the user's real name or email.
 3. **Opaque References:** All other tables (`requests`, `content`, `userInterests`) reference users only through opaque database IDs (`userId: v.id("users")`).
 
-## How does account deactivation (`users.isActive: false`) work?
+## Why were images missing on reload with `net::ERR_FILE_NOT_FOUND`, and how is it prevented?
 
-Every user record contains an `isActive` boolean flag (defaulting to `true`). In the event of a dispute, abuse report, or account freeze:
-- An admin can invoke `setUserActiveStatus(userId, false)`.
-- Scheduled agent wake cron jobs immediately skip the user's agent.
-- `createRequest` mutations and profile edits reject further actions with an error.
-- All existing data remains securely stored until the dispute is resolved.
+**Symptom:** After publishing an article with a local file upload and refreshing the page, the cover image fails with `net::ERR_FILE_NOT_FOUND` on a URL like `blob:http://localhost:3000/be574934-5c42-...`.
+
+**Cause:** `URL.createObjectURL(file)` creates temporary in-memory browser URLs that become invalid upon page refresh or session restart. If stored directly in the database as the permanent `coverImage` string, reloads fail.
+
+**Fix:**
+1. **Convex File Storage Resolution:** In `convex/content.ts`, `publishContent` and `internalPublishGuide` accept `coverImageStorageId` from Convex storage. Query functions (`getContentBySlug`, `getPublishedContent`, `getWhatsHot`) resolve this ID to a permanent CDN URL via `ctx.storage.getUrl(doc.coverImageStorageId)`.
+2. **Blob Sanitization:** Any legacy `blob:` string stored in the database is automatically sanitized by Convex queries to a high-resolution fallback image.
+3. **Frontend Fallback:** `ContentReaderPage.tsx` and `HomePage.tsx` include `onError` handlers that default to `/images/moitrii.jpg` if an external image link fails to load.
+
+## Why were YouTube companion videos failing to play with "Video unavailable"?
+
+**Symptom:** The embedded video companion in articles or trending videos modal fails to play or displays "Video unavailable".
+
+**Cause:** Embed iframes require an exact 11-character video ID. If users or publishers paste full watch links (`https://www.youtube.com/watch?v=...`), short URLs (`https://youtu.be/...`), or invalid mock placeholders (such as `input-yoga-sample`), passing them directly into `https://www.youtube.com/embed/${id}` creates a malformed URL.
+
+**Fix:**
+1. **YouTube ID Extractor:** `src/lib/youtube.ts` provides `extractYouTubeId()` which parses standard watch URLs, short links, embed links, and raw IDs using regex to extract the clean 11-character ID.
+2. **Safe Embed Rendering:** `ContentReaderPage.tsx` and `HomePage.tsx` wrap all iframe embeds with `extractYouTubeId()`, safely omitting or disabling the player if the video ID is invalid or missing.

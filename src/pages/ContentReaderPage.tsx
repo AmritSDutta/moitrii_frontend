@@ -18,6 +18,7 @@ import {
   Bot,
   Sparkles
 } from "lucide-react";
+import { extractYouTubeId } from "@/lib/youtube";
 
 export function ContentReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -220,6 +221,10 @@ export function ContentReaderPage() {
           src={article.coverImage}
           alt={article.title}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = "/images/moitrii.jpg";
+          }}
         />
       </div>
 
@@ -244,25 +249,29 @@ export function ContentReaderPage() {
       )}
 
       {/* 4. Embedded YouTube Media */}
-      {article.youtubeId && (
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Play className="w-4 h-4 text-rosebrand fill-rosebrand" />
-            <h3 className="font-editorial text-lg font-bold text-charcoal-900">
-              Video Companion: {article.youtubeTitle || "Curated Guide"}
-            </h3>
+      {(() => {
+        const cleanVideoId = extractYouTubeId(article.youtubeId);
+        if (!cleanVideoId) return null;
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Play className="w-4 h-4 text-rosebrand fill-rosebrand" />
+              <h3 className="font-editorial text-lg font-bold text-charcoal-900">
+                Video Companion: {article.youtubeTitle || "Curated Guide"}
+              </h3>
+            </div>
+            <div className="aspect-video rounded-3xl overflow-hidden shadow-editorial border border-petal-200 bg-black">
+              <iframe
+                src={`https://www.youtube.com/embed/${cleanVideoId}`}
+                title={article.youtubeTitle || "YouTube video player"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full border-0"
+              />
+            </div>
           </div>
-          <div className="aspect-video rounded-3xl overflow-hidden shadow-editorial border border-petal-200 bg-black">
-            <iframe
-              src={`https://www.youtube.com/embed/${article.youtubeId}`}
-              title={article.youtubeTitle || "YouTube video player"}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full border-0"
-            />
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 5. Article Content Body */}
       <div className="prose prose-stone max-w-none text-charcoal-800 space-y-6 text-sm sm:text-base leading-relaxed">
@@ -332,6 +341,10 @@ export function ContentReaderPage() {
                   src={rel.coverImage}
                   alt={rel.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/images/moitrii.jpg";
+                  }}
                 />
               </div>
               <span className="text-[10px] font-bold text-rosebrand uppercase">
