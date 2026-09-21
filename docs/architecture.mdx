@@ -10,21 +10,26 @@ Moitrii follows a **frontend + backend** split: a Next.js React frontend served 
 ## High-Level Data Flow
 
 ```
-User Interaction
+User Interaction / Browser
   │
   ▼
 Next.js App Router (src/app/)
   │  useQuery / useMutation
-  │
   ▼
-Convex Cloud Backend (convex/)
+Convex Cloud Realtime Backend (convex/)
   ├── Schema & Database      (convex/schema.ts)
-  ├── Auth                   (convex/auth.ts)
-  ├── File Storage           (convex/files.ts)
-  ├── HTTP Routes            (convex/http.ts)
-  │
-  ▼
-Google OAuth / Browser
+  ├── Auth (Google OAuth)    (convex/auth.ts)
+  ├── File Storage CDN       (convex/files.ts)
+  ├── Content, Agents, Users (convex/*.ts)
+  ├── Autonomous Crons       (convex/crons.ts)
+  │     │ triggers hourly (:30 UTC)
+  │     ▼
+  ├── Agent Runner Action    (convex/agentRunner.ts)
+  │     │ HTTPS POST dispatch
+  │     ▼
+  │   External Python Agent Backend (agent/)
+  │     │ POST /api/agent/complete
+  └── HTTP Router Webhook    (convex/http.ts)
 ```
 
 ## System Components

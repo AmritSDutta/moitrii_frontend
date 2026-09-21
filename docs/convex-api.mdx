@@ -142,13 +142,13 @@ Creates a new research request in the agent's durable queue. Remains stored whil
 
 ### `getPublishedContent` (query)
 
-Lists published articles with optional category filtering and limit.
+Lists published articles with optional category filtering and limit (capped at 50 results).
 
 **Args:**
 ```ts
 {
   category?: string,   // filter by category; "all" or omitted returns all
-  limit?: number       // optional cap on results
+  limit?: number       // optional cap on results (capped at max 50)
 }
 ```
 
@@ -156,11 +156,11 @@ Lists published articles with optional category filtering and limit.
 
 ### `getWhatsHot` (query)
 
-Returns trending articles sorted by `reusedCount` (descending).
+Returns trending articles ordered by highest reuse count (`reusedCount`), querying directly against the `.index("by_reused_count")` index in descending order.
 
 **Args:**
 ```ts
-{ limit?: number }     // defaults to 4
+{ limit?: number }     // defaults to 4, clamped between 1 and 20
 ```
 
 ### `getContentBySlug` (query)
@@ -186,7 +186,7 @@ Generates a short-lived upload URL for direct image uploads to Convex File Stora
 
 ### `publishContent` (mutation)
 
-Publishes a new guide to the Shared Knowledge Ecosystem. Auto-generates a unique slug.
+Publishes a new guide to the Shared Knowledge Ecosystem. Features automatic slug sanitization (lowercasing, replacing spaces/special characters with hyphens) and duplicate slug collision resolution.
 
 **Args:**
 ```ts
@@ -243,11 +243,18 @@ Subscribes an email address to the weekly curated lifestyle digest. Validates em
 
 ### `triggerScheduledWakes` (internal action)
 
-Triggered on an hourly schedule (at `:30` minute UTC to align with IST boundaries) by `convex/crons.ts`. Queries all agents due for execution with pending requests, sets their state to `WORKING`, and dispatches an HTTPS POST webhook to the external Python AI agent backend (`PYTHON_AGENT_ENDPOINT`) with `{ userId, userEmail, userName, agentId, wakeTimeOfDay, timezone, requests }`.
+Triggered on an hourly schedule (at `:30` minute UTC to align with IST `:00` boundaries) by `convex/crons.ts`.
+- Queries all agents due for execution that have `PENDING` research requests.
+- Sets agent status to `WORKING` and requests to `PROCESSING`.
+- Dispatches an HTTPS POST webhook to the external Python AI agent backend (`PYTHON_AGENT_ENDPOINT`) with a 15-second timeout (`AbortSignal.timeout(15000)`).
+- **Failure Rollback:** If the webhook request fails, times out, or returns a non-200 status, automatically rolls back: reverts the agent state to `SLEEPING` with an explanatory message and resets requests back to `PENDING` so tasks never become stuck.
 
 ### `POST /api/agent/complete` (HTTP endpoint)
 
-Callback endpoint mounted in `convex/http.ts` for the Python agent backend to submit completed deliverables. Transitions pending requests to `COMPLETED` and resets agent state to `SLEEPING`.
+Callback endpoint mounted in `convex/http.ts` for the Python agent backend to submit completed research deliverables.
+- **Fail-Closed Security:** Rejects requests with `503 Service Unavailable` if `AGENT_SERVICE_SECRET` is not configured in the backend environment, and `401 Unauthorized` if the `Authorization: Bearer <secret>` or `x-agent-secret` header is invalid.
+- **Runtime Payload Validation:** Parses and shape-checks the untrusted request body via `parseCompletionBody` (`agentId` string and `deliverables` array) before invoking the internal `completeAgentTask` mutation.
+- Transitions requests to `COMPLETED` and resets agent state to `SLEEPING`.
 
 ## Frontend Client Imports
 

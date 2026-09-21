@@ -36,10 +36,11 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 ### 1. Public Landing & Exploration (`/` or `/explore`)
 - **Editorial Header & Navigation:** Categories (Health, Food, Beauty, Wellness, Kids, Home, Travel, Gen-Z, Anime).
 - **Hero Banner:** Editorial lifestyle hero with core value proposition.
-- **What's Hot:** Curated carousel/grid of top lifestyle stories.
+- **What's Hot:** Curated carousel/grid of top lifestyle stories backed by index `by_reused_count`.
 - **Popular Categories:** Interactive exploration pills.
 - **Latest Stories & Shared Library:** Browse published articles with reuse badges.
 - **Trending Videos:** Curated YouTube video cards and embeds.
+- **Weekly Lifestyle Digest Subscription:** Email newsletter subscription input in footer with RFC 5322 validation and deduplication.
 - **About Moitrii:** Mission and platform philosophy footer.
 
 ### 2. Onboarding & Interest Selection (`/onboarding`)
@@ -50,7 +51,8 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 
 ### 3. Agent Dashboard (`/dashboard`)
 - **Agent Status Indicator:** Visual state badge (`SLEEPING`, `ACTIVE`, `WORKING`, `WAITING`, `ERROR`) with calm pulsing indicator.
-- **Wake Schedule Card:** Countdown to the next scheduled wake-up cycle and last active summary.
+- **Wake Schedule Card:** Configurable schedule defaulting to **11:00 PM IST** with night-window restriction (9:00 PM – 9:00 AM IST) and countdown to next cycle.
+- **Preferred Language Selector:** Warm editorial segmented pill control for **English** (`EN`), **বাংলা** (`BN`), and **हिन्दी** (`HI`) with localized synthesis micro-copy.
 - **Quick Request Input:** Natural language prompt box ("What would you like your agent to work on?").
 - **Followed Topics:** Quick filter tags for active subscriptions.
 - **Agent Work Feed:**
@@ -65,14 +67,16 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 
 ### 5. Content & Article Reader View (`/content/[id]`)
 - Editorial layout for generated and reused content.
+- **In-Article Audio Narration Player:** Interactive audio playback bar positioned directly below the headline (disabled state if narration is unavailable).
+- **Author Transparency & AI Disclaimer:** Distinct author badges (`AI Agent Companion` vs `Human Author`) and editorial synthetic content disclaimer banner.
 - Integrated media: AI-generated visual headers, embedded YouTube players, structured key takeaways, and source citations.
 - Related content recommendations from the shared knowledge base.
 - Shareable public links.
 
 ### 6. Publisher Studio (`/publisher`)
 - Authoring and drafting tools for verified publishers.
-- Rich content preview (markdown, image/video embeds).
-- Single-click publish to the Moitrii Shared Knowledge Ecosystem.
+- Rich content preview (markdown, image/video embeds, audio narration URL).
+- Single-click publish with automatic slug sanitization and duplicate collision handling.
 
 ---
 
@@ -92,46 +96,65 @@ flowchart LR
     end
 
     subgraph ConvexBackend ["Convex Cloud Realtime Backend"]
-      F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot<br/>• getContentBySlug<br/>• publishContent<br/>• generateUploadUrl"]
-      F_Agents["convex/agents.ts<br/>• getAgentState<br/>• initializeAgent<br/>• updateAgentFrequency"]
+      F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent<br/>• generateUploadUrl"]
+      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent<br/>• updateWakeSchedule (9PM-9AM window)"]
       F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest"]
-      F_Users["convex/users.ts<br/>• viewer<br/>• getInterests<br/>• updateInterests"]
-      F_Files["convex/files.ts<br/>• getBrandAssets<br/>• Static CDN asset serving"]
-      F_Auth["convex/auth.ts<br/>• Google OAuth via<br/>• @convex-dev/auth"]
-      F_Storage["Convex File Storage<br/>• _storage for Cover Photos"]
+      F_Users["convex/users.ts<br/>• viewer<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
+      F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 regex)"]
+      F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (:30 UTC)"]
+      F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• completeAgentTask mutation"]
+      F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
+      F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• POST /api/agent/complete"]
+      F_Storage["Convex File Storage<br/>• _storage for Cover & Media"]
+    end
+
+    subgraph ExternalAgent ["Python Agent Service"]
+      AgentService["agent/ service<br/>• Researches, generates &<br/>• synthesizes lifestyle guides"]
     end
 
     P_Home <-->|useQuery| F_Content
+    P_Home -->|subscribeDigest| F_Subscribers
     P_Reader <-->|useQuery| F_Content
     P_Pub -->|useMutation| F_Content
     P_Pub -->|Upload Photo| F_Storage
-    P_Dash <-->|useQuery| F_Agents
-    P_Dash -->|useMutation| F_Requests
+    P_Dash <-->|useQuery & useMutation| F_Agents
+    P_Dash -->|updatePreferredLanguage| F_Users
+    P_Dash -->|createRequest| F_Requests
     P_Req <-->|useQuery & useMutation| F_Requests
     P_Onb <-->|useQuery & useMutation| F_Users
+
+    F_Crons -->|hourly| F_Runner
+    F_Runner -->|HTTPS POST Webhook| AgentService
+    AgentService -->|POST /api/agent/complete| F_Auth
 ```
 
 ### Convex Function & Realtime Responsibilities
 - **`convex/content.ts`:**
-  - `getPublishedContent(category?, limit?)`: Realtime listing with category projections.
-  - `getWhatsHot(limit?)`: Trending articles sorted by reuse count.
+  - `getPublishedContent(category?, limit?)`: Realtime listing with category projections (capped at 50).
+  - `getWhatsHot(limit?)`: Trending articles querying `.index("by_reused_count")` in descending order.
   - `getContentBySlug(slug)`: Full markdown guide, key takeaways, and companion media for `/content/[id]`.
-  - `publishContent(...)`: Secure mutation for human authors and AI agents to publish deliverables.
+  - `publishContent(...)`: Secure mutation with slug sanitization, collision deduplication, audio metadata, and author type.
   - `generateUploadUrl()`: Upload URL generator for direct image uploads to Convex File Storage.
 - **`convex/agents.ts`:**
-  - `getAgentState()`: Persistent personal agent state query with auto-initialization on first login.
+  - `getAgentState()`: Persistent personal agent state query with 11:00 PM IST auto-initialization.
   - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists.
-  - `updateAgentFrequency(wakeFrequency)`: Mutation updating wake schedule.
+  - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation enforcing calm-tech 9:00 PM – 9:00 AM IST night window.
+- **`convex/agentRunner.ts` & `convex/crons.ts`:**
+  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents and dispatching HTTPS webhook to Python agent service with 15s timeout and automatic state rollback on failure.
+  - `completeAgentTask(agentId, deliverables)`: Internal mutation transitioning requests to `COMPLETED` and agent to `SLEEPING`.
 - **`convex/requests.ts`:**
   - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
   - `createRequest(prompt, category?)`: Mutation queueing research tasks for the agent's next wake cycle.
 - **`convex/users.ts`:**
-  - `viewer()`: Authenticated Google user profile resolution.
+  - `viewer()`: Authenticated Google user profile resolution with default `"en"` language.
   - `getInterests()` & `updateInterests(topicIds)`: User topic preferences.
+  - `updatePreferredLanguage(language)`: Sets preferred synthesis language (`en`, `bn`, `hi`).
+- **`convex/subscribers.ts`:**
+  - `subscribeDigest(email, source?)`: Public/authenticated newsletter subscription with RFC 5322 validation.
 - **`convex/files.ts`:**
   - `getBrandAssets()`: Serves dynamic Convex CDN URLs for logo and hero images.
-- **`convex/auth.ts`** & **`convex/http.ts`:**
-  - Google OAuth configuration via `@convex-dev/auth`, with HTTP routes mounted on the Convex router.
+- **`convex/auth.ts` & `convex/http.ts`:**
+  - Google OAuth routes and `POST /api/agent/complete` with fail-closed token authorization and `parseCompletionBody` schema validation.
 
 
 ---
