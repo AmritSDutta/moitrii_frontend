@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** gpt-4o-mini, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-21T15:05:53Z
+- **Last updated:** 2026-09-21T15:35:00Z
 
 ## Log
 
@@ -56,15 +56,4 @@ Hardened the autonomous agent loop after a code review. The completion webhook `
 Replaced the external Python agent dispatch with a native Convex AI pipeline: the hourly wake action runs a reuse check over the content full-text index, synthesizes a localized guide with OpenAI (`gpt-4o-mini`, editorial fallback without a key), fetches a companion video, narrates it via TTS (`tts-1`) into file storage, publishes through `content.internalPublishGuide`, and emails the user via AgentMail + Brevo. Each agent now owns a dedicated inbox name/email, and any pipeline failure reverts requests to PENDING for the next wake. Documentation refreshed alongside (04154bc). Convex features: actions, internal queries/mutations, full-text search, file storage, crons, http (`convex/ai/**`, `convex/agentRunner.ts`, `convex/emails/brevo.ts`, `convex/agents.ts`).
 
 ### 2026-09-21 - working tree
-Migrated the entire frontend from Next.js (App Router) to a clean, pure **React 18 + Vite SPA** with `react-router-dom` v6. Configured root `index.html` with editorial Playfair Display & Plus Jakarta Sans typography, Vite config (`vite.config.ts`), `main.tsx` SPA root, and `App.tsx` routing across all 6 core screens (`HomePage`, `DashboardPage`, `RequestsPage`, `OnboardingPage`, `ContentReaderPage`, `PublisherPage`, `NotFoundPage`). Updated `@convex-dev/auth/react` (`ConvexAuthProvider`) for pure client React authentication reading `VITE_CONVEX_URL`. Removed legacy `src/app/`, `src/middleware.ts`, and `next-env.d.ts`. Replaced `next/image` with semantic `<img>` in `Navbar`, `Footer`, and `AuthModal`. Updated JSDOM UI tests with `MemoryRouter`. Verified 48 / 48 Vitest tests passing across 12 suites, 0 TypeScript errors (`tsc --noEmit`), and sub-3s production build (`vite build` to `dist/`). Updated `README.md`, `AGENTS.md`, and docs7 documentation site (`docs/**`). Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http.
-
-Reworked sign-in state to be server-validated: the new `useValidatedAuth` hook treats the user as signed in only after the `users.viewer` query confirms the stored token (with a timeout fallback to the sign-in screen), now used by `Navbar` and `AuthGuard`, with tests covering ghost-session, timeout, and post-sign-in rerender cases. Added the docs-mandated `@auth/core` pin and a one-time `generateKeys.mjs` script for Convex Auth deployment setup. 51 / 51 tests passing, 0 TypeScript errors (`src/lib/useValidatedAuth.ts`, `src/components/AuthGuard.tsx`, `src/components/Navbar.tsx`, `src/components/AuthGuard.test.tsx`, `generateKeys.mjs`).
-
-
-
-
-
-
-
-
-
+Migrated the frontend from Next.js to a pure **React 18 + Vite SPA** with `react-router-dom` v6 across all 6 core screens (`HomePage`, `DashboardPage`, `RequestsPage`, `OnboardingPage`, `ContentReaderPage`, `PublisherPage`, `NotFoundPage`). Configured client-side Convex auth via `ConvexAuthProvider`, server-validated authentication flow via `useValidatedAuth`, and removed legacy Next.js configs and middleware. Configured Google OAuth provider with explicit account selection prompt `Google({ authorization: { params: { prompt: "select_account" } } })` in `convex/auth.ts`, and streamlined `Navbar.tsx` session teardown delegating cleanly to `@convex-dev/auth`. Verified 51 / 51 passing tests across all 12 Vitest suites and 0 TypeScript errors during production build (`npm run build`). Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http (`convex/auth.ts`, `src/components/Navbar.tsx`, `src/lib/useValidatedAuth.ts`, `src/components/AuthGuard.tsx`).

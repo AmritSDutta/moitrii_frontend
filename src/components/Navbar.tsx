@@ -29,8 +29,6 @@ export const Navbar: React.FC = () => {
   const {
     status: authStatus,
     user,
-    isAuthenticated,
-    authLoading: isAuthLoading,
   } = useValidatedAuth();
   const { signOut } = useAuthActions();
 
@@ -43,31 +41,6 @@ export const Navbar: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Self-heal ghost sessions (token exists in storage but backend user is null)
-  useEffect(() => {
-    if (!isAuthLoading && isAuthenticated && user === null) {
-      try {
-        if (typeof window !== "undefined") {
-          const clearKeys = (storage: Storage) => {
-            const keysToRemove: string[] = [];
-            for (let i = 0; i < storage.length; i++) {
-              const key = storage.key(i);
-              if (key && (key.includes("convexAuth") || key.includes("ConvexAuth") || key.includes("convex"))) {
-                keysToRemove.push(key);
-              }
-            }
-            keysToRemove.forEach((k) => storage.removeItem(k));
-          };
-          clearKeys(window.localStorage);
-          clearKeys(window.sessionStorage);
-        }
-      } catch {
-        // ignore
-      }
-      void signOut().catch(() => {});
-    }
-  }, [isAuthLoading, isAuthenticated, user, signOut]);
 
   // Close user dropdown when clicking outside using click event with stopPropagation check
   useEffect(() => {
@@ -87,24 +60,8 @@ export const Navbar: React.FC = () => {
   const handleSignOut = async () => {
     setUserDropdownOpen(false);
     setMobileMenuOpen(false);
-    try {
-      if (typeof window !== "undefined") {
-        const clearAuthKeys = (storage: Storage) => {
-          const keysToRemove: string[] = [];
-          for (let i = 0; i < storage.length; i++) {
-            const key = storage.key(i);
-            if (key && (key.includes("convexAuth") || key.includes("ConvexAuth") || key.includes("convex"))) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach((k) => storage.removeItem(k));
-        };
-        clearAuthKeys(window.localStorage);
-        clearAuthKeys(window.sessionStorage);
-      }
-    } catch {
-      // ignore
-    }
+    // The library's signOut deletes the server-side session and clears its
+    // own token storage keys — no manual wiping needed.
     try {
       await signOut();
     } catch (err) {
