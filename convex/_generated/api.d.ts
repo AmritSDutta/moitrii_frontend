@@ -11,6 +11,7 @@
 import type * as agentRunner from "../agentRunner.js";
 import type * as agents from "../agents.js";
 import type * as ai_agentMail from "../ai/agentMail.js";
+import type * as ai_firecrawl from "../ai/firecrawl.js";
 import type * as ai_research from "../ai/research.js";
 import type * as ai_reuseEngine from "../ai/reuseEngine.js";
 import type * as ai_synthesizer from "../ai/synthesizer.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   agentRunner: typeof agentRunner;
   agents: typeof agents;
   "ai/agentMail": typeof ai_agentMail;
+  "ai/firecrawl": typeof ai_firecrawl;
   "ai/research": typeof ai_research;
   "ai/reuseEngine": typeof ai_reuseEngine;
   "ai/synthesizer": typeof ai_synthesizer;
@@ -78,4 +80,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
+};

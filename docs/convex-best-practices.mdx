@@ -1,6 +1,6 @@
 ---
 title: Convex Best Practices
-description: Production-grade architectural patterns, cron top-of-hour evasion, atomic mutations, indexing, and PII protection in Moitrii.
+description: Production-grade architectural patterns, cron top-of-hour evasion, @convex-dev/workflow durable step journaling, atomic mutations, indexing, and PII protection in Moitrii.
 ---
 
 # Convex Best Practices & Architecture Patterns
@@ -64,20 +64,31 @@ flowchart TD
 Convex queries are cached and reactive. Reading `Date.now()` or `new Date()` inside a query breaks caching determinism and causes queries to become stale because time advancing does not invalidate reactive query caches.
 
 ### Moitrii Implementation
-- Queries accept timestamps as explicit arguments (e.g., `nowIso: v.string()`).
-- Background **actions** (which can freely read wall clocks) generate the timestamp and pass it down to internal queries:
+- Queries accept timestamps as explicit arguments (e.g., `nowMs: v.optional(v.number())` or `nowIso: v.string()`).
+- Background **actions** and client hooks generate timestamps and pass them down:
 
 ```typescript
-// convex/agentRunner.ts
-export const triggerScheduledWakes = internalAction({
-  args: { targetUserId: v.optional(v.string()) },
+// convex/requests.ts
+export const listUserRequests = query({
+  args: {
+    nowMs: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
-    // Actions read the wall clock; queries receive it as a pure parameter
-    const dueAgents = await ctx.runQuery(
-      internal.agentRunner.getDueAgentsWithRequests,
-      { nowIso: new Date().toISOString() }
-    );
-    // ...
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    const cutoff = args.nowMs;
+    const requests = await ctx.db
+      .query("requests")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    // Pure, deterministic filter without internal Date.now() calls
+    if (cutoff !== undefined) {
+      return requests.filter((r) => r.expiresAt === undefined || r.expiresAt > cutoff);
+    }
+    return requests;
   },
 });
 ```
@@ -113,6 +124,7 @@ Every frequently queried path in Moitrii uses targeted compound indexes:
 | `content` | `by_category` | Category filtering in Explore streams |
 | `requests` | `by_status` | Finding `PENDING` requests during wake cycles |
 | `requests` | `by_user` | User request center and history |
+| `requests` | `by_user_and_status` | Fast point-lookup for pending request limit checks |
 | `agents` | `by_user` | 1:1 user-to-agent mapping |
 | `userInterests` | `by_user` | Fast user preferences retrieval |
 
@@ -134,7 +146,86 @@ export const getWhatsHot = query({
 
 ---
 
-## 5. Strict PII Protection & Zero-Leakage Data Model
+## 5. Durable Workflows via `@convex-dev/workflow`
+
+### Multi-Step Agent Pipelines with Journaled Steps
+Autonomous agent execution involves multi-step async operations (Firecrawl web research, LLM synthesis, TTS audio generation, shared library publishing, and AgentMail dispatch). Moitrii orchestrates these via `@convex-dev/workflow`:
+
+```mermaid
+flowchart TD
+    Cron["Hourly Dispatcher<br/><code>triggerScheduledWakes</code>"] -->|"<code>workflow.start(...)</code>"| WF["<b>User Wake Workflow</b><br/><code>@convex-dev/workflow</code>"]
+    
+    subgraph Durable Journaled Steps
+        WF --> S1["<code>step.runMutation(markAgentWorking)</code>"]
+        S1 --> S2["<code>step.runMutation(checkContentReuse)</code>"]
+        S2 -->|Cache Miss| S3["<code>step.runAction(researchAndSynthesizeStep)</code><br/><i>(Firecrawl + OpenAI, Retry: max 3, exp backoff)</i>"]
+        S3 --> S4["<code>step.runAction(narrationStep)</code><br/><i>(TTS Audio, Retry: max 3)</i>"]
+        S4 --> S5["<code>step.runMutation(internalPublishGuide)</code>"]
+        S2 -->|Cache Hit| S6["Reuse Existing Shared Guide"]
+        S5 --> S7["<code>step.runMutation(completeAgentTask)</code>"]
+        S6 --> S7
+        S7 --> S8["<code>step.runAction(notifyCompletionStep)</code><br/><i>(AgentMail, Retry: max 2)</i>"]
+    end
+```
+
+- **Step Journaling:** Completed steps are recorded in the component log. Replays skip completed steps, preventing duplicate LLM calls or duplicate audio generation.
+- **Per-Step Retry Policies:** Action steps configure granular exponential backoff retries (`maxAttempts: 3, initialBackoffMs: 1000, base: 2`).
+- **Isolated User Blast Radius:** Each user's wake workflow executes in total isolation without blocking other users.
+
+---
+
+## 6. 5-Message Pending Queue Cap & Compound Indexing
+
+To prevent unbounded queue growth and protect LLM budgets, Moitrii caps active pending requests to 5 per user:
+
+```typescript
+// convex/requests.ts
+export const MAX_PENDING_REQUESTS_PER_USER = 5;
+
+const pendingList = await ctx.db
+  .query("requests")
+  .withIndex("by_user_and_status", (q) =>
+    q.eq("userId", userId).eq("status", "PENDING")
+  )
+  .take(MAX_PENDING_REQUESTS_PER_USER + 1);
+
+if (pendingList.length >= MAX_PENDING_REQUESTS_PER_USER) {
+  throw new Error("Queue limit reached: You can have at most 5 pending research requests.");
+}
+```
+
+By leveraging the compound index `by_user_and_status` (`["userId", "status"]`), the validation is an $O(1)$ point-lookup reading at most 6 documents rather than scanning the user's full request history.
+
+---
+
+## 7. Convex TTL: 3-Day Data Retention & Scheduled Batch Cleanup
+
+While Convex does not have silent engine-level row expiration, Moitrii implements transactional TTL using:
+1. **Query-Time Filter:** Requests store `expiresAt = Date.now() + (3 * 24 * 60 * 60 * 1000)`. Queries filter active items where `expiresAt > cutoffMs`, making expired records immediately invisible.
+2. **Daily Retention Cron:** A 24-hour interval cron executes `cleanupExpiredRequests` to purge expired documents in bounded `.take(100)` batches:
+
+```typescript
+// convex/crons.ts
+crons.interval(
+  "daily-todo-retention-cleanup",
+  { hours: 24 },
+  internal.requests.cleanupExpiredRequests,
+  {}
+);
+```
+
+---
+
+## 8. Live Web Search & Grounding via Firecrawl
+
+Moitrii integrates Firecrawl (`https://api.firecrawl.dev/v1/search`) as the agent's web research tool:
+- **Top-Level Limit Specification:** Requests `limit: 3` directly in the Firecrawl search payload.
+- **Citation Grounding:** Synthesized articles include verified source URLs directly in `sources`.
+- **Honest Offline Fallback:** When API keys are unset (local development and automated Vitest suites), returns curated editorial references (`Moitrii Editorial Guidelines (Offline Reference)` with `https://moitrii.ai`), ensuring 100% test suite reliability without synthetic hallucinations.
+
+---
+
+## 9. Strict PII Protection & Zero-Leakage Data Model
 
 To ensure member privacy:
 - The `agents` table stores only persona identities (`"Moitrii Companion"`) and virtual inbox handles (`agent-<userId>@agentmail.to`).
@@ -143,7 +234,7 @@ To ensure member privacy:
 
 ---
 
-## 6. Server-Validated Auth State
+## 10. Server-Validated Auth State
 
 Client-side tokens in `localStorage` can become stale or orphaned (e.g., if a server session is revoked). 
 

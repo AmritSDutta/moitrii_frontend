@@ -65,6 +65,7 @@ export default defineSchema({
       v.literal("COMPLETED"),
       v.literal("FAILED")
     ),
+    priority: v.optional(v.union(v.literal("low"), v.literal("normal"), v.literal("high"))),
     submittedAt: v.string(),
     scheduledFor: v.string(),
     completedAt: v.optional(v.string()),
@@ -72,9 +73,12 @@ export default defineSchema({
     contentTitle: v.optional(v.string()),
     isReused: v.boolean(),
     reuseNote: v.optional(v.string()),
+    expiresAt: v.optional(v.number()), // TTL in epoch ms (3 days from creation)
   })
     .index("by_user", ["userId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_user_and_status", ["userId", "status"])
+    .index("by_expires_at", ["expiresAt"]),
 
   // Shared knowledge library & publisher/agent content
   content: defineTable({

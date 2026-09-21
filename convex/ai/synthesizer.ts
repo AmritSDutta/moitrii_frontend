@@ -1,4 +1,5 @@
-import type { SynthesizedGuide, SupportedLanguage } from "./types";
+import type { SynthesizedGuide, SupportedLanguage, ArticleSource } from "./types";
+import type { FirecrawlSearchResult } from "./firecrawl";
 
 const CATEGORY_COVERS: Record<string, string> = {
   wellness: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?q=80&w=1200&auto=format&fit=crop",
@@ -17,7 +18,8 @@ const CATEGORY_COVERS: Record<string, string> = {
 function buildFallbackGuide(
   prompt: string,
   category: string,
-  language: SupportedLanguage
+  language: SupportedLanguage,
+  webSources?: FirecrawlSearchResult[]
 ): SynthesizedGuide {
   const normCat = category.toLowerCase().trim() || "wellness";
   const coverImage = CATEGORY_COVERS[normCat] || CATEGORY_COVERS.default;
@@ -27,6 +29,12 @@ function buildFallbackGuide(
     .slice(0, 40)
     .replace(/(^-|-$)/g, "") || "mindful-guide";
   const slug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+
+  const sources: ArticleSource[] = webSources && webSources.length > 0
+    ? webSources.map((s) => ({ title: s.title, url: s.url }))
+    : [
+        { title: `Moitrii Editorial Guidelines — ${normCat.charAt(0).toUpperCase() + normCat.slice(1)} (Offline Reference)`, url: "https://moitrii.ai" },
+      ];
 
   if (language === "bn") {
     return {
@@ -42,10 +50,7 @@ function buildFallbackGuide(
         "রাতের ঘুমের আগে স্ক্রিন-মুক্ত শান্ত পরিবেশ বজায় রাখুন।"
       ],
       markdownBody: `## শান্ত জীবনযাপন ও স্বাস্থ্যকর অভ্যাসের মূলনীতি\n\nব্যস্ত জীবনে নিজের জন্য কিছুটা শান্ত সময় বের করা অত্যন্ত প্রয়োজনীয়। এই গাইডে আমরা দেখে নেব কিভাবে সহজ কয়েকটি পরিবর্তনের মাধ্যমে শরীর ও মনকে সতেজ রাখা যায়।\n\n### ১. সকালের প্রশান্ত রুটিন\nঘুম থেকে ওঠার পর অন্তত ১৫ মিনিট ফোন থেকে দূরে থাকুন। এক গ্লাস কুসুম গরম পানি ও হালকা স্ট্রেচিং দিয়ে দিন শুরু করুন।\n\n### ২. পুষ্টিকর খাদ্যতালিকা\nপ্রাকৃতিক শাকসবজি, বাদাম এবং পর্যাপ্ত প্রোটিন যুক্ত খাবার রাখুন। অতিরিক্ত প্রক্রিয়াজাত খাবার এড়িয়ে চলুন।\n\n### ৩. সান্ধ্যকালীন প্রস্তুতি\nঘুমানোর অন্তত এক ঘণ্টা আগে সকল ডিজিটাল স্ক্রিন বন্ধ করুন এবং বই পড়া বা হালকা গানের মাধ্যমে মনকে শিথিল করুন।`,
-      sources: [
-        { title: "Moitrii Holistic Living Research", url: "https://moitrii.ai/research/wellness" },
-        { title: "National Nutrition Institute Insights", url: "https://moitrii.ai/sources/nutrition" }
-      ],
+      sources,
       language: "bn",
     };
   }
@@ -64,10 +69,7 @@ function buildFallbackGuide(
         "शाम के समय स्क्रीन टाइम कम करके गहरी नींद के लिए माहौल बनाएं।"
       ],
       markdownBody: `## शांत जीवनशैली और दैनिक संतुलन\n\nआज की भागदौड़ भरी जिंदगी में मन और शरीर का संतुलन बनाए रखना सबसे महत्वपूर्ण है।\n\n### 1. सुबह की सुखद शुरुआत\nसुबह उठते ही फोन देखने के बजाय 10 मिनट ताजी हवा में टहलें और गुनगुना पानी पिएं।\n\n### 2. संतुलित खान-पान\nअपने भोजन में ताजे फल, हरी सब्जियां और प्राकृतिक पोषक तत्व शामिल करें।\n\n### 3. रात का विश्राम\nसोने से पहले डिजिटल उपकरणों से दूरी बनाएं और शांत वातावरण में विश्राम करें।`,
-      sources: [
-        { title: "Moitrii Mindful Living Study", url: "https://moitrii.ai/research/wellness" },
-        { title: "Ayurvedic Lifestyle Guidelines", url: "https://moitrii.ai/sources/ayurveda" }
-      ],
+      sources,
       language: "hi",
     };
   }
@@ -86,25 +88,23 @@ function buildFallbackGuide(
       "Wind down with calming herbal infusions and a tech-free bedtime wind-down."
     ],
     markdownBody: `## Nurturing Balance in Modern Routines\n\nIn a world of constant stimulation, intentional micro-habits offer grounding serenity without requiring disruptive life overhauls.\n\n### 1. Grounded Mornings\nBegin your morning with intentional hydration and gentle joint mobilization before checking emails or social feeds.\n\n### 2. Nourishing Mid-Day Energy\nBalance meals with fiber-rich ingredients, healthy fats, and mindful chewing to avoid the mid-afternoon energy slump.\n\n### 3. Intentional Evening Wind-Down\nTransition into rest mode with soft lighting, warm herbal tea, and journaling to prepare your mind for restorative sleep.`,
-    sources: [
-      { title: "Moitrii Lifestyle & Nutrition Research", url: "https://moitrii.ai/research/lifestyle" },
-      { title: "Mindful Health Collective", url: "https://moitrii.ai/sources/wellness" }
-    ],
+    sources,
     language: "en",
   };
 }
 
 /**
- * Synthesizes an editorial lifestyle guide using OpenAI / Gemini or high-fidelity fallback.
+ * Synthesizes an editorial lifestyle guide using OpenAI grounded in Firecrawl live web research.
  */
 export async function synthesizeLifestyleGuide(
   prompt: string,
   category: string,
   language: SupportedLanguage = "en",
-  openAiKey?: string
+  openAiKey?: string,
+  webSources?: FirecrawlSearchResult[]
 ): Promise<SynthesizedGuide> {
   if (!openAiKey) {
-    return buildFallbackGuide(prompt, category, language);
+    return buildFallbackGuide(prompt, category, language, webSources);
   }
 
   try {
@@ -115,8 +115,14 @@ export async function synthesizeLifestyleGuide(
         ? "Respond entirely in clear, respectful Hindi (हिन्दी)."
         : "Respond in warm, editorial English.";
 
+    const webContext = webSources && webSources.length > 0
+      ? `\nVerified Web Research from Firecrawl:\n${webSources
+          .map((s, idx) => `[${idx + 1}] ${s.title}: ${s.snippet ?? ""} (URL: ${s.url})`)
+          .join("\n")}`
+      : "";
+
     const systemPrompt = `You are Moitrii, an empathetic, highly cultured personal AI companion for modern Indian women.
-You write warm, elegant, editorial lifestyle guides (calm tech aesthetic).
+You write warm, elegant, editorial lifestyle guides (calm tech aesthetic). Ground your recommendations in the provided verified web research facts.
 ${langInstructions}
 Return ONLY valid JSON matching this exact structure:
 {
@@ -128,6 +134,8 @@ Return ONLY valid JSON matching this exact structure:
   "sources": [{"title": "Source Name", "url": "https://..."}]
 }`;
 
+    const userMessage = `Category: ${category}\nTopic: ${prompt}${webContext}`;
+
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -138,7 +146,7 @@ Return ONLY valid JSON matching this exact structure:
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Category: ${category}\nTopic: ${prompt}` },
+          { role: "user", content: userMessage },
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
@@ -147,7 +155,7 @@ Return ONLY valid JSON matching this exact structure:
 
     if (!res.ok) {
       console.warn(`OpenAI API returned status ${res.status}, using fallback.`);
-      return buildFallbackGuide(prompt, category, language);
+      return buildFallbackGuide(prompt, category, language, webSources);
     }
 
     const data = await res.json();
@@ -162,6 +170,14 @@ Return ONLY valid JSON matching this exact structure:
       .replace(/(^-|-$)/g, "") || "lifestyle-guide";
     const slug = `${slugBase}-${Date.now().toString().slice(-4)}`;
 
+    const mergedSources: ArticleSource[] = Array.isArray(parsed.sources) && parsed.sources.length > 0
+      ? parsed.sources
+      : webSources && webSources.length > 0
+      ? webSources.map((s) => ({ title: s.title, url: s.url }))
+      : [
+          { title: "Moitrii Holistic Living Research", url: "https://moitrii.ai/research/wellness" },
+        ];
+
     return {
       title: parsed.title || `Lifestyle Guide: ${prompt.slice(0, 30)}`,
       slug,
@@ -171,11 +187,11 @@ Return ONLY valid JSON matching this exact structure:
       coverImage,
       takeaways: Array.isArray(parsed.takeaways) ? parsed.takeaways : ["Prioritize daily balance."],
       markdownBody: parsed.markdownBody || "## Mindful Living\n\nNurture your daily routine with balance.",
-      sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+      sources: mergedSources,
       language,
     };
   } catch (err) {
     console.error("Synthesizer error:", err);
-    return buildFallbackGuide(prompt, category, language);
+    return buildFallbackGuide(prompt, category, language, webSources);
   }
 }

@@ -6,15 +6,38 @@ import { evaluateContentReuse } from "./reuseEngine";
 import { synthesizeLifestyleGuide } from "./synthesizer";
 import { renderEditorialNotificationEmail, sendAgentCompletionNotification } from "./agentMail";
 import { discoverVideoCompanion } from "./research";
+import { searchWebWithFirecrawl } from "./firecrawl";
 
 const modules = import.meta.glob("../**/*.ts");
 
-test("synthesizeLifestyleGuide generates multilingual lifestyle guides in EN, BN, HI", async () => {
-  const enGuide = await synthesizeLifestyleGuide("Morning herbal tea ritual", "wellness", "en");
+test("searchWebWithFirecrawl provides verified fallback sources when API key is unset", async () => {
+  const sources = await searchWebWithFirecrawl("Immunity boosting herbal kadha", "wellness");
+  expect(sources.length).toBeGreaterThanOrEqual(1);
+  expect(sources[0].url).toContain("http");
+  expect(sources[0].title).toBeDefined();
+});
+
+test("synthesizeLifestyleGuide generates multilingual lifestyle guides with web citations in EN, BN, HI", async () => {
+  const webSources = [
+    {
+      title: "ICMR Traditional Herbal Study",
+      url: "https://www.nin.res.in/kadha-study.html",
+      snippet: "Herbal infusions support respiratory vitality during seasonal transitions.",
+    },
+  ];
+
+  const enGuide = await synthesizeLifestyleGuide(
+    "Morning herbal tea ritual",
+    "wellness",
+    "en",
+    undefined,
+    webSources
+  );
   expect(enGuide.title).toContain("Morning");
   expect(enGuide.language).toBe("en");
   expect(enGuide.takeaways.length).toBeGreaterThan(0);
   expect(enGuide.sources.length).toBeGreaterThan(0);
+  expect(enGuide.sources[0].title).toBe("ICMR Traditional Herbal Study");
 
   const bnGuide = await synthesizeLifestyleGuide("সকালের পুষ্টিকর খাদ্য", "food", "bn");
   expect(bnGuide.language).toBe("bn");

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { MAX_PENDING_REQUESTS } from "@/lib/constants";
 import {
   PlusCircle,
   Clock,
@@ -10,12 +11,14 @@ import {
   RefreshCw,
   Sparkles,
   ArrowRight,
-  Send
+  Send,
+  AlertCircle
 } from "lucide-react";
 
 export function RequestsPage() {
   const { topics, agentState } = useApp();
-  const liveRequests = useQuery(api.requests.listUserRequests);
+  const [clientNow] = useState(() => Date.now());
+  const liveRequests = useQuery(api.requests.listUserRequests, { nowMs: clientNow });
   const createRequestMutation = useMutation(api.requests.createRequest);
 
   const requestsLoading = liveRequests === undefined;
@@ -37,20 +40,26 @@ export function RequestsPage() {
   const [category, setCategory] = useState("Health & Nutrition");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showToast, setShowToast] = useState(false);
-  const [, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState("");
+
+  const pendingCount = rawRequests.filter((r: any) => r.status === "PENDING").length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
 
+    setRequestError("");
     setSubmitting(true);
     try {
       await createRequestMutation({ prompt: prompt.trim(), category });
       setPrompt("");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 4000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create request:", err);
+      setRequestError(err?.message || "Failed to create request.");
+      setTimeout(() => setRequestError(""), 6000);
     } finally {
       setSubmitting(false);
     }
@@ -65,14 +74,25 @@ export function RequestsPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* Header */}
       <div className="space-y-2">
-        <span className="text-xs font-bold uppercase tracking-widest text-forest-700 bg-forest-50 px-3 py-1 rounded-full border border-forest-100">
-          REQUEST LIFECYCLE TRACKER
-        </span>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-forest-700 bg-forest-50 px-3 py-1 rounded-full border border-forest-100">
+            REQUEST LIFECYCLE TRACKER
+          </span>
+          <span
+            className={`text-xs font-semibold px-3 py-1 rounded-full border ${
+              pendingCount >= MAX_PENDING_REQUESTS
+                ? "bg-amber-50 text-amber-800 border-amber-300"
+                : "bg-white text-forest-800 border-petal-200"
+            }`}
+          >
+            Pending Queue: {pendingCount} / {MAX_PENDING_REQUESTS}
+          </span>
+        </div>
         <h1 className="font-editorial text-3xl sm:text-4xl font-bold text-charcoal-900">
           Request Center & Durable Queue
         </h1>
         <p className="text-sm text-charcoal-600 max-w-2xl">
-          Submit lifestyle and wellness research questions at any time. Requests remain safely stored
+          Submit lifestyle and wellness research questions at any time (up to {MAX_PENDING_REQUESTS} pending items). Requests remain safely stored
           in Convex state while your agent sleeps and are processed during the next wake window.
         </p>
       </div>
@@ -116,14 +136,32 @@ export function RequestsPage() {
 
             <button
               type="submit"
-              disabled={!prompt.trim()}
-              className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs font-bold px-6 py-3 rounded-full transition-colors flex items-center justify-center space-x-2 shadow-sm"
+              disabled={submitting || !prompt.trim() || pendingCount >= MAX_PENDING_REQUESTS}
+              className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs font-bold px-6 py-3 rounded-full transition-colors flex items-center justify-center space-x-2 shadow-sm cursor-pointer"
             >
               <Send className="w-4 h-4" />
               <span>Submit to Queue</span>
             </button>
           </div>
         </form>
+
+        {/* Error Alert */}
+        {requestError && (
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-center space-x-2 animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{requestError}</span>
+          </div>
+        )}
+
+        {/* Queue Full Warning */}
+        {pendingCount >= MAX_PENDING_REQUESTS && !requestError && (
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              Your pending research queue is full ({MAX_PENDING_REQUESTS}/{MAX_PENDING_REQUESTS}). Your agent will process them at the next scheduled cycle.
+            </span>
+          </div>
+        )}
 
         {showToast && (
           <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center space-x-2">

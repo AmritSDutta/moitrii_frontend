@@ -1,14 +1,18 @@
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, components } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import { WorkflowManager } from "@convex-dev/workflow";
 import { computeAgentEmail, computeAgentName } from "./agents";
 import { evaluateContentReuse } from "./ai/reuseEngine";
 import { synthesizeLifestyleGuide } from "./ai/synthesizer";
 import { generateAndStoreAudioNarration } from "./ai/tts";
 import { discoverVideoCompanion } from "./ai/research";
+import { searchWebWithFirecrawl } from "./ai/firecrawl";
 import { sendAgentCompletionNotification } from "./ai/agentMail";
-import type { SupportedLanguage } from "./ai/types";
+import type { SupportedLanguage, SynthesizedGuide } from "./ai/types";
+
+export const workflow = new WorkflowManager((components as any).workflow);
 
 const IST_OFFSET_MINUTES = 5 * 60 + 30;
 
@@ -107,6 +111,41 @@ export const getDueAgentsWithRequests = internalQuery({
 });
 
 /**
+ * Retrieves user profile & agent details for wake orchestration.
+ */
+export const getUserAndAgentForWake = internalQuery({
+  args: {
+    userId: v.id("users"),
+    agentId: v.id("agents"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    const agent = await ctx.db.get(args.agentId);
+    return {
+      userId: args.userId,
+      userEmail: user?.email ?? "user@moitrii.ai",
+      userName: user?.name ?? "User",
+      preferredLanguage: user?.preferredLanguage ?? "en",
+      agentId: args.agentId,
+      agentName: agent?.name ?? computeAgentName(),
+      agentEmail: agent?.email ?? computeAgentEmail(args.userId),
+    };
+  },
+});
+
+/**
+ * Retrieves a single request record by ID.
+ */
+export const getRequestById = internalQuery({
+  args: {
+    requestId: v.id("requests"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.requestId);
+  },
+});
+
+/**
  * Evaluates whether a prompt matches an existing guide in the shared knowledge ecosystem.
  */
 export const checkContentReuse = internalMutation({
@@ -129,17 +168,23 @@ export const markAgentWorking = internalMutation({
     activeTask: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.agentId, {
-      status: "WORKING",
-      statusMessage: "Agent is actively researching and synthesizing lifestyle insights in the background.",
-      activeTask: args.activeTask ?? "Synthesizing research requests",
-      lastRunAt: new Date().toISOString(),
-    });
+    const agent = await ctx.db.get(args.agentId);
+    if (agent) {
+      await ctx.db.patch(args.agentId, {
+        status: "WORKING",
+        statusMessage: "Agent is actively researching and synthesizing lifestyle insights in the background.",
+        activeTask: args.activeTask ?? "Synthesizing research requests",
+        lastRunAt: new Date().toISOString(),
+      });
+    }
 
     for (const reqId of args.requestIds) {
-      await ctx.db.patch(reqId, {
-        status: "PROCESSING",
-      });
+      const doc = await ctx.db.get(reqId);
+      if (doc) {
+        await ctx.db.patch(reqId, {
+          status: "PROCESSING",
+        });
+      }
     }
   },
 });
@@ -155,16 +200,22 @@ export const revertAgentWorking = internalMutation({
     requestIds: v.array(v.id("requests")),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.agentId, {
-      status: "SLEEPING",
-      statusMessage: "The agent service encountered an issue; your queued requests stay safe and will run at the next wake cycle.",
-      activeTask: undefined,
-    });
+    const agent = await ctx.db.get(args.agentId);
+    if (agent) {
+      await ctx.db.patch(args.agentId, {
+        status: "SLEEPING",
+        statusMessage: "The agent service encountered an issue; your queued requests stay safe and will run at the next wake cycle.",
+        activeTask: undefined,
+      });
+    }
 
     for (const reqId of args.requestIds) {
-      await ctx.db.patch(reqId, {
-        status: "PENDING",
-      });
+      const doc = await ctx.db.get(reqId);
+      if (doc) {
+        await ctx.db.patch(reqId, {
+          status: "PENDING",
+        });
+      }
     }
   },
 });
@@ -189,22 +240,279 @@ export const completeAgentTask = internalMutation({
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
     for (const deliv of args.deliverables) {
-      await ctx.db.patch(deliv.requestId, {
-        status: "COMPLETED",
-        completedAt: "Just now",
-        contentId: deliv.contentId,
-        contentTitle: deliv.contentTitle,
-        isReused: deliv.isReused,
-        reuseNote: deliv.reuseNote,
-      });
+      const doc = await ctx.db.get(deliv.requestId);
+      if (doc) {
+        await ctx.db.patch(deliv.requestId, {
+          status: "COMPLETED",
+          completedAt: "Just now",
+          contentId: deliv.contentId,
+          contentTitle: deliv.contentTitle,
+          isReused: deliv.isReused,
+          reuseNote: deliv.reuseNote,
+        });
+      }
     }
 
-    await ctx.db.patch(args.agentId, {
-      status: "SLEEPING",
-      statusMessage: "Your agent finished research and is resting until the next scheduled cycle.",
-      lastActiveTime: `Today, ${now}`,
-      activeTask: undefined,
-    });
+    const agent = await ctx.db.get(args.agentId);
+    if (agent) {
+      await ctx.db.patch(args.agentId, {
+        status: "SLEEPING",
+        statusMessage: "Your agent finished research and is resting until the next scheduled cycle.",
+        lastActiveTime: `Today, ${now}`,
+        activeTask: undefined,
+      });
+    }
+  },
+});
+
+/**
+ * Isolated workflow action step: Web research via Firecrawl & LLM synthesis.
+ */
+export const researchAndSynthesizeStep = internalAction({
+  args: {
+    prompt: v.string(),
+    category: v.optional(v.string()),
+    language: v.optional(v.string()),
+  },
+  handler: async (_ctx, args): Promise<SynthesizedGuide> => {
+    const webSources = await searchWebWithFirecrawl(
+      args.prompt,
+      args.category,
+      process.env.FIRECRAWL_API_KEY
+    );
+
+    const guide = await synthesizeLifestyleGuide(
+      args.prompt,
+      args.category ?? "wellness",
+      (args.language as SupportedLanguage) || "en",
+      process.env.OPENAI_API_KEY,
+      webSources
+    );
+
+    const companion = discoverVideoCompanion(args.category ?? "wellness", args.prompt);
+    guide.youtubeId = companion.youtubeId;
+    guide.youtubeTitle = companion.youtubeTitle;
+
+    return guide;
+  },
+});
+
+/**
+ * Isolated workflow action step: Audio narration generation & storage.
+ */
+export const narrationStep = internalAction({
+  args: {
+    text: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ audioUrl?: string; audioStorageId?: Id<"_storage"> }> => {
+    return await generateAndStoreAudioNarration(
+      ctx,
+      args.text,
+      process.env.OPENAI_API_KEY
+    );
+  },
+});
+
+/**
+ * Isolated workflow action step: Notification dispatch via AgentMail.
+ */
+export const notifyCompletionStep = internalAction({
+  args: {
+    agentName: v.string(),
+    agentEmail: v.string(),
+    userEmail: v.string(),
+    userName: v.string(),
+    preferredLanguage: v.optional(v.string()),
+    deliverables: v.array(
+      v.object({
+        requestId: v.id("requests"),
+        title: v.string(),
+        slug: v.optional(v.string()),
+        takeaways: v.optional(v.array(v.string())),
+        isReused: v.boolean(),
+        contentId: v.optional(v.string()),
+        audioUrl: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (_ctx, args): Promise<{ success: boolean }> => {
+    await sendAgentCompletionNotification(
+      {
+        agentName: args.agentName,
+        agentEmail: args.agentEmail,
+        userEmail: args.userEmail,
+        userName: args.userName,
+        preferredLanguage: args.preferredLanguage,
+        deliverables: args.deliverables,
+      },
+      process.env.AGENTMAIL_API_KEY
+    );
+    return { success: true };
+  },
+});
+
+/**
+ * Durable multi-step autonomous user wake workflow orchestrated with @convex-dev/workflow.
+ * Features automatic step journaling, per-step backoff retries, and idempotency guarantees.
+ */
+export const userWakeWorkflow = workflow.define({
+  args: {
+    userId: v.id("users"),
+    agentId: v.id("agents"),
+    requestIds: v.array(v.id("requests")),
+  },
+  handler: async (step, args): Promise<void> => {
+    try {
+      // Step 1: Mark agent WORKING and requests PROCESSING
+      await step.runMutation(internal.agentRunner.markAgentWorking, {
+        agentId: args.agentId,
+        requestIds: args.requestIds,
+        activeTask: `Researching ${args.requestIds.length} lifestyle prompt(s)`,
+      });
+
+      const userInfo = await step.runQuery(internal.agentRunner.getUserAndAgentForWake, {
+        userId: args.userId,
+        agentId: args.agentId,
+      });
+
+      const deliverables: Array<{
+        requestId: Id<"requests">;
+        contentId?: string;
+        contentTitle?: string;
+        isReused: boolean;
+        reuseNote?: string;
+        slug?: string;
+        takeaways?: string[];
+        audioUrl?: string;
+      }> = [];
+
+      for (const reqId of args.requestIds) {
+        const req = await step.runQuery(internal.agentRunner.getRequestById, { requestId: reqId });
+        if (!req) continue;
+
+        const reuseResult = await step.runMutation(internal.agentRunner.checkContentReuse, {
+          prompt: req.prompt,
+          category: req.category,
+        });
+
+        if (reuseResult.isReused && reuseResult.contentId) {
+          deliverables.push({
+            requestId: req._id,
+            contentId: reuseResult.contentId,
+            contentTitle: reuseResult.contentTitle,
+            isReused: true,
+            reuseNote: reuseResult.reuseNote,
+            slug: reuseResult.matchedSlug,
+          });
+        } else {
+          const guide = await step.runAction(
+            internal.agentRunner.researchAndSynthesizeStep,
+            {
+              prompt: req.prompt,
+              category: req.category,
+              language: userInfo.preferredLanguage,
+            },
+            {
+              retry: {
+                maxAttempts: 3,
+                initialBackoffMs: 1000,
+                base: 2,
+              },
+            }
+          );
+
+          const audio = await step.runAction(
+            internal.agentRunner.narrationStep,
+            {
+              text: guide.takeaways.join(". "),
+            },
+            {
+              retry: {
+                maxAttempts: 3,
+                initialBackoffMs: 1000,
+                base: 2,
+              },
+            }
+          );
+
+          const published = await step.runMutation(internal.content.internalPublishGuide, {
+            userId: args.userId,
+            title: guide.title,
+            slug: guide.slug,
+            subtitle: guide.subtitle,
+            category: guide.category,
+            author: userInfo.agentName,
+            readTime: guide.readTime,
+            coverImage: guide.coverImage,
+            audioUrl: audio.audioUrl,
+            audioStorageId: audio.audioStorageId as any,
+            takeaways: guide.takeaways,
+            content: guide.markdownBody,
+            youtubeId: guide.youtubeId,
+            youtubeTitle: guide.youtubeTitle,
+            sources: guide.sources,
+            generatedFromPrompt: req.prompt,
+          });
+
+          deliverables.push({
+            requestId: req._id,
+            contentId: published.contentId,
+            contentTitle: guide.title,
+            isReused: false,
+            slug: published.slug,
+            takeaways: guide.takeaways,
+            audioUrl: audio.audioUrl,
+          });
+        }
+      }
+
+      // Step 4: Atomically complete deliverables and transition agent to SLEEPING
+      await step.runMutation(internal.agentRunner.completeAgentTask, {
+        agentId: args.agentId,
+        deliverables: deliverables.map((d) => ({
+          requestId: d.requestId,
+          contentId: d.contentId,
+          contentTitle: d.contentTitle,
+          isReused: d.isReused,
+          reuseNote: d.reuseNote,
+        })),
+      });
+
+      // Step 5: Send editorial AgentMail notification
+      await step.runAction(
+        internal.agentRunner.notifyCompletionStep,
+        {
+          agentName: userInfo.agentName,
+          agentEmail: userInfo.agentEmail,
+          userEmail: userInfo.userEmail,
+          userName: userInfo.userName,
+          preferredLanguage: userInfo.preferredLanguage,
+          deliverables: deliverables.map((d) => ({
+            requestId: d.requestId,
+            title: d.contentTitle ?? "Lifestyle Guide",
+            slug: d.slug,
+            takeaways: d.takeaways,
+            isReused: d.isReused,
+            audioUrl: d.audioUrl,
+          })),
+        },
+        {
+          retry: {
+            maxAttempts: 2,
+            initialBackoffMs: 1000,
+            base: 2,
+          },
+        }
+      );
+    } catch (err) {
+      console.error(`[AgentRunner] Workflow execution failed for agent ${args.agentId}:`, err);
+      // Revert agent to SLEEPING and requests to PENDING so the next wake cycle retries them
+      await step.runMutation(internal.agentRunner.revertAgentWorking, {
+        agentId: args.agentId,
+        requestIds: args.requestIds,
+      });
+      throw err;
+    }
   },
 });
 
@@ -222,17 +530,19 @@ export interface DueAgent {
 }
 
 /**
- * Autonomous action triggered on schedule or manual simulation to execute
- * the native modular Convex AI pipeline for due agents.
+ * Autonomous Dispatcher action triggered by crons or simulation.
+ * Queries due agents with pending requests and starts an isolated @convex-dev/workflow
+ * for each user.
  */
 export const triggerScheduledWakes = internalAction({
   args: {
     targetUserId: v.optional(v.string()),
+    nowIso: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ triggeredCount: number; successCount?: number }> => {
+  handler: async (ctx, args): Promise<{ triggeredCount: number }> => {
     // Actions may read the wall clock; the query must not, so pass it in.
     const dueAgents: DueAgent[] = await ctx.runQuery(internal.agentRunner.getDueAgentsWithRequests, {
-      nowIso: new Date().toISOString(),
+      nowIso: args.nowIso ?? new Date().toISOString(),
     });
 
     const targets: DueAgent[] = args.targetUserId
@@ -240,150 +550,21 @@ export const triggerScheduledWakes = internalAction({
       : dueAgents;
 
     if (targets.length === 0) {
-      console.log("Autonomous scheduler: No due agents with pending requests found.");
+      console.log("Autonomous dispatcher: No due agents with pending requests found.");
       return { triggeredCount: 0 };
     }
 
-    let successCount = 0;
-
+    // Fan-out: Start an isolated workflow execution for each due user
     for (const target of targets) {
       const requestIds = target.requests.map((r) => r.id);
-
-      // Transition agent and requests to in-progress
-      await ctx.runMutation(internal.agentRunner.markAgentWorking, {
+      await workflow.start(ctx, internal.agentRunner.userWakeWorkflow, {
+        userId: target.userId,
         agentId: target.agentId,
         requestIds,
-        activeTask: `Researching ${target.requests.length} lifestyle prompt(s)`,
       });
-
-      try {
-        const deliverables: Array<{
-          requestId: Id<"requests">;
-          contentId?: string;
-          contentTitle?: string;
-          isReused: boolean;
-          reuseNote?: string;
-          slug?: string;
-          takeaways?: string[];
-          audioUrl?: string;
-        }> = [];
-
-        for (const req of target.requests) {
-          // 1. Check knowledge reuse
-          const reuseResult = await ctx.runMutation(internal.agentRunner.checkContentReuse, {
-            prompt: req.prompt,
-            category: req.category,
-          });
-
-          if (reuseResult.isReused && reuseResult.contentId) {
-            deliverables.push({
-              requestId: req.id,
-              contentId: reuseResult.contentId,
-              contentTitle: reuseResult.contentTitle,
-              isReused: true,
-              reuseNote: reuseResult.reuseNote,
-              slug: reuseResult.matchedSlug,
-            });
-          } else {
-            // 2. Synthesize novel guide in user's preferred language
-            const guide = await synthesizeLifestyleGuide(
-              req.prompt,
-              req.category,
-              (target.preferredLanguage as SupportedLanguage) || "en",
-              process.env.OPENAI_API_KEY
-            );
-
-            // 3. Companion video discovery
-            const companion = discoverVideoCompanion(req.category, req.prompt);
-            guide.youtubeId = companion.youtubeId;
-            guide.youtubeTitle = companion.youtubeTitle;
-
-            // 4. Audio Narration & Convex Storage Upload
-            const audio = await generateAndStoreAudioNarration(
-              ctx,
-              guide.takeaways.join(". "),
-              process.env.OPENAI_API_KEY
-            );
-
-            // 5. Publish to Shared Knowledge Library
-            const published = await ctx.runMutation(internal.content.internalPublishGuide, {
-              userId: target.userId,
-              title: guide.title,
-              slug: guide.slug,
-              subtitle: guide.subtitle,
-              category: guide.category,
-              author: target.agentName,
-              readTime: guide.readTime,
-              coverImage: guide.coverImage,
-              audioUrl: audio.audioUrl,
-              audioStorageId: audio.audioStorageId,
-              takeaways: guide.takeaways,
-              content: guide.markdownBody,
-              youtubeId: guide.youtubeId,
-              youtubeTitle: guide.youtubeTitle,
-              sources: guide.sources,
-              generatedFromPrompt: req.prompt,
-            });
-
-            deliverables.push({
-              requestId: req.id,
-              contentId: published.contentId,
-              contentTitle: guide.title,
-              isReused: false,
-              slug: published.slug,
-              takeaways: guide.takeaways,
-              audioUrl: audio.audioUrl,
-            });
-          }
-        }
-
-        // Atomically complete deliverables and transition agent to SLEEPING
-        await ctx.runMutation(internal.agentRunner.completeAgentTask, {
-          agentId: target.agentId,
-          deliverables: deliverables.map((d) => ({
-            requestId: d.requestId,
-            contentId: d.contentId,
-            contentTitle: d.contentTitle,
-            isReused: d.isReused,
-            reuseNote: d.reuseNote,
-          })),
-        });
-
-        // 6. Send AgentMail notification to user from agent.email
-        await sendAgentCompletionNotification(
-          {
-            agentName: target.agentName,
-            agentEmail: target.agentEmail,
-            userEmail: target.userEmail,
-            userName: target.userName,
-            preferredLanguage: target.preferredLanguage,
-            deliverables: deliverables.map((d) => ({
-              requestId: d.requestId,
-              title: d.contentTitle ?? "Lifestyle Guide",
-              slug: d.slug,
-              takeaways: d.takeaways,
-              isReused: d.isReused,
-              audioUrl: d.audioUrl,
-            })),
-          },
-          process.env.AGENTMAIL_API_KEY
-        );
-
-        successCount++;
-        console.log(`Completed autonomous agent wake & notification for user ${target.userId}`);
-      } catch (err) {
-        console.error(`Autonomous agent execution failed for user ${target.userId}:`, err);
-        await ctx
-          .runMutation(internal.agentRunner.revertAgentWorking, {
-            agentId: target.agentId,
-            requestIds,
-          })
-          .catch((revertErr) =>
-            console.error(`Failed to revert agent state for user ${target.userId}:`, revertErr)
-          );
-      }
     }
 
-    return { triggeredCount: targets.length, successCount };
+    console.log(`Autonomous dispatcher: Started ${targets.length} user wake workflow(s).`);
+    return { triggeredCount: targets.length };
   },
 });

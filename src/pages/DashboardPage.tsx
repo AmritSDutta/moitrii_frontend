@@ -5,6 +5,7 @@ import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useQuery, useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
+import { MAX_PENDING_REQUESTS } from "@/lib/constants";
 import {
   Moon,
   Zap,
@@ -43,10 +44,11 @@ export function DashboardPage() {
   };
 
   const { logoUrl } = useBrandAssets();
+  const [clientNow] = useState(() => Date.now());
   const user = useQuery(api.users.viewer);
   const liveAgent = useQuery(api.agents.getAgentState);
   const liveInterests = useQuery(api.users.getInterests);
-  const liveRequests = useQuery(api.requests.listUserRequests);
+  const liveRequests = useQuery(api.requests.listUserRequests, { nowMs: clientNow });
   const createRequestMutation = useMutation(api.requests.createRequest);
   const updateWakeScheduleMutation = useMutation(api.agents.updateWakeSchedule);
   const updatePreferredLanguageMutation = useMutation(api.users.updatePreferredLanguage);
@@ -99,11 +101,13 @@ export function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState("Health & Nutrition");
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState(false);
+  const [requestError, setRequestError] = useState("");
 
   const handlePromptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promptInput.trim()) return;
 
+    setRequestError("");
     setSubmitting(true);
     try {
       await createRequestMutation({
@@ -113,8 +117,10 @@ export function DashboardPage() {
       setPromptInput("");
       setSuccessToast(true);
       setTimeout(() => setSuccessToast(false), 4000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create request:", err);
+      setRequestError(err?.message || "Failed to create request.");
+      setTimeout(() => setRequestError(""), 6000);
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +160,7 @@ export function DashboardPage() {
   };
 
   const completedRequests = rawRequests.filter((r: any) => r.status === "COMPLETED");
-  const pendingRequests = rawRequests.filter((r: any) => r.status === "PENDING" || r.status === "PROCESSING");
+  const pendingRequests = rawRequests.filter((r: any) => r.status === "PENDING");
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
@@ -368,14 +374,25 @@ export function DashboardPage() {
       {/* 2. QUICK REQUEST COMPOSER */}
       <div className="bg-gradient-to-r from-cream-100 to-petal-100 p-6 sm:p-8 rounded-3xl border border-petal-200 shadow-sm space-y-4">
         <div className="space-y-1">
-          <span className="text-xs font-bold uppercase tracking-widest text-forest-700">
-            NATURAL LANGUAGE PROMPT
-          </span>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-forest-700">
+              NATURAL LANGUAGE PROMPT
+            </span>
+            <span
+              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                pendingRequests.length >= MAX_PENDING_REQUESTS
+                  ? "bg-amber-50 text-amber-800 border-amber-300"
+                  : "bg-white text-forest-800 border-petal-200"
+              }`}
+            >
+              Pending Queue: {pendingRequests.length} / {MAX_PENDING_REQUESTS}
+            </span>
+          </div>
           <h2 className="font-editorial text-2xl font-bold text-charcoal-900">
             What Would You Like Your Agent to Work On?
           </h2>
           <p className="text-xs text-charcoal-600">
-            Submit requests at any time. Your agent will fulfill them during its next scheduled wake-up cycle.
+            Submit up to {MAX_PENDING_REQUESTS} pending research prompts. Your agent will fulfill them during its next scheduled wake-up cycle.
           </p>
         </div>
 
@@ -403,14 +420,32 @@ export function DashboardPage() {
 
             <button
               type="submit"
-              disabled={submitting || !promptInput.trim()}
-              className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs font-bold px-6 py-3 rounded-2xl transition-colors shadow-sm flex items-center justify-center space-x-2 shrink-0"
+              disabled={submitting || !promptInput.trim() || pendingRequests.length >= MAX_PENDING_REQUESTS}
+              className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs font-bold px-6 py-3 rounded-2xl transition-colors shadow-sm flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
             >
               <Send className="w-4 h-4" />
               <span>Submit Request</span>
             </button>
           </div>
         </form>
+
+        {/* Error Alert */}
+        {requestError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-center space-x-2 animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{requestError}</span>
+          </div>
+        )}
+
+        {/* Queue Full Warning */}
+        {pendingRequests.length >= MAX_PENDING_REQUESTS && !requestError && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              Your pending research queue is currently full ({MAX_PENDING_REQUESTS}/{MAX_PENDING_REQUESTS}). Your agent will process them at the next scheduled cycle.
+            </span>
+          </div>
+        )}
 
         {/* Success Toast */}
         {successToast && (

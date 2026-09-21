@@ -7,12 +7,12 @@
 - **Repo:** https://github.com/AmritSDutta/moitrii_frontend
 - **Frontend:** not deployed
 - **Convex deployment:** not deployed
-- **Components:** none
-- **Convex features:** schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http
+- **Components:** @convex-dev/workflow
+- **Convex features:** schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http, workflows, components
 - **Auth:** Convex Auth
 - **AI models:** gpt-4o-mini, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-21T19:02:00Z
+- **Last updated:** 2026-09-22T02:42:00Z
 
 ## Log
 
@@ -55,5 +55,14 @@ Hardened the autonomous agent loop after a code review. The completion webhook `
 ### 2026-09-21 - 6c45e74
 Replaced the external Python agent dispatch with a native Convex AI pipeline: the hourly wake action runs a reuse check over the content full-text index, synthesizes a localized guide with OpenAI (`gpt-4o-mini`, editorial fallback without a key), fetches a companion video, narrates it via TTS (`tts-1`) into file storage, publishes through `content.internalPublishGuide`, and emails the user via AgentMail + Brevo. Each agent now owns a dedicated inbox name/email, and any pipeline failure reverts requests to PENDING for the next wake. Documentation refreshed alongside (04154bc). Convex features: actions, internal queries/mutations, full-text search, file storage, crons, http (`convex/ai/**`, `convex/agentRunner.ts`, `convex/emails/brevo.ts`, `convex/agents.ts`).
 
-### 2026-09-21 - working tree
+### 2026-09-21 - 785d9bf
 Migrated the frontend from Next.js to a pure **React 18 + Vite SPA** with `react-router-dom` v6 across all 6 core screens (`HomePage`, `DashboardPage`, `RequestsPage`, `OnboardingPage`, `ContentReaderPage`, `PublisherPage`, `NotFoundPage`). Configured client-side Convex auth via `ConvexAuthProvider`, server-validated authentication flow via `useValidatedAuth`, Google OAuth explicit account chooser (`prompt: "select_account"`), and streamlined `Navbar.tsx` session teardown. Modernized autonomous agent wake cron in `convex/crons.ts` to use `crons.hourly(...)` with `minuteUTC` omitted for automatic off-peak distribution across the hour, and made all 24 hours available for user wake scheduling. Added dedicated `docs/convex-best-practices.mdx` documentation page covering top-of-hour evasion, clock-agnostic queries, atomic mutations, index optimization, and PII protection, registered it in `docs/docs.json`, and refreshed documentation across `README.md` and `docs/**`. Verified 51 / 51 passing tests across 12 Vitest suites, passed docs7 automated validation (9 pages, 0 errors), and confirmed 0 TypeScript errors during production build (`npm run build`). Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http (`convex/crons.ts`, `convex/agents.ts`, `src/pages/DashboardPage.tsx`, `docs/**`, `README.md`).
+
+### 2026-09-22 - working tree
+Completed end-to-end integration of `@convex-dev/workflow` and fault-tolerance hardening:
+1. **Durable Step Journaling & Failure Recovery (`@convex-dev/workflow`):** Mounted the workflow component in `convex/convex.config.ts`, refactored `convex/agentRunner.ts` to define `userWakeWorkflow` via `WorkflowManager`, decomposing execution into journaled step mutations (`markAgentWorking`, `checkContentReuse`, `internalPublishGuide`, `completeAgentTask`) and step actions (`researchAndSynthesizeStep`, `narrationStep`, `notifyCompletionStep`) with granular exponential backoff retries. Wrapped the workflow handler in an error boundary that journals a rollback via `revertAgentWorking` upon step failure or retry exhaustion, ensuring agents return to `SLEEPING` and requests to `PENDING` so the next wake cycle retries them.
+2. **Mutation Null-Safety:** Hardened `markAgentWorking`, `revertAgentWorking`, and `completeAgentTask` to verify document existence via `ctx.db.get(id)` before patching, preventing crashes if TTL cleanup deletes expired records mid-dispatch.
+3. **Clock-Agnostic Query Filtering:** Replaced wall clock calls (`Date.now()`) inside `listUserRequests` with pure parameter-based cutoff filtering (`nowMs: v.optional(v.number())`), preserving query cache determinism and reactivity.
+4. **Firecrawl Tool Grounding & Honest Offline Citations:** Aligned `convex/ai/firecrawl.ts` with top-level `limit: 3` and verified that fallback citations use honest offline references (`Moitrii Editorial Guidelines (Offline Reference)`, `https://moitrii.ai`).
+5. **UI & Constant Unification:** Extracted `MAX_PENDING_REQUESTS = 5` into `src/lib/constants.ts`, passed stable timestamps to `listUserRequests` in `DashboardPage` and `RequestsPage`, and unified pending queue filtering across both pages to evaluate `r.status === "PENDING"`.
+6. **Testing & Build Verification:** 60 / 60 tests passing across all 12 Vitest suites (`npm test`), and 0 TypeScript compilation errors in production SPA build (`npm run build`). Convex features: workflows, components, schema, compound indexes, queries, mutations, actions, crons, file storage (`convex/convex.config.ts`, `convex/agentRunner.ts`, `convex/requests.ts`, `convex/ai/firecrawl.ts`, `convex/ai/synthesizer.ts`, `src/lib/constants.ts`, `src/pages/**`, `docs/**`).

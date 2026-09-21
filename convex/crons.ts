@@ -16,4 +16,15 @@ crons.hourly(
   {}
 );
 
+/**
+ * Daily retention cleanup cron job that purges expired research requests/todos
+ * older than the 3-day TTL window.
+ */
+crons.interval(
+  "daily-todo-retention-cleanup",
+  { hours: 24 },
+  internal.requests.cleanupExpiredRequests,
+  {}
+);
+
 export default crons;
