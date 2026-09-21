@@ -1,18 +1,14 @@
-"use client";
-
 import { ReactNode } from "react";
-import { ConvexAuthNextjsProvider } from "@convex-dev/auth/nextjs";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 
 const convexUrl =
-  process.env.NEXT_PUBLIC_CONVEX_URL || "https://dummy-convex.convex.cloud";
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_CONVEX_URL) ||
+  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CONVEX_URL) ||
+  "https://brazen-rook-983.convex.cloud";
 
 const convex = new ConvexReactClient(convexUrl);
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  return (
-    <ConvexAuthNextjsProvider client={convex}>
-      {children}
-    </ConvexAuthNextjsProvider>
-  );
+  return <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>;
 }

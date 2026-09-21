@@ -1,7 +1,7 @@
 # Moitrii — Frontend & UI
 
 > **Modern Indian Women's Lifestyle + Calm Technology**  
-> An affordable personal AI agent platform built with **React / Next.js**, **Tailwind CSS**, and **Convex Cloud**.
+> An affordable personal AI agent platform built with **React 18 / Vite**, **React Router**, **Tailwind CSS**, and **Convex Cloud**.
 
 ---
 
@@ -65,7 +65,7 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
   `PENDING` ➔ `PROCESSING` ➔ `COMPLETED` / `FAILED`
 - Request details: submission timestamp, processing window, content reuse vs. generated status, delivery logs.
 
-### 5. Content & Article Reader View (`/content/[id]`)
+### 5. Content & Article Reader View (`/content/:id`)
 - Editorial layout for generated and reused content.
 - **In-Article Audio Narration Player:** Interactive audio playback bar positioned directly below the headline (disabled state if narration is unavailable).
 - **Author Transparency & AI Disclaimer:** Distinct author badges (`AI Agent Companion` vs `Human Author`) and editorial synthetic content disclaimer banner.
@@ -86,11 +86,11 @@ Documentation for this project lives at [`docs/`](docs/index.mdx) (preview local
 
 ```mermaid
 flowchart TD
-    subgraph Frontend ["Next.js React Frontend"]
+    subgraph Frontend ["React 18 / Vite SPA (react-router-dom)"]
       P_Home["Explore (/)"]
       P_Dash["Dashboard (/dashboard)"]
       P_Req["Request Center (/requests)"]
-      P_Reader["Reader (/content/[id])"]
+      P_Reader["Reader (/content/:id)"]
       P_Pub["Studio (/publisher)"]
       P_Onb["Interests (/onboarding)"]
     end
@@ -288,33 +288,53 @@ Your Agent's Work
 
 ---
 
-## ❓ FAQ
-
-### Every page returns 500 in dev with `EvalError: Code generation from strings disallowed`
-
-**Cause:** `NODE_ENV` is set to `production` in your environment (commonly a system-wide variable). Next.js disables `eval` inside its edge sandbox whenever `NODE_ENV === "production"` (`next/dist/server/web/sandbox/context.js`), and `src/middleware.ts` runs in that sandbox — so every request fails before it reaches a page. Next also warns: *"You are using a non-standard NODE_ENV value."*
-
-**Fix:** The npm scripts already pin the correct value with `cross-env`, so use `npm run dev`. If you invoke `next dev` directly (or add a new script), set it yourself:
+## 🛠️ Development & Build Commands
 
 ```bash
-npx cross-env NODE_ENV=development next dev
+# Install dependencies
+npm install
+
+# Start Vite React dev server (http://localhost:3000)
+npm run dev
+
+# Run Convex Cloud backend dev watcher
+npx convex dev
+
+# Typecheck and build production SPA (outputs to dist/)
+npm run build
+
+# Preview production build locally
+npm run preview
+
+# Run two-tier Vitest test suite (UI + Convex tests)
+npm test
 ```
 
-Unsetting the system-wide `NODE_ENV=production` removes the root cause entirely.
+---
+
+## ❓ FAQ
+
+### How is authentication handled in the pure React SPA?
+
+Authentication is powered by `@convex-dev/auth/react`. The app root is wrapped in `ConvexAuthProvider` reading `VITE_CONVEX_URL`. Protected routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`) use the `AuthGuard` component, while public routes (`/`, `/explore`, `/content/:id`) render immediately without blocking unauthenticated visitors.
 
 ### `npm install` deletes dev dependencies (`vitest`, `tailwindcss`, `typescript` disappear)
 
-**Cause:** npm is configured with `omit=dev`, which it inherits automatically from a global `NODE_ENV=production` (same root cause as above).
+**Cause:** npm is configured with `omit=dev`, which it inherits automatically if a global `NODE_ENV=production` is set in the system environment.
 
-**Fix:** install with dev dependencies included:
+**Fix:** Install with dev dependencies explicitly included:
 
 ```bash
 npm install --include=dev
 ```
 
-### Tests fail with `act(...) is not supported in production builds of React`
+### How do I run and write tests?
 
-**Cause:** React resolves to its production build because `NODE_ENV=production` is set when the test runner starts.
+Tests run across two projects under `vitest.config.ts`:
+- **UI Tests (`src/**/*.test.tsx`):** JSDOM environment with mocked Convex and Auth hooks.
+- **Convex Tests (`convex/**/*.test.ts`):** Edge runtime with `convex-test` against an in-memory database.
 
-**Fix:** Vitest already forces `NODE_ENV=test` via `test.env` in `vitest.config.ts`. If you run Vitest from another entry point, ensure `NODE_ENV` is not `production`.
+```bash
+npm test
+```
 

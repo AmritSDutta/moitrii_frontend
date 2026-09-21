@@ -1,9 +1,6 @@
-"use client";
-
 import React, { useState } from "react";
-import Image from "next/image";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { X, Sparkles, ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
+import { X, ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 
 interface AuthModalProps {
@@ -52,13 +49,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm mx-auto shrink-0"
             style={{ width: 48, height: 48, minWidth: 48, minHeight: 48, maxWidth: 48, maxHeight: 48 }}
           >
-            <Image
+            <img
               src={logoUrl}
               alt="Moitrii Emblem"
-              width={48}
-              height={48}
               className="w-full h-full object-cover object-center rounded-full"
-              style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center" }}
             />
           </div>
           <div>
@@ -119,3 +113,4 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
+export default AuthModal;

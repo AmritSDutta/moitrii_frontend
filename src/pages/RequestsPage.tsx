@@ -1,26 +1,19 @@
-"use client";
-
 import React, { useState } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
-import { AuthGuard } from "@/components/AuthGuard";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import {
-  Inbox,
   PlusCircle,
   Clock,
   CheckCircle2,
-  AlertCircle,
   RefreshCw,
   Sparkles,
   ArrowRight,
-  Filter,
-  Send,
-  Loader2
+  Send
 } from "lucide-react";
 
-export default function RequestsPage() {
+export function RequestsPage() {
   const { topics, agentState } = useApp();
   const liveRequests = useQuery(api.requests.listUserRequests);
   const createRequestMutation = useMutation(api.requests.createRequest);
@@ -44,7 +37,7 @@ export default function RequestsPage() {
   const [category, setCategory] = useState("Health & Nutrition");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showToast, setShowToast] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,13 +61,8 @@ export default function RequestsPage() {
     return r.status === statusFilter;
   });
 
-
   return (
-    <AuthGuard
-      title="Request Center & Durable Queue"
-      description="Sign in with Google to submit research prompts, track scheduled wake windows, and view your personalized deliverable history."
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* Header */}
       <div className="space-y-2">
         <span className="text-xs font-bold uppercase tracking-widest text-forest-700 bg-forest-50 px-3 py-1 rounded-full border border-forest-100">
@@ -191,88 +179,89 @@ export default function RequestsPage() {
                   : `No ${statusFilter.toLowerCase()} requests.`}
               </p>
               <p className="text-[11px] text-charcoal-400">
-                Submit a research question above — it stays safely queued until your agent&apos;s next wake.
+                Submit a research question above — it stays safely queued until your agent's next wake.
               </p>
             </div>
           ) : (
             filteredRequests.map((req: any) => {
-            const isDone = req.status === "COMPLETED";
-            return (
-              <div
-                key={req.id}
-                className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm space-y-4 hover:border-petal-300 transition-all"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center space-x-1 ${
-                        isDone
-                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                          : "bg-indigo-50 text-indigo-800 border border-indigo-200"
-                      }`}
-                    >
-                      {isDone ? (
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      ) : (
-                        <Clock className="w-3 h-3 text-indigo-600" />
-                      )}
-                      <span>{req.status}</span>
-                    </span>
+              const isDone = req.status === "COMPLETED";
+              return (
+                <div
+                  key={req.id}
+                  className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm space-y-4 hover:border-petal-300 transition-all"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center space-x-1 ${
+                          isDone
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-indigo-50 text-indigo-800 border border-indigo-200"
+                        }`}
+                      >
+                        {isDone ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <Clock className="w-3 h-3 text-indigo-600" />
+                        )}
+                        <span>{req.status}</span>
+                      </span>
 
-                    <span className="text-xs font-bold text-rosebrand">
-                      {req.category}
+                      <span className="text-xs font-bold text-rosebrand">
+                        {req.category}
+                      </span>
+                    </div>
+
+                    <span className="text-[11px] text-charcoal-500">
+                      Submitted: {req.submittedAt}
                     </span>
                   </div>
 
-                  <span className="text-[11px] text-charcoal-500">
-                    Submitted: {req.submittedAt}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold text-charcoal-900">
-                    &ldquo;{req.prompt}&rdquo;
-                  </p>
-                  {req.contentTitle && (
-                    <div className="mt-2 text-xs text-charcoal-700 bg-petal-50 p-3 rounded-xl border border-petal-200">
-                      <strong>Delivered Guide:</strong> {req.contentTitle}
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer status / Action */}
-                <div className="pt-3 border-t border-petal-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center space-x-2 text-charcoal-500">
-                    {req.isReused ? (
-                      <span className="flex items-center space-x-1 text-forest-800 font-medium">
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Reused from Shared Knowledge Ecosystem</span>
-                      </span>
-                    ) : (
-                      <span className="flex items-center space-x-1 text-terracotta font-medium">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Freshly Researched & Synthesized</span>
-                      </span>
+                  <div>
+                    <p className="text-sm font-semibold text-charcoal-900">
+                      &ldquo;{req.prompt}&rdquo;
+                    </p>
+                    {req.contentTitle && (
+                      <div className="mt-2 text-xs text-charcoal-700 bg-petal-50 p-3 rounded-xl border border-petal-200">
+                        <strong>Delivered Guide:</strong> {req.contentTitle}
+                      </div>
                     )}
                   </div>
 
-                  {isDone && req.contentId && (
-                    <Link
-                      href={`/content/${req.contentId}`}
-                      className="inline-flex items-center space-x-1 text-xs font-bold text-forest-800 hover:text-forest-900"
-                    >
-                      <span>Open Guide</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  )}
+                  {/* Footer status / Action */}
+                  <div className="pt-3 border-t border-petal-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center space-x-2 text-charcoal-500">
+                      {req.isReused ? (
+                        <span className="flex items-center space-x-1 text-forest-800 font-medium">
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Reused from Shared Knowledge Ecosystem</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center space-x-1 text-terracotta font-medium">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Freshly Researched & Synthesized</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {isDone && req.contentId && (
+                      <Link
+                        to={`/content/${req.contentId}`}
+                        className="inline-flex items-center space-x-1 text-xs font-bold text-forest-800 hover:text-forest-900"
+                      >
+                        <span>Open Guide</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })
           )}
         </div>
       </div>
     </div>
-    </AuthGuard>
   );
 }
+
+export default RequestsPage;

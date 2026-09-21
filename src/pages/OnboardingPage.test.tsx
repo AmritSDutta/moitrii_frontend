@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 const { updateInterestsMock } = vi.hoisted(() => ({ updateInterestsMock: vi.fn() }));
 
@@ -41,23 +42,21 @@ vi.mock("@convex-dev/auth/react", () => ({
   useAuthActions: vi.fn(() => ({ signIn: vi.fn(), signOut: vi.fn() })),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
-  usePathname: () => "/onboarding",
-  useParams: () => ({}),
-}));
-
-import OnboardingPage from "./page";
+import { OnboardingPage } from "./OnboardingPage";
 
 beforeEach(() => {
   updateInterestsMock.mockReset();
   updateInterestsMock.mockResolvedValue(undefined);
 });
 
-test("selecting a topic persists it through updateInterests", async () => {
+test("selecting a topic persists it through updateInterests in React Router", async () => {
   const user = userEvent.setup();
 
-  render(<OnboardingPage />);
+  render(
+    <MemoryRouter>
+      <OnboardingPage />
+    </MemoryRouter>
+  );
 
   await user.click(screen.getByText("Health & Nutrition"));
 

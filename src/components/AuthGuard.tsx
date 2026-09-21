@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useConvexAuth } from "@convex-dev/auth/react";
+import { useValidatedAuth } from "@/lib/useValidatedAuth";
 import { AuthModal } from "@/components/AuthModal";
 import { Lock, Sparkles, ArrowRight } from "lucide-react";
 
@@ -16,10 +16,12 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   title = "Member Exclusive Area",
   description = "Please sign in with your Google account to access your personal AI agent, request history, and custom interests.",
 }) => {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { status } = useValidatedAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  if (isLoading) {
+  // Children render only after the backend confirms the session (viewer query
+  // resolved to a user) — never on the client's local token belief alone.
+  if (status === "checking") {
     return (
       <div className="max-w-4xl mx-auto px-4 py-24 text-center">
         <div className="w-10 h-10 rounded-full border-2 border-forest-800 border-t-transparent animate-spin mx-auto mb-4" />
@@ -28,7 +30,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
 
-  if (!isAuthenticated) {
+  if (status === "signedOut") {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center animate-fade-in">
         <div className="w-14 h-14 rounded-full bg-petal-100 text-forest-800 flex items-center justify-center mx-auto mb-6 ring-4 ring-petal-200 shadow-sm">

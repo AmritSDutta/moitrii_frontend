@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 const { createRequestMock } = vi.hoisted(() => ({ createRequestMock: vi.fn() }));
 
@@ -20,20 +21,22 @@ vi.mock("@convex-dev/auth/react", () => ({
 }));
 
 import { AppProvider } from "@/lib/AppContext";
-import RequestsPage from "./page";
+import { RequestsPage } from "./RequestsPage";
 
 beforeEach(() => {
   createRequestMock.mockReset();
   createRequestMock.mockResolvedValue("req-1");
 });
 
-test("submits a prompt through the createRequest mutation", async () => {
+test("submits a prompt through the createRequest mutation in React Router", async () => {
   const user = userEvent.setup();
 
   render(
-    <AppProvider>
-      <RequestsPage />
-    </AppProvider>
+    <MemoryRouter>
+      <AppProvider>
+        <RequestsPage />
+      </AppProvider>
+    </MemoryRouter>
   );
 
   const textarea = screen.getByPlaceholderText(/budget-friendly boutique homestays/i);

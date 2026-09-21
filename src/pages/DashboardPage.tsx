@@ -1,40 +1,46 @@
-"use client";
-
 import React, { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { AuthGuard } from "@/components/AuthGuard";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from "../../convex/_generated/api";
 import {
   Moon,
   Zap,
   Sparkles,
-  Clock,
   ArrowRight,
   CheckCircle,
   Hourglass,
   RefreshCw,
   Send,
-  BookOpen,
   Settings,
   Plus,
   Loader2,
   X,
   AlertCircle,
-  Globe,
   Languages,
-  Mail
+  Mail,
+  LogOut
 } from "lucide-react";
 
-export default function DashboardPage() {
+export function DashboardPage() {
+  const navigate = useNavigate();
+  const { signOut } = useAuthActions();
   const {
     agentState: fallbackAgentState,
     topics,
     triggerManualWake,
   } = useApp();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (err) {
+      console.error("Sign out failed:", err);
+    }
+    navigate("/");
+  };
 
   const { logoUrl } = useBrandAssets();
   const user = useQuery(api.users.viewer);
@@ -165,40 +171,42 @@ export default function DashboardPage() {
   const completedRequests = rawRequests.filter((r: any) => r.status === "COMPLETED");
   const pendingRequests = rawRequests.filter((r: any) => r.status === "PENDING" || r.status === "PROCESSING");
 
-
   return (
-    <AuthGuard
-      title="Personal Agent Dashboard"
-      description="Sign in with your Google account to interact with your personal AI agent, track scheduled wake cycles, and manage deliverables."
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* 1. TOP GREETING & AGENT STATUS HERO */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-petal-200 shadow-editorial relative overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left: Greeting & Status */}
           <div className="lg:col-span-8 space-y-4">
-            <div className="flex items-center space-x-3">
-              <div
-                className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm shrink-0"
-                style={{ width: 48, height: 48, minWidth: 48, maxWidth: 48 }}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center space-x-3">
+                <div
+                  className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-rosebrand/40 shadow-sm shrink-0"
+                  style={{ width: 48, height: 48, minWidth: 48, maxWidth: 48 }}
+                >
+                  <img
+                    src={logoUrl}
+                    alt="Moitrii Agent"
+                    className="w-full h-full object-cover object-center rounded-full"
+                  />
+                </div>
+                <div>
+                  <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-charcoal-900">
+                    Good Morning, {displayName}
+                  </h1>
+                  <p className="text-xs text-charcoal-500">
+                    Your dedicated Moitrii agent is managing your personalized lifestyle feeds.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="inline-flex items-center space-x-1.5 text-xs text-charcoal-600 hover:text-red-600 bg-petal-100 hover:bg-red-50 border border-petal-200 hover:border-red-200 px-3.5 py-1.5 rounded-full font-medium transition-colors cursor-pointer"
               >
-                <Image
-                  src={logoUrl}
-                  alt="Moitrii Agent"
-                  width={48}
-                  height={48}
-                  className="w-full h-full object-cover object-center rounded-full"
-                  style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center" }}
-                />
-              </div>
-              <div>
-                <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-charcoal-900">
-                  Good Morning, {displayName}
-                </h1>
-                <p className="text-xs text-charcoal-500">
-                  Your dedicated Moitrii agent is managing your personalized lifestyle feeds.
-                </p>
-              </div>
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
             </div>
 
             {/* Agent Live State Box */}
@@ -292,7 +300,7 @@ export default function DashboardPage() {
 
               <div className="pt-2 border-t border-petal-200/80 flex items-center justify-between text-[11px] text-charcoal-500">
                 <span>{pendingRequests.length} pending request(s) queued</span>
-                <Link href="/requests" className="text-forest-800 font-semibold hover:underline">
+                <Link to="/requests" className="text-forest-800 font-semibold hover:underline">
                   View Queue →
                 </Link>
               </div>
@@ -453,7 +461,7 @@ export default function DashboardPage() {
               </span>
             ))}
           <Link
-            href="/onboarding"
+            to="/onboarding"
             className="text-xs text-forest-800 hover:text-forest-900 font-bold px-3 py-1.5 rounded-full bg-petal-100 hover:bg-petal-200 flex items-center space-x-1"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -483,7 +491,7 @@ export default function DashboardPage() {
           <div className="space-y-4">
             {requestsLoading ? (
               <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center">
-                <p className="text-xs text-charcoal-500">Loading your agent&apos;s work…</p>
+                <p className="text-xs text-charcoal-500">Loading your agent's work…</p>
               </div>
             ) : completedRequests.length === 0 ? (
               <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center space-y-2">
@@ -494,45 +502,45 @@ export default function DashboardPage() {
               </div>
             ) : (
               completedRequests.map((req: any) => (
-              <div
-                key={req.id}
-                className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-rosebrand uppercase tracking-wider">
-                      {req.category}
-                    </span>
-                    <h4 className="font-editorial text-lg font-bold text-charcoal-900 group-hover:text-forest-800 transition-colors">
-                      {req.contentTitle || req.prompt}
-                    </h4>
-                    <p className="text-xs text-charcoal-600 italic">
-                      Original prompt: &ldquo;{req.prompt}&rdquo;
-                    </p>
+                <div
+                  key={req.id}
+                  className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-rosebrand uppercase tracking-wider">
+                        {req.category}
+                      </span>
+                      <h4 className="font-editorial text-lg font-bold text-charcoal-900 group-hover:text-forest-800 transition-colors">
+                        {req.contentTitle || req.prompt}
+                      </h4>
+                      <p className="text-xs text-charcoal-600 italic">
+                        Original prompt: &ldquo;{req.prompt}&rdquo;
+                      </p>
+                    </div>
+
+                    <Link
+                      to={req.contentId ? `/content/${req.contentId}` : `/content/healthy-drinks-kids`}
+                      className="bg-forest-800 hover:bg-forest-900 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors shrink-0 flex items-center space-x-1.5 shadow-xs"
+                    >
+                      <span>Read Guide</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
 
-                  <Link
-                    href={req.contentId ? `/content/${req.contentId}` : `/content/healthy-drinks-kids`}
-                    className="bg-forest-800 hover:bg-forest-900 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors shrink-0 flex items-center space-x-1.5 shadow-xs"
-                  >
-                    <span>Read Guide</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-
-                <div className="pt-3 border-t border-petal-100 flex items-center justify-between text-xs text-charcoal-500">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    <span>Fulfilled at {req.completedAt}</span>
+                  <div className="pt-3 border-t border-petal-100 flex items-center justify-between text-xs text-charcoal-500">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      <span>Fulfilled at {req.completedAt}</span>
+                    </div>
+                    {req.isReused && (
+                      <span className="text-[10px] bg-petal-100 text-charcoal-700 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                        <RefreshCw className="w-3 h-3 text-forest-700" />
+                        <span>Shared Knowledge Reuse</span>
+                      </span>
+                    )}
                   </div>
-                  {req.isReused && (
-                    <span className="text-[10px] bg-petal-100 text-charcoal-700 px-2 py-0.5 rounded-full flex items-center space-x-1">
-                      <RefreshCw className="w-3 h-3 text-forest-700" />
-                      <span>Shared Knowledge Reuse</span>
-                    </span>
-                  )}
                 </div>
-              </div>
               ))
             )}
           </div>
@@ -709,6 +717,7 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
-    </AuthGuard>
   );
 }
+
+export default DashboardPage;

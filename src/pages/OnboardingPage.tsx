@@ -1,12 +1,8 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
-import { AuthGuard } from "@/components/AuthGuard";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import {
   Heart,
   Utensils,
@@ -19,18 +15,16 @@ import {
   Zap,
   Smile,
   CheckCircle2,
-  ArrowRight,
-  Loader2
+  ArrowRight
 } from "lucide-react";
 
-export default function OnboardingPage() {
-  const router = useRouter();
+export function OnboardingPage() {
+  const navigate = useNavigate();
   const { topics, userInterests: fallbackInterests } = useApp();
   const liveInterests = useQuery(api.users.getInterests);
   const updateInterestsMutation = useMutation(api.users.updateInterests);
 
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (liveInterests && liveInterests.length > 0) {
@@ -55,7 +49,6 @@ export default function OnboardingPage() {
     }
   };
 
-
   const getIcon = (iconName: string) => {
     switch (iconName) {
       case "Heart": return <Heart className="w-5 h-5" />;
@@ -76,11 +69,7 @@ export default function OnboardingPage() {
   const youthTopics = topics.filter((t) => t.category === "parenting");
 
   return (
-    <AuthGuard
-      title="Personalize Your Agent's Interests"
-      description="Sign in with your Google account to customize the lifestyle domains, wellness topics, and cultural streams your personal agent follows."
-    >
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto space-y-3">
         <span className="text-xs font-bold uppercase tracking-widest text-forest-700 bg-forest-50 px-3.5 py-1 rounded-full border border-forest-100">
@@ -108,13 +97,13 @@ export default function OnboardingPage() {
                 : `${userInterests.length} Topics Selected`}
             </span>
             <span className="text-[11px] text-charcoal-500">
-              Personalizing your agent’s wake-up research digest
+              Personalizing your agent's wake-up research digest
             </span>
           </div>
         </div>
 
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => navigate("/dashboard")}
           disabled={userInterests.length === 0}
           className="bg-forest-800 hover:bg-forest-900 disabled:opacity-50 text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center space-x-2 shadow-sm"
         >
@@ -263,6 +252,7 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
-    </AuthGuard>
   );
 }
+
+export default OnboardingPage;

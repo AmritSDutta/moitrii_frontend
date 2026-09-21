@@ -10,9 +10,9 @@
 - **Components:** none
 - **Convex features:** schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http
 - **Auth:** Convex Auth
-- **AI models:** none
+- **AI models:** gpt-4o-mini, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-20T23:59:00Z
+- **Last updated:** 2026-09-21T15:05:53Z
 
 ## Log
 
@@ -52,8 +52,14 @@ Added dedicated `subscribers` table and `convex/subscribers.ts` with `subscribeD
 ### 2026-09-20 - 077b7c7
 Hardened the autonomous agent loop after a code review. The completion webhook `/api/agent/complete` now fails closed (503 when `AGENT_SERVICE_SECRET` is unset, 401 on mismatch) and validates every payload field before writing; dispatches that cannot reach the Python service revert agents to SLEEPING and requests to PENDING instead of stranding them in PROCESSING; the hourly cron now dispatches only agents whose IST wake time actually elapsed, so the calm-tech night window is enforced server-side. Landing/list queries return bounded card projections via a new `by_reused_count` index, unknown article slugs render the 404 page instead of mock content, and dashboard/request views show live data with loading states. Added webhook-validation and wake-gating tests (35 passing). Convex features: http actions, crons, indexes, queries, mutations (`convex/http.ts`, `convex/agentRunner.ts`, `convex/crons.ts`, `convex/content.ts`, `convex/schema.ts`, `convex/http.test.ts`, `convex/agentRunner.test.ts`, `src/app/**`).
 
+### 2026-09-21 - 6c45e74
+Replaced the external Python agent dispatch with a native Convex AI pipeline: the hourly wake action runs a reuse check over the content full-text index, synthesizes a localized guide with OpenAI (`gpt-4o-mini`, editorial fallback without a key), fetches a companion video, narrates it via TTS (`tts-1`) into file storage, publishes through `content.internalPublishGuide`, and emails the user via AgentMail + Brevo. Each agent now owns a dedicated inbox name/email, and any pipeline failure reverts requests to PENDING for the next wake. Documentation refreshed alongside (04154bc). Convex features: actions, internal queries/mutations, full-text search, file storage, crons, http (`convex/ai/**`, `convex/agentRunner.ts`, `convex/emails/brevo.ts`, `convex/agents.ts`).
+
 ### 2026-09-21 - working tree
-Shipped Phase 4 & Phase 5: Modular Convex AI Agent Engine, Brevo Subscriber Delivery, AgentMail Segregation, User Active Dispute Safety, and Strict PII Anonymization. Extended `users` table with `isActive: v.optional(v.boolean())` for account dispute and moderation safety (gating request submission, agent wake cycles, and interest/language updates). Enforced strict PII segregation across the entire database: human names and personal emails exist strictly in the `users` table, while `agents` table holds companion persona names (`"Moitrii Companion"`) and synthetic inboxes (`agent-...@agentmail.to`), and all other tables reference only opaque `userId: v.id("users")`. Built `convex/emails/brevo.ts` with transactional welcome confirmations and weekly curated lifestyle digest broadcasts via Brevo REST API, clearly separating platform marketing (Brevo) from 1:1 agent research updates (AgentMail). Built modular AI engine (`convex/ai/`) and expanded Vitest suite to 48 passing tests with 0 type errors and clean Next.js production build (`convex/schema.ts`, `convex/users.ts`, `convex/requests.ts`, `convex/agents.ts`, `convex/agentRunner.ts`, `convex/subscribers.ts`, `convex/emails/**`, `convex/ai/**`, `hackathon.md`). Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http.
+Migrated the entire frontend from Next.js (App Router) to a clean, pure **React 18 + Vite SPA** with `react-router-dom` v6. Configured root `index.html` with editorial Playfair Display & Plus Jakarta Sans typography, Vite config (`vite.config.ts`), `main.tsx` SPA root, and `App.tsx` routing across all 6 core screens (`HomePage`, `DashboardPage`, `RequestsPage`, `OnboardingPage`, `ContentReaderPage`, `PublisherPage`, `NotFoundPage`). Updated `@convex-dev/auth/react` (`ConvexAuthProvider`) for pure client React authentication reading `VITE_CONVEX_URL`. Removed legacy `src/app/`, `src/middleware.ts`, and `next-env.d.ts`. Replaced `next/image` with semantic `<img>` in `Navbar`, `Footer`, and `AuthModal`. Updated JSDOM UI tests with `MemoryRouter`. Verified 48 / 48 Vitest tests passing across 12 suites, 0 TypeScript errors (`tsc --noEmit`), and sub-3s production build (`vite build` to `dist/`). Updated `README.md`, `AGENTS.md`, and docs7 documentation site (`docs/**`). Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http.
+
+Reworked sign-in state to be server-validated: the new `useValidatedAuth` hook treats the user as signed in only after the `users.viewer` query confirms the stored token (with a timeout fallback to the sign-in screen), now used by `Navbar` and `AuthGuard`, with tests covering ghost-session, timeout, and post-sign-in rerender cases. Added the docs-mandated `@auth/core` pin and a one-time `generateKeys.mjs` script for Convex Auth deployment setup. 51 / 51 tests passing, 0 TypeScript errors (`src/lib/useValidatedAuth.ts`, `src/components/AuthGuard.tsx`, `src/components/Navbar.tsx`, `src/components/AuthGuard.test.tsx`, `generateKeys.mjs`).
+
 
 
 

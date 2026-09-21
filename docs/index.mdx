@@ -1,6 +1,6 @@
 ---
 title: Moitrii Documentation
-description: Affordable personal AI agent platform for modern Indian women — lifestyle companion built on React/Next.js and Convex Cloud.
+description: Affordable personal AI agent platform for modern Indian women — lifestyle companion built on React 18, Vite, React Router, and Convex Cloud.
 ---
 
 # Moitrii — Personal AI Companion for Women
@@ -21,19 +21,19 @@ All users receive **identical** agent capabilities. Subscription tiers determine
 - **Dispute & Moderation Safety** — `users.isActive` safety switch instantly guards agent execution and request queues.
 - **Shared Knowledge Ecosystem** — Agents reuse verified guides to avoid duplicate generation costs.
 - **Convex Realtime Backend** — End-to-end TypeScript with type-safe queries, mutations, full-text search, and File Storage.
-- **Google OAuth Authentication** — Built on `@convex-dev/auth`.
+- **Google OAuth Authentication** — Built on `@convex-dev/auth/react`.
 - **Editorial Lifestyle Aesthetic** — Warm, calm, magazine-like UI distinct from generic SaaS dashboards.
 
 ## Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14 (App Router), React 18, TypeScript |
+| Frontend | React 18, Vite 5, React Router v6, TypeScript |
 | Styling | Tailwind CSS 3, custom editorial color palette |
 | Backend | Convex Cloud (`brazen-rook-983` — Database, Queries, Mutations, File Storage, Crons) |
 | AI Engine | Modular Convex AI Pipeline (`convex/ai/` — reuse, synthesis, TTS narration, research) |
 | Email & Messaging | Brevo (platform/subscribers) & AgentMail (1:1 personal agent inboxes) |
-| Auth | `@convex-dev/auth` with Google OAuth |
+| Auth | `@convex-dev/auth/react` with Google OAuth |
 | Icons | Lucide React |
 
 ## Quick Start
@@ -43,7 +43,7 @@ npm install
 npm run dev
 ```
 
-This starts the Next.js dev server at `http://localhost:3000`. You also need `npx convex dev` to run the Convex backend locally (requires `NEXT_PUBLIC_CONVEX_URL` in `.env.local`).
+This starts the Vite React dev server at `http://localhost:3000`. You also need `npx convex dev` to run the Convex backend locally (configured via `VITE_CONVEX_URL`).
 
 ## Documentation Sections
 
@@ -54,3 +54,4 @@ This starts the Next.js dev server at `http://localhost:3000`. You also need `np
 - **Screens** — UI screen specifications and user journeys
 - **Convex API** — Reference for all backend queries and mutations
 - **FAQ** — Troubleshooting common local setup issues
+

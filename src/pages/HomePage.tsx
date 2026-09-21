@@ -1,9 +1,5 @@
-"use client";
-
-import React, { useState, useEffect, Suspense } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useQuery } from "convex/react";
@@ -13,19 +9,14 @@ import {
   Sparkles,
   ArrowRight,
   Clock,
-  BookOpen,
-  Share2,
   RefreshCw,
-  Play,
-  Heart,
-  ShieldCheck,
-  CheckCircle2
+  Play
 } from "lucide-react";
 
-function HomeContent() {
+export function HomePage() {
   const { articles: fallbackArticles, topics, videos, searchQuery, setSearchQuery } = useApp();
   const { heroUrl } = useBrandAssets();
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const topicParam = searchParams.get("topic");
 
   const [selectedTopicFilter, setSelectedTopicFilter] = useState<string>("all");
@@ -34,7 +25,9 @@ function HomeContent() {
   useEffect(() => {
     if (topicParam) {
       const matched = topics.find(
-        (t) => t.id.toLowerCase() === topicParam.toLowerCase() || t.name.toLowerCase() === topicParam.toLowerCase()
+        (t) =>
+          t.id.toLowerCase() === topicParam.toLowerCase() ||
+          t.name.toLowerCase() === topicParam.toLowerCase()
       );
       if (matched) {
         setSelectedTopicFilter(matched.name);
@@ -81,20 +74,18 @@ function HomeContent() {
     return matchesSearch && matchesTopic;
   });
 
-
-
   const popularPills = [
     "Ayurvedic Drinks",
     "Studio Ghibli Guide",
     "Darjeeling Homestays",
     "Morning Flow",
     "Gen-Z Trends",
-    "Clean Skincare"
+    "Clean Skincare",
   ];
 
   return (
     <div className="space-y-20 pb-16">
-      {/* 1. HERO SECTION (Guided by moitrii_theme.png and moitrii.jpg) */}
+      {/* 1. HERO SECTION */}
       <section className="relative pt-8 pb-12 md:pt-14 md:pb-16 border-b border-petal-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -118,7 +109,7 @@ function HomeContent() {
                 Grounded in intentional living, wellness, family, and calm technology.
               </p>
 
-              {/* Search Bar (Matching moitrii_theme.png) */}
+              {/* Search Bar */}
               <div className="pt-2">
                 <form
                   onSubmit={(e) => e.preventDefault()}
@@ -162,7 +153,7 @@ function HomeContent() {
               {/* Quick Call to Action */}
               <div className="pt-2 flex flex-wrap items-center gap-4">
                 <Link
-                  href="/dashboard"
+                  to="/dashboard"
                   className="inline-flex items-center space-x-2 bg-rosebrand hover:bg-rosebrand-dark text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md transition-all hover:translate-y-[-1px]"
                 >
                   <Sparkles className="w-4 h-4" />
@@ -170,7 +161,7 @@ function HomeContent() {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
-                  href="/onboarding"
+                  to="/onboarding"
                   className="inline-flex items-center space-x-1.5 text-xs text-charcoal-700 hover:text-charcoal-900 font-semibold px-4 py-2.5 rounded-full border border-petal-300 hover:bg-white transition-all"
                 >
                   <span>Choose Your Topics</span>
@@ -181,16 +172,15 @@ function HomeContent() {
             {/* Right Image Column with full moitrii.jpg & subtle guide card */}
             <div className="lg:col-span-6 relative flex flex-col items-center">
               <div className="relative w-full max-w-[540px] aspect-square rounded-[2rem] overflow-hidden shadow-editorial ring-1 ring-petal-300/80 bg-white group">
-                <Image
+                <img
                   src={heroUrl}
                   alt="Moitrii - A friend for a more beautiful you"
-                  fill
-                  className="object-contain transition-transform duration-700 group-hover:scale-[1.02]"
-                  priority
+                  className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-[1.02]"
+                  loading="eager"
                 />
               </div>
 
-              {/* Companion Guide Card (Placed cleanly to not obstruct the image text) */}
+              {/* Companion Guide Card */}
               <div className="w-full max-w-[540px] mt-3 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-card border border-petal-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all hover:shadow-editorial">
                 <div>
                   <div className="flex items-center space-x-2 mb-1">
@@ -203,13 +193,13 @@ function HomeContent() {
                     Explore practical guides for food, self-care, parenting, and calm home routines.
                   </p>
                 </div>
-                <Link
+                <a
                   href="#articles-section"
                   className="inline-flex items-center space-x-1.5 text-xs font-bold text-forest-800 hover:text-forest-900 shrink-0 bg-forest-50 hover:bg-forest-100 px-4 py-2 rounded-full transition-colors border border-forest-100 self-start sm:self-auto"
                 >
                   <span>Read Latest Guides</span>
                   <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                </a>
               </div>
             </div>
           </div>
@@ -220,7 +210,7 @@ function HomeContent() {
       <section id="articles-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
           <span className="text-xs font-bold uppercase tracking-widest text-forest-700 block">
-            WHAT&apos;S HOT
+            WHAT'S HOT
           </span>
           <h2 className="font-editorial text-3xl sm:text-4xl font-bold text-charcoal-900">
             Reader-Favorite Articles
@@ -265,12 +255,12 @@ function HomeContent() {
               className="bg-white rounded-2xl overflow-hidden border border-petal-200/90 shadow-card hover:shadow-editorial transition-all hover:translate-y-[-4px] flex flex-col group"
             >
               {/* Cover Image */}
-              <Link href={`/content/${article.id}`} className="relative aspect-[16/10] overflow-hidden block">
-                <Image
+              <Link to={`/content/${article.id}`} className="relative aspect-[16/10] overflow-hidden block">
+                <img
                   src={article.coverImage}
                   alt={article.title}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
                 />
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                   <span className="bg-white/90 backdrop-blur-sm text-charcoal-900 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-xs">
@@ -296,7 +286,7 @@ function HomeContent() {
                     <span>{article.publishedAt}</span>
                   </div>
 
-                  <Link href={`/content/${article.id}`}>
+                  <Link to={`/content/${article.id}`}>
                     <h3 className="font-editorial text-xl font-bold text-charcoal-900 group-hover:text-forest-800 transition-colors leading-snug line-clamp-2">
                       {article.title}
                     </h3>
@@ -312,7 +302,7 @@ function HomeContent() {
                     {article.author}
                   </span>
                   <Link
-                    href={`/content/${article.id}`}
+                    to={`/content/${article.id}`}
                     className="text-xs font-bold text-forest-800 hover:text-forest-900 flex items-center space-x-1"
                   >
                     <span>Read Guide</span>
@@ -344,7 +334,7 @@ function HomeContent() {
             {topics.map((topic) => (
               <Link
                 key={topic.id}
-                href={`/onboarding`}
+                to="/onboarding"
                 className="bg-white p-5 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md hover:border-forest-700/40 transition-all text-center group"
               >
                 <div className="w-10 h-10 rounded-full bg-petal-50 mx-auto mb-3 flex items-center justify-center text-forest-800 group-hover:bg-forest-800 group-hover:text-white transition-colors">
@@ -377,7 +367,7 @@ function HomeContent() {
             </p>
           </div>
           <Link
-            href="/dashboard"
+            to="/dashboard"
             className="text-xs font-bold text-forest-800 hover:text-forest-900 flex items-center space-x-1.5"
           >
             <span>Ask your agent for video breakdowns</span>
@@ -395,11 +385,11 @@ function HomeContent() {
                 onClick={() => setActiveVideoModal(vid.youtubeId)}
                 className="relative aspect-video cursor-pointer overflow-hidden block"
               >
-                <Image
+                <img
                   src={vid.thumbnail}
                   alt={vid.title}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-charcoal-900/30 group-hover:bg-charcoal-900/20 transition-colors flex items-center justify-center">
                   <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -457,7 +447,7 @@ function HomeContent() {
               <span>Affordable Persistent AI Platform</span>
             </div>
             <h2 className="font-editorial text-3xl sm:text-4xl font-bold leading-tight">
-              Personal AI Shouldn&apos;t Be a Luxury
+              Personal AI Shouldn't Be a Luxury
             </h2>
             <p className="text-sm text-forest-100 leading-relaxed">
               Every woman deserves a dedicated companion that understands her rhythm.
@@ -466,13 +456,13 @@ function HomeContent() {
             </p>
             <div className="pt-2 flex flex-wrap gap-4">
               <Link
-                href="/onboarding"
+                to="/onboarding"
                 className="bg-white text-forest-900 hover:bg-petal-50 font-bold px-6 py-3 rounded-full text-xs transition-colors shadow-md"
               >
                 Get Started Free
               </Link>
               <Link
-                href="/dashboard"
+                to="/dashboard"
                 className="bg-forest-700/60 hover:bg-forest-700 text-white border border-white/20 font-medium px-6 py-3 rounded-full text-xs transition-colors"
               >
                 View Agent Dashboard
@@ -485,10 +475,4 @@ function HomeContent() {
   );
 }
 
-export default function HomePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen py-24 text-center text-xs text-charcoal-500">Loading Moitrii...</div>}>
-      <HomeContent />
-    </Suspense>
-  );
-}
+export default HomePage;

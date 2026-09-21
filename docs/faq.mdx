@@ -1,57 +1,31 @@
 ---
 title: FAQ
-description: Troubleshooting common local setup issues — a production environment variable breaking the dev server, missing dev dependencies, Vitest runtime errors, and Convex codegen.
+description: Troubleshooting common local setup issues — Vite development, missing dev dependencies, Vitest runtime errors, and Convex codegen.
 ---
 
 # FAQ
 
-## Every page returns 500 in dev with `EvalError: Code generation from strings disallowed`
+## How is authentication handled in the pure React SPA?
 
-**Symptom:** `npm run dev` starts, but every route responds with HTTP 500 and the server logs:
-
-```
-EvalError: Code generation from strings disallowed for this context
-    at (middleware)/./src/middleware.ts
-```
-
-Next.js may also warn: *"You are using a non-standard `NODE_ENV` value in your environment."*
-
-**Cause:** `NODE_ENV` is set to `production` in your environment — most often a system-wide variable. Next.js disables `eval` inside its edge sandbox whenever `NODE_ENV === "production"`:
-
-```js
-// next/dist/server/web/sandbox/context.js
-codeGeneration: process.env.NODE_ENV !== "production"
-  ? { strings: true, wasm: true }
-  : undefined,
-```
-
-Because `src/middleware.ts` runs inside that sandbox, and the dev middleware bundle uses `eval`, the middleware fails to evaluate and the request never reaches a page.
-
-**Fix:** run the app through the npm scripts, which pin the correct value with `cross-env`:
-
-```bash
-npm run dev   # cross-env NODE_ENV=development next dev
-```
-
-If you invoke `next dev` directly or add a new script, set it yourself:
-
-```bash
-npx cross-env NODE_ENV=development next dev
-```
-
-Unsetting the system-wide `NODE_ENV=production` removes the root cause entirely.
+Authentication is powered by `@convex-dev/auth/react`. The SPA root (`src/components/ConvexClientProvider.tsx`) wraps the application tree with `ConvexAuthProvider`, which manages token exchange and user session state via React Context. Member routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`) are guarded by `AuthGuard`, while public routes (`/`, `/explore`, `/content/:id`) render immediately for all visitors.
 
 ## `npm install` deletes dev dependencies
 
-**Symptom:** After `npm install`, packages such as `vitest`, `tailwindcss`, or `typescript` are gone from `node_modules`, and `npm run test` / `npm run lint` fail.
+**Symptom:** After `npm install`, packages such as `vitest`, `tailwindcss`, or `typescript` are gone from `node_modules`, and `npm test` fails.
 
-**Cause:** npm is configured with `omit=dev`, which it inherits automatically from a global `NODE_ENV=production` — the same root cause as the 500s above.
+**Cause:** npm is configured with `omit=dev`, which it inherits automatically if a global `NODE_ENV=production` is present in your environment.
 
-**Fix:** install with dev dependencies included:
+**Fix:** Install with dev dependencies explicitly included:
 
 ```bash
 npm install --include=dev
 ```
+
+## How do environment variables work in Vite vs Convex?
+
+- **Frontend Variables:** Vite exposes variables prefixed with `VITE_` via `import.meta.env` (e.g., `VITE_CONVEX_URL`).
+- **Convex Backend Variables:** Backend credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `BREVO_API_KEY`, `AGENTMAIL_API_KEY`, `OPENAI_API_KEY`) are configured directly in your Convex Cloud Dashboard for deployment `brazen-rook-983`.
+
 
 ## Tests fail with `act(...) is not supported in production builds of React`
 

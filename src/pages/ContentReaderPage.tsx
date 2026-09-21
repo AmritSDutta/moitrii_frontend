@@ -1,17 +1,12 @@
-"use client";
-
 import React, { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { notFound, useParams, useRouter } from "next/navigation";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
 import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import {
   Clock,
   User,
   Share2,
-  Bookmark,
   RefreshCw,
   ExternalLink,
   ArrowLeft,
@@ -21,13 +16,12 @@ import {
   Volume2,
   VolumeX,
   Bot,
-  Sparkles,
-  Loader2
+  Sparkles
 } from "lucide-react";
 
-export default function ContentReaderPage() {
-  const { id } = useParams();
-  const router = useRouter();
+export function ContentReaderPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { articles: fallbackArticles } = useApp();
   const [copied, setCopied] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -44,18 +38,18 @@ export default function ContentReaderPage() {
     }
   };
 
-  const slugParam = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
+  const slugParam = typeof id === "string" ? id : "";
   const convexArticle = useQuery(api.content.getContentBySlug, { slug: slugParam });
   const articleLoading = convexArticle === undefined;
 
-  // Demo article renders only on an exact slug match; unknown slugs 404 below.
+  // Fallback article renders on exact slug match
   const demoArticle = fallbackArticles.find((a) => a.id === slugParam || a.slug === slugParam);
   const article: any = convexArticle ?? demoArticle;
 
-  // Related stories come from the live shared ecosystem, not mock data.
+  // Related stories from shared ecosystem
   const relatedDocs = useQuery(api.content.getPublishedContent, { limit: 6 });
   const relatedArticles = (relatedDocs ?? [])
-    .filter((rel) => rel.slug !== slugParam && String(rel._id) !== slugParam)
+    .filter((rel: any) => rel.slug !== slugParam && String(rel._id) !== slugParam)
     .slice(0, 2);
 
   const handleShare = () => {
@@ -67,7 +61,23 @@ export default function ContentReaderPage() {
   };
 
   if (!articleLoading && !article) {
-    notFound();
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-24 text-center space-y-4">
+        <h1 className="font-editorial text-3xl font-bold text-charcoal-900">
+          Guide Not Found
+        </h1>
+        <p className="text-sm text-charcoal-600">
+          We couldn't find the article you were looking for. It may have been relocated or updated.
+        </p>
+        <Link
+          to="/"
+          className="inline-flex items-center space-x-2 bg-forest-800 text-white px-5 py-2.5 rounded-full text-xs font-semibold"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Return to Explore</span>
+        </Link>
+      </div>
+    );
   }
 
   if (articleLoading || !article) {
@@ -79,17 +89,16 @@ export default function ContentReaderPage() {
     );
   }
 
-
   return (
     <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* Back Button */}
       <div>
         <button
-          onClick={() => router.back()}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center space-x-2 text-xs font-bold text-charcoal-600 hover:text-forest-800 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Explore</span>
+          <span>Back</span>
         </button>
       </div>
 
@@ -111,7 +120,7 @@ export default function ContentReaderPage() {
           {article.title}
         </h1>
 
-        {/* Audio Player Bar (Just below headline/title) */}
+        {/* Audio Player Bar */}
         <div className="pt-1 pb-1">
           {article.audioUrl ? (
             <div className="flex flex-wrap items-center gap-3 bg-forest-50/80 border border-forest-200/70 p-3 sm:px-4 rounded-2xl">
@@ -207,12 +216,10 @@ export default function ContentReaderPage() {
 
       {/* 2. Editorial Cover Photo */}
       <div className="relative aspect-[16/9] rounded-3xl overflow-hidden shadow-editorial border border-petal-200 bg-white">
-        <Image
+        <img
           src={article.coverImage}
           alt={article.title}
-          fill
-          className="object-cover"
-          priority
+          className="w-full h-full object-cover"
         />
       </div>
 
@@ -236,7 +243,7 @@ export default function ContentReaderPage() {
         </div>
       )}
 
-      {/* 4. Embedded YouTube Media (Discovered by Agent) */}
+      {/* 4. Embedded YouTube Media */}
       {article.youtubeId && (
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
@@ -314,18 +321,17 @@ export default function ContentReaderPage() {
           Related Stories in the Ecosystem
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {relatedArticles.map((rel) => (
+          {relatedArticles.map((rel: any) => (
             <Link
               key={rel._id}
-              href={`/content/${rel.slug}`}
+              to={`/content/${rel.slug}`}
               className="bg-white p-5 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
             >
               <div className="relative aspect-[16/9] rounded-xl overflow-hidden">
-                <Image
+                <img
                   src={rel.coverImage}
                   alt={rel.title}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
               </div>
               <span className="text-[10px] font-bold text-rosebrand uppercase">
@@ -341,3 +347,5 @@ export default function ContentReaderPage() {
     </article>
   );
 }
+
+export default ContentReaderPage;

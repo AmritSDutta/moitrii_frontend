@@ -1,11 +1,11 @@
 ---
 title: Architecture
-description: System overview covering the Next.js frontend, Convex realtime backend, sleeping agent model, and shared knowledge ecosystem.
+description: System overview covering the React 18 / Vite frontend SPA, Convex realtime backend, sleeping agent model, and shared knowledge ecosystem.
 ---
 
 # Architecture
 
-Moitrii follows a **frontend + backend** split: a Next.js React frontend served at the edge, and a Convex Cloud realtime backend handling authentication, database, file storage, and scheduled agent execution.
+Moitrii follows a decoupled **frontend + backend** architecture: a pure React 18 Single Page Application (SPA) bundled with Vite and routed with `react-router-dom`, and a Convex Cloud realtime backend handling authentication, database transactions, file storage CDN, and scheduled agent execution.
 
 ## High-Level Data Flow
 
@@ -13,7 +13,7 @@ Moitrii follows a **frontend + backend** split: a Next.js React frontend served 
 User Interaction / Browser
   │
   ▼
-Next.js App Router (src/app/)
+React 18 + Vite SPA (src/pages/, react-router-dom)
   │  useQuery / useMutation
   ▼
 Convex Cloud Realtime Backend (convex/) [brazen-rook-983]
@@ -39,15 +39,14 @@ Convex Cloud Realtime Backend (convex/) [brazen-rook-983]
 
 ## System Components
 
-### Frontend (Next.js App Router)
+### Frontend (React 18 + Vite SPA)
 
-All UI lives under `src/app/` using the App Router. Key patterns:
+All UI lives under `src/pages/` and `src/components/` using `react-router-dom` for client-side routing. Key patterns:
 
-- **Client components** (`"use client"` directive) for interactive pages, since they depend on Convex React hooks (`useQuery`, `useMutation`).
-- **React Context** (`src/lib/AppContext.tsx`) provides fallback mock data when Convex is not yet connected.
-- **Convex Client Provider** (`src/components/ConvexClientProvider.tsx`) wraps the app with `ConvexAuthNextjsProvider` and `ConvexReactClient`.
-- **AuthGuard** wraps all member-only routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`), protecting them with Google OAuth.
-- **Persistent Navbar Navigation** (`src/components/Navbar.tsx`) ensures Sign In and navigation buttons remain visible across mobile, tablet, and desktop viewports.
+- **React Router Navigation** (`src/App.tsx`, `src/pages/`) provides instant, zero-reload navigation between all 6 core screens and 404 fallback.
+- **Convex Client Provider** (`src/components/ConvexClientProvider.tsx`) wraps the app with `ConvexAuthProvider` from `@convex-dev/auth/react` and `ConvexReactClient`.
+- **AuthGuard** (`src/components/AuthGuard.tsx`) wraps member-only routes (`/dashboard`, `/requests`, `/onboarding`, `/publisher`), automatically prompting Google OAuth sign-in when unauthenticated.
+- **Persistent Navbar Navigation** (`src/components/Navbar.tsx`) ensures Sign In, topic links, and member navigation remain visible across mobile, tablet, and desktop viewports.
 - **useBrandAssets** hook dynamically resolves logo and hero image URLs from Convex File Storage CDN, with local fallback.
 
 ### Backend (Convex Cloud)
@@ -93,10 +92,11 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 | Route | Access | AuthGuard |
 |-------|--------|-----------|
 | `/` | Public | No |
+| `/explore` | Public | No |
 | `/onboarding` | Auth required | Yes |
 | `/dashboard` | Auth required | Yes |
 | `/requests` | Auth required | Yes |
 | `/publisher` | Auth required | Yes |
-| `/content/[id]` | Public | No |
+| `/content/:id` | Public | No |
+| `*` (Not Found) | Public | No |
 
-Next.js middleware (`src/middleware.ts`) excludes static assets (`_next/static`, images, CSS, JS) from processing.

@@ -9,17 +9,17 @@
 
 ## Project Structure & Module Organization
 
-This repository implements a React/Next.js frontend (`src/`) backed by a Convex Cloud realtime backend (`convex/`). Static assets live in `public/`, and documentation is maintained in `docs/` (docs7 site), `README.md` (full project spec), `GEMINI.md` (UI/UX goals), `phasewise_plan.md` (engineering roadmap), and `hackathon.md` (build log). The Python agent service directory (`agent/`) is planned but not yet scaffolded. Keep UI code in `src/` (static assets in `public/`), Convex functions and schema in `convex/`, and agent code in `agent/` once added.
+This repository implements a pure React 18 / Vite Single Page Application (`src/`) backed by a Convex Cloud realtime backend (`convex/`). Static assets live in `public/`, and documentation is maintained in `docs/` (docs7 site), `README.md` (full project spec), `GEMINI.md` (UI/UX goals), `phasewise_plan.md` (engineering roadmap), and `hackathon.md` (build log). Keep UI code in `src/` (views in `src/pages/`, components in `src/components/`, static assets in `public/`), Convex functions and schema in `convex/`.
 
 ## Build, Test, and Development Commands
 
 Run `npm install` once to install dependencies listed in `package.json`. The verified workflow is:
 
 - `npm install` — install dependencies.
-- `npm run dev` — start the Next.js frontend dev server at `http://localhost:3000`.
+- `npm run dev` — start the Vite frontend dev server at `http://localhost:3000`.
 - `npx convex dev` — start the local Convex backend with hot reload (run in a second terminal).
-- `npm run build` — create a production frontend build.
-- `npm run lint` — run the Next.js linter.
+- `npm run build` — typecheck and create a production SPA build in `dist/`.
+- `npm run preview` — locally preview the production build.
 - `npm test` — run the Vitest suite (UI + Convex projects).
 - `npm run test:watch` — run Vitest in watch mode.
 
@@ -33,7 +33,7 @@ Use the formatter and linter configured by the project; add them before introduc
 
 Two tiers run under one Vitest config (`vitest.config.ts`):
 
-- **UI tests** (`src/**/*.test.{ts,tsx}`, `jsdom` project) — mock `convex/react` (`useQuery`, `useMutation`) and `@convex-dev/auth/react` (`useConvexAuth`, `useAuthActions`) so components render without a backend. Shared setup (jest-dom matchers, `next/image` mock, RTL cleanup) lives in `src/test/setup.tsx`.
+- **UI tests** (`src/**/*.test.{ts,tsx}`, `jsdom` project) — mock `convex/react` (`useQuery`, `useMutation`) and `@convex-dev/auth/react` (`useConvexAuth`, `useAuthActions`) so components render without a backend. Shared setup (jest-dom matchers, RTL cleanup) lives in `src/test/setup.tsx`.
 - **Convex tests** (`convex/**/*.test.ts`, `edge-runtime` project) — use `convex-test` with the `import.meta.glob` module map, per `convex/_generated/ai/guidelines.md`. Seed identity with `t.withIdentity({ subject: userId })`; `getAuthUserId` just reads `identity.subject.split("|")[0]`.
 
 Import `test`/`expect`/`vi` explicitly from `vitest` (no `globals`), and never add a `compilerOptions.types` allowlist to any tsconfig. Cover request persistence, agent state transitions, content reuse, retries, and user-visible loading/error states.

@@ -1,16 +1,11 @@
-"use client";
-
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
-import { AuthGuard } from "@/components/AuthGuard";
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import {
   PenTool,
-  Sparkles,
   Eye,
   CheckCircle,
   Plus,
@@ -22,8 +17,8 @@ import {
   AlertCircle
 } from "lucide-react";
 
-export default function PublisherStudioPage() {
-  const router = useRouter();
+export function PublisherPage() {
+  const navigate = useNavigate();
   const { topics } = useApp();
   const publishContent = useMutation(api.content.publishContent);
   const generateUploadUrl = useMutation(api.content.generateUploadUrl);
@@ -126,20 +121,15 @@ export default function PublisherStudioPage() {
         ],
       });
 
-      router.push(`/content/${res.slug}`);
+      navigate(`/content/${res.slug}`);
     } catch (err) {
       console.error("Failed to publish content:", err);
       setIsPublishing(false);
     }
   };
 
-
   return (
-    <AuthGuard
-      title="Publisher Studio"
-      description="Sign in with your Google account to draft, preview, and publish verified guides to the Moitrii Shared Knowledge Ecosystem."
-    >
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-petal-200 pb-6">
         <div>
@@ -449,7 +439,7 @@ export default function PublisherStudioPage() {
 
           {coverImage && (
             <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden shadow-sm">
-              <Image src={coverImage} alt="Cover Preview" fill className="object-cover" />
+              <img src={coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
             </div>
           )}
 
@@ -486,6 +476,7 @@ export default function PublisherStudioPage() {
         </div>
       )}
     </div>
-    </AuthGuard>
   );
 }
+
+export default PublisherPage;

@@ -1,9 +1,6 @@
-"use client";
-
 import React, { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Sparkles, Heart, ShieldCheck, RefreshCw, Feather, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShieldCheck, RefreshCw, Feather, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -11,7 +8,6 @@ import { api } from "../../convex/_generated/api";
 export const Footer: React.FC = () => {
   const { logoUrl } = useBrandAssets();
   const subscribeDigestMutation = useMutation(api.subscribers.subscribeDigest);
-
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -58,13 +54,10 @@ export const Footer: React.FC = () => {
                 className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-rosebrand/30 shadow shrink-0"
                 style={{ width: 40, height: 40, minWidth: 40, minHeight: 40, maxWidth: 40, maxHeight: 40 }}
               >
-                <Image
+                <img
                   src={logoUrl}
                   alt="Moitrii Emblem"
-                  width={40}
-                  height={40}
                   className="w-full h-full object-cover object-center rounded-full"
-                  style={{ width: 40, height: 40, objectFit: "cover", objectPosition: "center" }}
                 />
               </div>
               <span className="font-brand-title text-2xl font-bold text-charcoal-900">
@@ -88,27 +81,27 @@ export const Footer: React.FC = () => {
             </h4>
             <ul className="space-y-2.5 text-xs text-charcoal-600">
               <li>
-                <Link href="/" className="hover:text-forest-800 transition-colors">
+                <Link to="/" className="hover:text-forest-800 transition-colors">
                   Reader-Favorite Articles
                 </Link>
               </li>
               <li>
-                <Link href="/onboarding" className="hover:text-forest-800 transition-colors">
+                <Link to="/onboarding" className="hover:text-forest-800 transition-colors">
                   Topic Subscriptions
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-forest-800 transition-colors">
+                <Link to="/dashboard" className="hover:text-forest-800 transition-colors">
                   Personal Agent Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/requests" className="hover:text-forest-800 transition-colors">
+                <Link to="/requests" className="hover:text-forest-800 transition-colors">
                   Request Center & History
                 </Link>
               </li>
               <li>
-                <Link href="/publisher" className="hover:text-forest-800 transition-colors">
+                <Link to="/publisher" className="hover:text-forest-800 transition-colors">
                   Publisher Studio
                 </Link>
               </li>
@@ -205,3 +198,4 @@ export const Footer: React.FC = () => {
   );
 };
 
+export default Footer;
