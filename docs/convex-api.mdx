@@ -315,6 +315,69 @@ Selects the top 10 published articles ordered by `reusedCount` descending withou
 
 Coordinates the autonomous Sunday digest delivery, querying active subscribers and top 10 articles and dispatching via Brevo.
 
+## User Daily Digests (`convex/userDigests.ts`)
+
+Personalized daily email delivery pipeline for registered users. Gathers articles published in the last 24 hours (`publishedAt >= cutoffIso`), groups them by category (capped at top 5 per category), matches against each user's opted topic interests, and delivers via Brevo.
+
+### `getArticlesGroupedByCategorySince` (internal query)
+
+Collects published articles within the specified ISO cutoff (typically last 24 hours), groups them by canonical category, and caps each category list at strictly top 5 articles.
+
+**Args:**
+```ts
+{ cutoffIso: string }
+```
+
+**Returns:**
+```ts
+Record<string, Array<{
+  _id: Id<"content">,
+  title: string,
+  slug: string,
+  subtitle: string,
+  category: string,
+  readTime: string,
+  takeaways: string[],
+  coverImage: string,
+  coverImageStorageId?: Id<"_storage">,
+  publishedAt: string
+}>>
+```
+
+### `listUsersWithInterests` (internal query)
+
+Lists all active users with valid email addresses and their configured topic interest IDs (`userInterests.topicIds`).
+
+**Args:** None
+
+**Returns:**
+```ts
+Array<{
+  userId: Id<"users">,
+  email: string,
+  name?: string,
+  topicIds: string[]
+}>
+```
+
+### `dispatchUserDailyDigestCron` (internal action)
+
+Daily morning cron action (02:00 UTC / 07:30 AM IST). Evaluates active users, matches their topic interests against articles published in the last 24 hours, and sends personalized digests via Brevo. Users with 0 matched articles in the 24h window are cleanly skipped.
+
+**Args:**
+```ts
+{ force?: boolean }
+```
+
+### `triggerUserDailyDigestManual` (action)
+
+Developer and testing action to trigger the daily personalized user digest on demand with optional `{ force: true }`.
+
+**Args:**
+```ts
+{ force?: boolean }
+```
+
 ## Email Communications (`convex/emails/brevo.ts` & `convex/ai/agentMail.ts`)
 
 ### `sendSubscriberWelcomeEmail` (Brevo action)
@@ -324,6 +387,10 @@ Dispatches a warm, branded welcome email with a one-click unsubscribe link via B
 ### `sendWeeklyDigestBroadcast` (Brevo action)
 
 Dispatches a curated weekly digest of top 10 lifestyle guides with read times, takeaways, and personalized unsubscribe links to all active subscribers via Brevo.
+
+### `sendUserDailyDigestEmail` (Brevo action)
+
+Dispatches a personalized daily digest containing up to top 5 articles per subscribed category from the last 24 hours directly to registered users via Brevo. Features dynamic storage logo resolution, category pill headers, and direct article links.
 
 ### `sendAgentCompletionNotification` (AgentMail action)
 
@@ -355,7 +422,18 @@ crons.weekly(
 ```
 Delivers the top 10 guides of the week to all active subscribers every Sunday. Uses `crons.weekly` without `minuteUTC` to let Convex automatically select an off-peak minute.
 
-3. **Daily Retention Cleanup:**
+3. **Daily Personalized User Digest:**
+```ts
+crons.daily(
+  "daily-user-personalized-digest",
+  { hourUTC: 2, minuteUTC: 0 },
+  internal.userDigests.dispatchUserDailyDigestCron,
+  {}
+);
+```
+Delivers personalized top 5 articles per subscribed category published in the last 24 hours to registered users every morning (02:00 UTC / 07:30 AM IST).
+
+4. **Daily Retention Cleanup:**
 ```ts
 crons.interval(
   "daily-todo-retention-cleanup",

@@ -1,6 +1,6 @@
 ---
 title: Manual Testing & Verification
-description: Quick manual testing guide for isolated AI pipeline actions, end-to-end instant wake execution, newsletter dispatch, and Vitest verification.
+description: Quick manual testing guide for isolated AI pipeline actions, end-to-end instant wake execution, daily user category digest, newsletter dispatch, and Vitest verification.
 ---
 
 # Manual Testing & Verification
@@ -9,10 +9,12 @@ This guide outlines quick methods for developers and reviewers to manually exerc
 
 ```mermaid
 flowchart TD
-  Start["Manual Testing Strategy"] --> M1["Method 1: Single-Action CLI - Instant Isolated Actions"]
+  Start["Manual Testing Strategy"] --> M1["Method 1: Single-Action CLI - Isolated AI Actions"]
   Start --> M2["Method 2: Full End-to-End - Browser UI + Force Wake"]
-  Start --> M3["Method 3: Newsletter & Unsubscribe - Sunday Cron & Brevo"]
-  Start --> M4["Method 4: Automated Vitest - 68 Tests / Zero API Cost"]
+  Start --> M3["Method 3: Pipeline 1 - Weekly Subscriber Digest (Sundays)"]
+  Start --> M4["Method 4: Pipeline 3 - Daily User Category Digest (24h Window)"]
+  Start --> M5["Method 5: Standard llms.txt & llms-full.txt Compliance"]
+  Start --> M6["Method 6: Automated Vitest - 93 Tests / Zero API Cost"]
 ```
 
 ---
@@ -113,7 +115,7 @@ npx convex run agentRunner:triggerScheduledWakes "{\"force\":true}"
 
 ---
 
-## Method 3: Weekly Digest & One-Click Unsubscribe
+## Method 3: Pipeline 1 — Weekly Subscriber Digest (Sundays)
 
 Test the zero-LLM Sunday newsletter engine and one-click unsubscribe flow:
 
@@ -139,7 +141,67 @@ npx convex run subscribers:getSubscriberStatus "{\"email\":\"your-email@example.
 
 ---
 
-## Method 4: Zero-Cost Automated Vitest Suite (Offline)
+## Method 4: Pipeline 3 — Daily User Category Digest (Strict 24h & Top 5)
+
+Test the automated daily personalized digest delivered to registered users based on their opted topic preferences:
+
+### 1. Trigger the Daily User Category Digest
+
+**Bash / macOS / Linux / PowerShell:**
+```bash
+# Default: collect articles from the last 24 hours
+npx convex run userDigests:triggerUserDailyDigestManual
+
+# Custom window: collect articles from the last 48 hours for testing
+npx convex run userDigests:triggerUserDailyDigestManual '{"sinceHours":48}'
+```
+
+**Windows DOS Command Prompt (`cmd.exe`):**
+```cmd
+npx convex run userDigests:triggerUserDailyDigestManual "{\"sinceHours\":48}"
+```
+
+- **What it does:**
+  1. Filters published articles strictly for `publishedAt >= cutoffIso` (e.g. last 24 hours).
+  2. Groups articles by category and takes strictly the **top 5 articles** per category (sorted by `reusedCount` descending).
+  3. Queries all active users and their selected `topicIds` (from `userInterests`).
+  4. Matches user preferences against 24h categories; skips users who have 0 new articles published in their chosen categories.
+  5. Renders a category-sectioned editorial HTML email (`renderUserDailyDigestHtml`) and dispatches via Brevo (`sendUserDailyDigestEmail`).
+- **Expected Return:**
+  ```json
+  {
+    "totalUsers": 2,
+    "sentCount": 2,
+    "skippedCount": 0,
+    "categoriesCount": 3
+  }
+  ```
+
+---
+
+## Method 5: Standard `llms.txt` & `llms-full.txt` Compliance
+
+Verify that AI search agents and LLM web crawlers can parse the site's manifest without audit errors:
+
+### 1. Verify Static Frontend Route
+```bash
+curl -I http://localhost:3000/llms.txt
+curl -I http://localhost:3000/llms-full.txt
+```
+- Returns HTTP `200 OK` with `Content-Type: text/plain`.
+
+### 2. Verify Backend HTTP Router Route
+```bash
+curl http://localhost:3000/llms.txt
+```
+- **Audit Verification:**
+  - Starts with required H1 title: `# Moitrii`.
+  - Includes summary blockquote: `> An intentional, calm AI companion...`.
+  - Contains structured markdown links pointing to core routes (`/explore`, `/dashboard`, `/onboarding`, `/publisher`, `/docs/**`).
+
+---
+
+## Method 6: Zero-Cost Automated Vitest Suite (Offline)
 
 Verify the entire test suite across UI components and Convex functions without spending API credits or network bandwidth:
 
@@ -148,4 +210,4 @@ npm test
 ```
 
 - **UI Tests (`src/**/*.test.tsx`):** JSDOM environment testing auth state, routing, and component interactions.
-- **Convex Tests (`convex/**/*.test.ts`):** Edge runtime testing schema rules, compound indexes, request persistence, multi-tier fallback cascades, and workflow executions.
+- **Convex Tests (`convex/**/*.test.ts`):** Edge runtime testing schema rules, compound indexes, request persistence, multi-tier fallback cascades, 24h category digest filtering, and workflow executions (93 passing tests).

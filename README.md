@@ -100,12 +100,13 @@ flowchart TD
       F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (24h customizable IST)<br/>• forceWakeAgent (instant trigger)"]
       F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest (isActive guard)"]
       F_Users["convex/users.ts<br/>• viewer / setUserActiveStatus<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
-      F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 validation)"]
-      F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (crons.hourly off-peak)"]
+      F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 validation)<br/>• dispatchWeeklyDigestCron"]
+      F_UserDigests["convex/userDigests.ts<br/>• getArticlesGroupedByCategorySince (24h, top 5)<br/>• listUsersWithInterests<br/>• dispatchUserDailyDigestCron (02:00 UTC)"]
+      F_Crons["convex/crons.ts<br/>• Hourly agent wake evaluator<br/>• Sunday weekly broadcast<br/>• Daily user personalized digest"]
       F_Workflow["@convex-dev/workflow<br/>• 8-step durable orchestration<br/>• Step retries & idempotency"]
       F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• checkContentReuse (reuse engine)<br/>• markAgentWorking / revertAgentWorking<br/>• completeAgentTask mutation"]
       F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
-      F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• POST /api/agent/complete"]
+      F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• GET /llms.txt & /llms-full.txt<br/>• POST /api/agent/complete"]
       F_Storage["Convex File Storage<br/>• _storage for Cover, Media & TTS Audio"]
     end
 
@@ -120,9 +121,10 @@ flowchart TD
       AI_Mail["agentMail.ts<br/>• sendAgentCompletionNotification"]
     end
 
-    subgraph DualMessaging ["Dual-Channel Email Communications"]
-      M_Brevo["convex/emails/brevo.ts<br/>• Marketing & Newsletter Digests<br/>• Welcome Confirmations"]
-      M_AgentMail["AgentMail Integration<br/>• 1:1 Personal Agent Updates<br/>• From: agent-...@agentmail.to"]
+    subgraph TripleMessaging ["Triple-Channel Email Architecture"]
+      M_Brevo1["Pipeline 1: Brevo Weekly Digest<br/>• Sunday top 10 articles broadcast<br/>• Welcome confirmations"]
+      M_AgentMail["Pipeline 2: AgentMail 1:1 Reports<br/>• Direct research wake notification<br/>• From: agent-...@agentmail.to"]
+      M_Brevo2["Pipeline 3: Brevo User Daily Digest<br/>• Daily personalized category digest<br/>• 24h cutoff, top 5 per user interest"]
     end
 
     P_Home <-->|useQuery| F_Content
@@ -136,8 +138,11 @@ flowchart TD
     P_Req <-->|useQuery & useMutation| F_Requests
     P_Onb <-->|useQuery & useMutation| F_Users
 
-    F_Subscribers -->|Dispatch| M_Brevo
+    F_Subscribers -->|Dispatch| M_Brevo1
+    F_UserDigests -->|Dispatch| M_Brevo2
     F_Crons -->|hourly| F_Runner
+    F_Crons -->|weekly| F_Subscribers
+    F_Crons -->|daily| F_UserDigests
     F_Agents -->|force wake| F_Runner
     F_Runner -->|Durable Steps| F_Workflow
     F_Workflow -->|Execute Pipeline| ModularAIEngine
@@ -157,7 +162,6 @@ flowchart TD
 - **`convex/agents.ts`:**
   - `getAgentState()`: Persistent personal agent state query with 11:00 PM IST auto-initialization.
   - `initializeAgent(wakeFrequency?, subscriptionTier?)`: Ensures an agent record exists with companion AgentMail address (`moitrii@agentmail.to` on free tier; scaling roadmap provisions 1 address per user) and persona name `"Moitrii Companion"`.
-
   - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation updating agent wake schedule to any valid 24h time in IST.
 - **`convex/agentRunner.ts` & `convex/crons.ts`:**
   - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the 8-step durable AI workflow with automatic rollback on failure:
@@ -186,9 +190,15 @@ flowchart TD
   - `listActiveSubscribers()`: Internal query returning all active subscriber emails.
   - `getTopWeeklyDigestArticles()`: Internal query retrieving the top 10 published guides ordered by `reusedCount` (descending) without spending LLM tokens.
   - `dispatchWeeklyDigestCron()`: Internal action triggered by Sunday cron to broadcast the top 10 digest via Brevo.
+- **`convex/userDigests.ts`:**
+  - `getArticlesGroupedByCategorySince(cutoffIso)`: Internal query gathering articles published within the last 24h, grouping by canonical category and capping at strictly top 5 per category.
+  - `listUsersWithInterests()`: Internal query retrieving all active users paired with their configured topic interest IDs (`topicIds`).
+  - `dispatchUserDailyDigestCron(force?)`: Daily morning cron (02:00 UTC / 07:30 AM IST) evaluating users, filtering 24h articles matching their interests, and dispatching personalized digests via Brevo.
+  - `triggerUserDailyDigestManual(force?)`: Manual test action for executing personalized daily digests on demand.
 - **`convex/emails/brevo.ts`:**
   - `sendSubscriberWelcomeEmail(email, apiKey?, baseUrl?)`: Transactional welcome confirmation via Brevo REST API with one-click unsubscribe footer link.
   - `sendWeeklyDigestBroadcast(subscriberEmails, articles, apiKey?, baseUrl?)`: Weekly top 10 broadcast newsletter to all active subscribers with direct links, read times, takeaways, and personalized unsubscribe links.
+  - `sendUserDailyDigestEmail(userEmail, userName, categoriesWithArticles, apiKey?, baseUrl?)`: Daily personalized category digest with up to top 5 articles per subscribed interest published in the last 24 hours.
   - Zero-LLM rendering pipeline utilizing existing database content and stored takeaways.
   - Link origin resolution: explicit `baseUrl` argument → `APP_ORIGIN` environment variable → `https://moitrii.ai` fallback. Set `APP_ORIGIN` (e.g. your deployment or `http://localhost:3000` for demos) so email links resolve.
   - Sender resolution: `BREVO_SENDER_EMAIL` environment variable → `newsletter@moitrii.ai` fallback. The address must be a verified sender in the Brevo dashboard (`Senders & IP → Senders`).
@@ -204,7 +214,7 @@ flowchart TD
 - **`convex/files.ts`:**
   - `getBrandAssets()`: Serves dynamic Convex CDN URLs for logo and hero images.
 - **`convex/auth.ts` & `convex/http.ts`:**
-  - Google OAuth routes and `POST /api/agent/complete` with fail-closed token authorization.
+  - Google OAuth routes, GET `/llms.txt` and `/llms-full.txt` standard-compliant AI crawler endpoints, and `POST /api/agent/complete` with fail-closed token authorization.
 
 ---
 
@@ -391,7 +401,7 @@ Then restart `npx convex dev` so running functions pick up the new values. Witho
 - At least one **ACTIVE subscriber** — subscribe with your own email via the site footer.
 - At least one row in the `content` table — publish one via the Publisher page (the dispatcher skips with `No published articles found` otherwise).
 
-### 4. Trigger Instant Agent Wake or Sunday Digest
+### 4. Trigger Instant Agent Wake, Sunday Digest, or Daily User Digest
  
 To trigger the immediate wake of due/pending user requests:
 - **Bash / PowerShell:**
@@ -403,9 +413,25 @@ To trigger the immediate wake of due/pending user requests:
   npx convex run agentRunner:triggerScheduledWakes "{\"force\":true}"
   ```
 
-To run the weekly newsletter digest dispatcher directly:
+To run the weekly newsletter digest broadcast directly:
 ```bash
 npx convex run subscribers:dispatchWeeklyDigestCron
+```
+
+To run the daily personalized category user digest directly:
+- **Bash / PowerShell:**
+  ```bash
+  npx convex run userDigests:triggerUserDailyDigestManual '{"force":true}'
+  ```
+- **Windows DOS Command Prompt (`cmd.exe`):**
+  ```cmd
+  npx convex run userDigests:triggerUserDailyDigestManual "{\"force\":true}"
+  ```
+
+To test standard-compliant `llms.txt` crawler endpoints:
+```bash
+curl http://localhost:3000/llms.txt
+curl http://localhost:3000/llms-full.txt
 ```
 
 Alternatively, exercise the real cron wiring: temporarily register an interval cron in `convex/crons.ts` while `npx convex dev` is running, watch it fire in the dashboard logs, then remove it:

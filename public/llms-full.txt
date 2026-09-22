@@ -1,0 +1,42 @@
+# Moitrii — Comprehensive LLM Specification & Context
+
+> An intentional, calm AI companion and lifestyle magazine platform designed for modern Indian women's holistic well-being, mindful vitality, and daily intentional living.
+
+## 1. System Overview
+Moitrii operates on a "Calm Technology" philosophy. Instead of endless notifications and dark-pattern SaaS feeds, each user has a dedicated personal AI companion that runs on a predictable schedule (e.g. 11:00 PM IST or customized morning/evening cycles).
+
+- **Frontend:** React 18 + Vite SPA, Tailwind CSS with warm editorial palette (off-white cream `#FAF7F2`, forest green `#2D4A34`, dusty rose, and terracotta).
+- **Backend:** Convex Cloud (realtime database, server functions, scheduled crons, file storage CDN, and HTTP actions).
+- **Multi-Agent & Workflow Orchestration:** `@convex-dev/workflow` for durable step journaling and failure recovery.
+- **AI Integrations:**
+  - Synthesis: OpenAI `gpt-5.6-luna` (Responses API) with `gpt-4o-mini` and offline localized templates fallback.
+  - Search & Grounding: Firecrawl Web Search API.
+  - Voice / Audio: Sarvam AI Bulbul v3 (`hi-IN`, `bn-IN`, `en-IN`, speaker `ritu`) with OpenAI `tts-1` fallback.
+  - Media & Infographics: OpenAI `gpt-image-1` 16:9 WebP generation stored directly in Convex File Storage.
+  - Email Notifications: Brevo for subscriber and daily user category digests; AgentMail for dedicated virtual inbox deliverable dispatches.
+
+## 2. Core Lifestyle Topics & Categories
+1. **Health & Nutrition:** Ayurvedic nutrition, hormone balance, immunity, and wholesome everyday meals.
+2. **Cooking & Recipes:** Quick 20-minute dinners, traditional delicacies, and healthy meal preps.
+3. **Beauty & Skincare:** Clean beauty, DIY ubtans, minimalist morning routines, dermat-tested care.
+4. **Yoga & Fitness:** Calm morning flow, posture correction, postpartum recovery, gentle strength.
+5. **Mindful Wellness:** Sleep hygiene, pranayama basics, meditation rituals, digital detox.
+6. **Kids & Education:** Positive parenting, screen-time balance, cognitive development.
+7. **Home & Living:** Warm interior styling, vastu principles, plant care, decluttering.
+8. **Travel & Escapes:** Curated weekend getaways, serene homestays, solo travel tips.
+9. **Gen-Z Trends:** Internet culture, teen communication, social media safety.
+10. **Anime & Manga:** Studio Ghibli guides, age-appropriate anime recommendations for families.
+
+## 3. Email Pipelines
+- **Pipeline 1 (Weekly Subscriber Digest):** Dispatches every Sunday at 12:00 UTC (17:30 IST) to `subscribers` table via Brevo, featuring top 10 articles by popularity with 0 LLM cost.
+- **Pipeline 2 (Daily Agent Wake Deliverable):** Dispatches to active users when their dedicated agent wakes and completes research on queued user prompts, delivering via AgentMail.
+- **Pipeline 3 (Daily User Category Digest):** Dispatches daily at 02:00 UTC (07:30 AM IST) via Brevo, pre-fetching articles published in the last 24 hours and sending up to top 5 articles in each category selected in user preferences.
+
+## 4. Canonical URLs
+- **Web App:** [https://moitrii-frontend.pages.dev](https://moitrii-frontend.pages.dev)
+- **Explore:** [https://moitrii-frontend.pages.dev/explore](https://moitrii-frontend.pages.dev/explore)
+- **Dashboard:** [https://moitrii-frontend.pages.dev/dashboard](https://moitrii-frontend.pages.dev/dashboard)
+- **Requests:** [https://moitrii-frontend.pages.dev/requests](https://moitrii-frontend.pages.dev/requests)
+- **Publisher:** [https://moitrii-frontend.pages.dev/publisher](https://moitrii-frontend.pages.dev/publisher)
+- **Onboarding:** [https://moitrii-frontend.pages.dev/onboarding](https://moitrii-frontend.pages.dev/onboarding)
+- **Repository:** [https://github.com/AmritSDutta/moitrii_frontend](https://github.com/AmritSDutta/moitrii_frontend)

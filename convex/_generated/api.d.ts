@@ -28,6 +28,7 @@ import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as requests from "../requests.js";
 import type * as subscribers from "../subscribers.js";
+import type * as userDigests from "../userDigests.js";
 import type * as users from "../users.js";
 
 import type {
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   requests: typeof requests;
   subscribers: typeof subscribers;
+  userDigests: typeof userDigests;
   users: typeof users;
 }>;
 

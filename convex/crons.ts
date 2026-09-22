@@ -39,4 +39,17 @@ crons.weekly(
   {}
 );
 
+/**
+ * Autonomous daily personalized digest cron job that delivers category-filtered articles
+ * from the last 24 hours to registered users based on their opted topic preferences.
+ * Uses crons.daily without minuteUTC so Convex automatically selects an off-peak minute.
+ */
+crons.daily(
+  "daily-user-preference-digest-broadcast",
+  { hourUTC: 2 }, // 07:30 AM IST Morning Delivery
+  internal.userDigests.dispatchUserDailyDigestCron,
+  {}
+);
+
 export default crons;
+

@@ -1,0 +1,26 @@
+# Moitrii
+
+> An intentional, calm AI companion and lifestyle magazine platform designed for modern Indian women's holistic well-being, mindful vitality, and daily intentional living.
+
+Moitrii pairs every user with a dedicated, persistent AI agent companion that sleeps, wakes at scheduled hours, conducts verified web research, generates localized editorial guides, synthesizes audio narrations in Indian languages via Sarvam AI, and delivers personalized takeaways.
+
+## Core Features & Interfaces
+
+- [Explore Lifestyle Stories & Knowledge Library](https://moitrii-frontend.pages.dev/explore): Browsable curated guides across Ayurvedic health, nutrition, skincare, yoga, mindful parenting, and Gen-Z culture.
+- [Personal Agent Dashboard](https://moitrii-frontend.pages.dev/dashboard): Manage dedicated personal AI companion state, calm-tech sleep/wake schedule countdowns, and real-time request tracking.
+- [Topic Onboarding & Preferences](https://moitrii-frontend.pages.dev/onboarding): Interactive interest selection across 10 core lifestyle and wellness categories.
+- [Request Center](https://moitrii-frontend.pages.dev/requests): Durable request submission queue with automatic content reuse matching and lifecycle states.
+- [Publisher Studio](https://moitrii-frontend.pages.dev/publisher): Community-driven editorial publisher suite with live markdown preview and media upload.
+- [Weekly & Daily Digests](https://moitrii-frontend.pages.dev/unsubscribe): Weekly top 10 subscriber digests and personalized daily category insights delivered via Brevo.
+
+## Architecture & Documentation
+
+- [System Architecture](https://moitrii-frontend.pages.dev/docs/architecture): Reactive Single Page Application on React 18 / Vite backed by Convex Cloud realtime database and Edge actions.
+- [Convex Best Practices](https://moitrii-frontend.pages.dev/docs/convex-best-practices): Deterministic clock-agnostic queries, off-peak cron distribution, atomic mutations, and binary edge decoding.
+- [AI Voice & Audio Generation](https://moitrii-frontend.pages.dev/docs/audio-generation): Sarvam AI Bulbul v3 Indian TTS integration with female voice synthesis and fallback cascade.
+- [AI Infographic & Cover Generation](https://moitrii-frontend.pages.dev/docs/image-generation): WebP 16:9 banner generation via OpenAI gpt-image-1 stored directly in Convex File Storage CDN.
+- [Manual Testing & Verification](https://moitrii-frontend.pages.dev/docs/manual-testing): Cross-shell CLI commands and test workflows for autonomous agent dispatches.
+
+## Optional & Comprehensive Documentation
+
+- [Complete Technical Specification (llms-full.txt)](https://moitrii-frontend.pages.dev/llms-full.txt): Comprehensive deep-dive specification for LLMs, crawlers, and AI agents.

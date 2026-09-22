@@ -67,7 +67,8 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 | `requests.ts` | User request queue, `isActive` user validation, and lifecycle management |
 | `users.ts` | Viewer resolution, interests queries/mutations, preferred language updates, and `setUserActiveStatus` |
 | `subscribers.ts` | Weekly digest newsletter subscription, one-click unsubscribe, active subscriber list, and top 10 digest dispatcher |
-| `emails/brevo.ts` | Brevo REST integration for subscriber welcome confirmations, unsubscribe links, and weekly top 10 digest broadcasts |
+| `userDigests.ts` | Daily user personalized category digest orchestrator (collects last 24h articles, filters top 5 per user-opted category, and dispatches via Brevo) |
+| `emails/brevo.ts` | Brevo REST integration for subscriber welcome confirmations, weekly top 10 digests, and daily category-filtered user digests |
 | `ai/prompts.ts` | Extracted editorial system prompt template with `{CURRENT_DATE}` and language directives |
 | `ai/tools/` | Convex AI Agent tools barrel (`firecrawl.ts` with `firecrawlSearchTool` and `firecrawlToolDefinition`) |
 | `ai/reuseEngine.ts` | Full-text search and keyword similarity engine for knowledge reuse |
@@ -77,16 +78,19 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 | `ai/research.ts` | YouTube lifestyle video discovery and embed linking |
 | `ai/agentMail.ts` | HTML email rendering and delivery from dedicated `agent.email` inboxes |
 | `agentRunner.ts` | Autonomous wake scheduler action & `@convex-dev/workflow` orchestrator |
-| `crons.ts` | Recurring crons: hourly agent wake cycle, Sunday top 10 digest broadcast, and 24h retention cleanup |
+| `crons.ts` | Recurring crons: hourly agent wake cycle, Sunday top 10 digest broadcast, daily user category digest (07:30 AM IST), and 24h retention cleanup |
 
-### Dual-Channel Messaging Architecture
+### Triple-Channel Email Architecture
 
-1. **Brevo Channel (`convex/emails/brevo.ts`):**
-   - Handles public and member platform communications (e.g., newsletter welcome emails, weekly curated lifestyle digests).
-   - Operates on the `subscribers` table list.
-2. **AgentMail Channel (`convex/ai/agentMail.ts`):**
-   - Handles 1:1 dedicated personal AI agent communications.
-   - Dispatches completed research guides directly from the user's personal agent address (`agent-<userId>@agentmail.to`) to the user's verified email.
+1. **Pipeline 1: Weekly Subscriber Digest (`convex/subscribers.ts` + `convex/emails/brevo.ts`):**
+   - Dispatches every Sunday at 12:00 UTC (17:30 IST) to `subscribers` table via Brevo.
+   - Features top 10 lifestyle articles ordered by `reusedCount` with 0 LLM token cost.
+2. **Pipeline 2: Daily Agent Wake Deliverable (`convex/agentRunner.ts` + `convex/ai/agentMail.ts`):**
+   - Dispatches when a user's dedicated companion wakes and completes research on queued requests.
+   - Delivered directly from the user's dedicated agent virtual inbox (`agent-<userId>@agentmail.to`) to their personal email with audio and video badges.
+3. **Pipeline 3: Daily User Personalized Category Digest (`convex/userDigests.ts` + `convex/emails/brevo.ts`):**
+   - Dispatches daily at 02:00 UTC (07:30 AM IST) via Brevo.
+   - Collects articles published in the last 24 hours and delivers up to top 5 articles per user-selected preference category. Skips users with 0 new 24h articles.
 
 ### Security, Privacy & PII Boundary
 
