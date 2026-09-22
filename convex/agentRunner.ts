@@ -295,6 +295,7 @@ export const researchAndSynthesizeStep = internalAction({
     guide.youtubeId = companion.youtubeId;
     guide.youtubeTitle = companion.youtubeTitle;
 
+    console.log(`[Step: Research & Synthesize] Success: "${guide.title}" (${guide.language}) | Video: ${guide.youtubeId ?? "none"}`);
     return guide;
   },
 });
@@ -308,12 +309,14 @@ export const imageGenStep = internalAction({
     category: v.string(),
   },
   handler: async (ctx, args): Promise<{ coverImage: string; coverImageStorageId?: Id<"_storage"> }> => {
-    return await generateAndSaveCoverImage(
+    const result = await generateAndSaveCoverImage(
       ctx,
       args.topic,
       args.category,
       process.env.OPENAI_API_KEY
     );
+    console.log(`[Step: Image Generation] Success for "${args.topic.slice(0, 40)}" | StorageId: ${result.coverImageStorageId ?? "Unsplash fallback"}`);
+    return result;
   },
 });
 
@@ -326,11 +329,13 @@ export const narrationStep = internalAction({
     language: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ audioUrl?: string; audioStorageId?: Id<"_storage"> }> => {
-    return await generateAndStoreAudioNarration(
+    const result = await generateAndStoreAudioNarration(
       ctx,
       args.text,
       args.language
     );
+    console.log(`[Step: Audio Narration] Success | StorageId: ${result.audioStorageId ?? "none"}`);
+    return result;
   },
 });
 
@@ -370,6 +375,7 @@ export const notifyCompletionStep = internalAction({
       },
       process.env.AGENTMAIL_API_KEY
     );
+    console.log(`[Step: Notification] Success: Dispatched ${args.deliverables.length} deliverable(s) to ${args.userEmail}`);
     return { success: true };
   },
 });
@@ -392,6 +398,7 @@ export const userWakeWorkflow = workflow.define({
         requestIds: args.requestIds,
         activeTask: `Researching ${args.requestIds.length} lifestyle prompt(s)`,
       });
+      console.log(`[Workflow] Started wake workflow for agent ${args.agentId} (${args.requestIds.length} requests)`);
 
       const userInfo = await step.runQuery(internal.agentRunner.getUserAndAgentForWake, {
         userId: args.userId,
@@ -421,6 +428,7 @@ export const userWakeWorkflow = workflow.define({
         });
 
         if (reuseResult.isReused && reuseResult.contentId) {
+          console.log(`[Workflow] Content Reused: "${req.prompt}" ➔ "${reuseResult.contentTitle}"`);
           deliverables.push({
             requestId: req._id,
             contentId: reuseResult.contentId,
@@ -495,6 +503,7 @@ export const userWakeWorkflow = workflow.define({
             sources: guide.sources,
             generatedFromPrompt: req.prompt,
           });
+          console.log(`[Workflow] Published Guide: slug="${published.slug}" (ID: ${published.contentId})`);
 
           deliverables.push({
             requestId: req._id,
@@ -521,6 +530,7 @@ export const userWakeWorkflow = workflow.define({
           reuseNote: d.reuseNote,
         })),
       });
+      console.log(`[Workflow] Completed ${deliverables.length} deliverable(s). Agent returned to SLEEPING.`);
 
       // Step 5: Send editorial AgentMail notification
       await step.runAction(

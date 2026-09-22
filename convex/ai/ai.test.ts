@@ -14,7 +14,8 @@ import {
 } from "./youtubeRecommender";
 import { searchWebWithFirecrawl, firecrawlSearchTool, firecrawlToolDefinition } from "./tools";
 import { buildSystemPrompt, MOITRII_SYSTEM_PROMPT_TEMPLATE } from "./prompts";
-import { INFOGRAPHIC_PROMPT_TEMPLATE, CATEGORY_COVERS, getKeywordUnsplashCover, base64ToUint8Array } from "./imagegen";
+import { INFOGRAPHIC_PROMPT_TEMPLATE, buildInfographicPrompt } from "./imagePrompts";
+import { CATEGORY_COVERS, getKeywordUnsplashCover, base64ToUint8Array } from "./imagegen";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -240,7 +241,7 @@ test("evaluateContentReuse detects existing guide and increments reusedCount", a
   expect(noMatchResult.isReused).toBe(false);
 });
 
-test("INFOGRAPHIC_PROMPT_TEMPLATE contains clean pictorial rules, strict no text with watermark exception, horizontal layout, and safety ethics", () => {
+test("INFOGRAPHIC_PROMPT_TEMPLATE and buildInfographicPrompt enforce clean pictorial rules and topic injection", () => {
   expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("{image_topic}");
   expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("pictorial");
   expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("STRICTLY NO TEXT");
@@ -249,6 +250,13 @@ test("INFOGRAPHIC_PROMPT_TEMPLATE contains clean pictorial rules, strict no text
   expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("NO vulgarity");
   expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("family-safe");
   expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("Moitrii");
+
+  const builtPrompt = buildInfographicPrompt("Ayurvedic Herbal Teas & Immunity Infusions");
+  expect(builtPrompt).toContain("Ayurvedic Herbal Teas & Immunity Infusions");
+  expect(builtPrompt).not.toContain("{image_topic}");
+
+  const defaultPrompt = buildInfographicPrompt("");
+  expect(defaultPrompt).toContain("mindful living");
 });
 
 test("getKeywordUnsplashCover extracts keywords from topic and category with resilient fallbacks", () => {
