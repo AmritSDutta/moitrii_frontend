@@ -1,6 +1,6 @@
 import type { SynthesizedGuide, SupportedLanguage, ArticleSource } from "./types";
 import type { FirecrawlSearchResult } from "./tools";
-import { discoverVideoCompanion } from "./research";
+import { discoverVideoCompanion } from "./youtubeRecommender";
 import { buildSystemPrompt } from "./prompts";
 import { CATEGORY_COVERS } from "./imagegen";
 import { TOPIC_ID_TO_CATEGORY } from "../content";

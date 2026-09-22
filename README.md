@@ -125,7 +125,7 @@ flowchart TD
       AI_Synth["synthesizer.ts<br/>• synthesizeLifestyleGuide (EN/BN/HI)"]
       AI_Image["imagegen.ts<br/>• 16:9 Pictorial Infographics"]
       AI_TTS["tts.ts<br/>• Sarvam Bulbul v3 + OpenAI Fallback"]
-      AI_Res["research.ts<br/>• discoverLifestyleVideos"]
+      AI_YT["youtubeRecommender.ts<br/>• YouTube Data API v3 Live Search<br/>• Zero-Downtime Fallback Catalog"]
       AI_Mail["agentMail.ts<br/>• sendAgentCompletionNotification"]
     end
 
@@ -517,10 +517,11 @@ Tests run across two projects under `vitest.config.ts`:
 npm test
 ```
 
-### How are Audio Summaries and Infographic Covers generated?
+### How are Audio Summaries, Infographic Covers, and YouTube Video Companions generated?
 
 - **Audio Summaries (`convex/ai/tts.ts`):** Synthesized using Sarvam AI Bulbul v3 (`bulbul:v3`) with female speaker `"ritu"` and natural Indic prosody and pacing (2 retry attempts). Automatically falls back to OpenAI `tts-1` (`alloy` voice) or an offline 44-byte silent WAV storage fallback if external APIs fail.
 - **Infographic Cover Images (`convex/ai/imagegen.ts`):** Generates 16:9 horizontal landscape (`1536x1024`, `quality: "low"`, `output_format: "webp"`, `output_compression: 80`) visual infographics via `gpt-image-1` enforcing **strictly no text, words, or typography** (with subtle `"Moitrii"` watermark exception) and family-safe zero-vulgarity ethics. Uploads to Convex File Storage (`_storage`) as WebP with fallback to curated high-resolution category imagery.
+- **YouTube Video Companions (`convex/ai/youtubeRecommender.ts`):** Queries the YouTube Data API v3 (`search.list`) using server-side `YOUTUBE_API_KEY` with mandatory policy filters (`part=snippet, type=video, videoEmbeddable=true, videoSyndicated=true, safeSearch=moderate, order=relevance, maxResults=1`) and HTML entity/emoji normalization (`decodeHtmlEntities`). Automatically falls back to a deterministic offline lifestyle catalog (`discoverVideoCompanion`) if the API key is unset or quota is exhausted (HTTP 403). Reader views render privacy-enhanced embeds (`https://www.youtube-nocookie.com/embed/...`) with uncropped 16:9 frames and direct "Watch on YouTube" fallback links.
 
 ---
 

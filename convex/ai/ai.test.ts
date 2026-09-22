@@ -1,11 +1,17 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import schema from "../schema";
 import { evaluateContentReuse } from "./reuseEngine";
 import { synthesizeLifestyleGuide, extractResponseContent, parseJsonSafely } from "./synthesizer";
 import { renderEditorialNotificationEmail, renderEditorialNotificationText, sendAgentCompletionNotification } from "./agentMail";
-import { discoverVideoCompanion } from "./research";
+import {
+  discoverVideoCompanion,
+  recommendYouTubeCompanion,
+  decodeHtmlEntities,
+  searchYouTubeLive,
+  resolveVideoCompanionAsync,
+} from "./youtubeRecommender";
 import { searchWebWithFirecrawl, firecrawlSearchTool, firecrawlToolDefinition } from "./tools";
 import { buildSystemPrompt, MOITRII_SYSTEM_PROMPT_TEMPLATE } from "./prompts";
 import { INFOGRAPHIC_PROMPT_TEMPLATE, CATEGORY_COVERS, getKeywordUnsplashCover, base64ToUint8Array } from "./imagegen";
@@ -309,5 +315,131 @@ test("parseJsonSafely parses plain JSON and markdown-fenced JSON cleanly", () =>
   const genericFenced = parseJsonSafely('```\n{"title":"Generic Fenced"}\n```');
   expect(genericFenced.title).toBe("Generic Fenced");
 });
+
+test("discoverVideoCompanion and recommendYouTubeCompanion accurately match contextual YouTube companions", () => {
+  const teaCompanion = discoverVideoCompanion("wellness", "Ayurvedic herbal kadha for immunity");
+  expect(teaCompanion.youtubeId).toBe("t_4rKqgq7gI");
+  expect(teaCompanion.youtubeTitle).toContain("Herbal Teas");
+
+  const sleepCompanion = recommendYouTubeCompanion("lifestyle", "restorative sleep and circadian rhythm");
+  expect(sleepCompanion.youtubeId).toBe("1ZYbU82GVz4");
+  expect(sleepCompanion.youtubeTitle).toContain("Sleep");
+
+  const beautyCompanion = discoverVideoCompanion("beauty", "facial glow massage");
+  expect(beautyCompanion.youtubeId).toBe("bO1fR3Hn6d4");
+
+  const yogaCompanion = discoverVideoCompanion("yoga", "morning stretch asanas");
+  expect(yogaCompanion.youtubeId).toBe("v7AYKMP6rOE");
+
+  const defaultCompanion = discoverVideoCompanion("unmatched_category", "something arbitrary");
+  expect(defaultCompanion.youtubeId).toBe("v7AYKMP6rOE");
+});
+
+test("decodeHtmlEntities properly decodes named, numeric NBSP, and astral plane emoji entities", () => {
+  expect(decodeHtmlEntities("Herbal &amp; Green Teas &gt; Coffee")).toBe("Herbal & Green Teas > Coffee");
+  expect(decodeHtmlEntities("Women&#39;s Wellness &quot;Guide&quot;")).toBe("Women's Wellness \"Guide\"");
+  expect(decodeHtmlEntities("Yoga &amp; Ayurveda: 10&#160;Tips")).toBe("Yoga & Ayurveda: 10 Tips");
+  expect(decodeHtmlEntities("Herbal Kadha&#xA0;Ritual")).toBe("Herbal Kadha Ritual");
+  expect(decodeHtmlEntities("Mindful Morning &#128512; &amp; Botanical Glow &#x1F33F;")).toBe("Mindful Morning 😀 & Botanical Glow 🌿");
+  expect(decodeHtmlEntities("")).toBe("");
+});
+
+test("searchYouTubeLive returns null if API key is unset or query is blank", async () => {
+  const unsetResult = await searchYouTubeLive("morning yoga", "");
+  expect(unsetResult).toBeNull();
+
+  const emptyQueryResult = await searchYouTubeLive("", "dummy_key");
+  expect(emptyQueryResult).toBeNull();
+});
+
+test("searchYouTubeLive handles 200 OK responses with entity and emoji decoding", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: [
+          {
+            id: { videoId: "liveVideo123" },
+            snippet: { title: "Morning Kadha &amp; Tea Rituals 10&#160;Tips &#128512;" },
+          },
+        ],
+      }),
+    } as any);
+
+    const result = await searchYouTubeLive("morning kadha", "test_api_key");
+    expect(result).not.toBeNull();
+    expect(result?.youtubeId).toBe("liveVideo123");
+    expect(result?.youtubeTitle).toBe("Morning Kadha & Tea Rituals 10 Tips 😀");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("searchYouTubeLive returns null gracefully on HTTP 403 quota exceeded or empty results", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    // 1. Quota exceeded HTTP 403
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden: Quota Exceeded",
+    } as any);
+
+    const quotaResult = await searchYouTubeLive("morning yoga", "test_api_key");
+    expect(quotaResult).toBeNull();
+
+    // 2. Empty items array
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [] }),
+    } as any);
+
+    const emptyResult = await searchYouTubeLive("super rare query with no match", "test_api_key");
+    expect(emptyResult).toBeNull();
+
+    // 3. Network fetch rejection
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network timeout"));
+    const networkErrorResult = await searchYouTubeLive("morning yoga", "test_api_key");
+    expect(networkErrorResult).toBeNull();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolveVideoCompanionAsync uses live result when available and falls back cleanly when key is unset", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    // When live search succeeds
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: [
+          {
+            id: { videoId: "dynamicVid789" },
+            snippet: { title: "Dynamic Live Herbal Tea Guide" },
+          },
+        ],
+      }),
+    } as any);
+
+    const liveResolved = await resolveVideoCompanionAsync("wellness", "Ayurvedic herbal kadha", "test_api_key");
+    expect(liveResolved.youtubeId).toBe("dynamicVid789");
+    expect(liveResolved.youtubeTitle).toBe("Dynamic Live Herbal Tea Guide");
+
+    // When API key is unset, seamlessly falls back to catalog
+    const fallbackResolved = await resolveVideoCompanionAsync("wellness", "Ayurvedic herbal kadha for immunity", "");
+    expect(fallbackResolved.youtubeId).toBe("t_4rKqgq7gI");
+    expect(fallbackResolved.youtubeTitle).toContain("Herbal Teas");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+
 
 

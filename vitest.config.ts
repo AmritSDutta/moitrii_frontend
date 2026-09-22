@@ -6,6 +6,11 @@ export default defineConfig({
   test: {
     env: {
       NODE_ENV: "test",
+      YOUTUBE_API_KEY: "",
+      OPENAI_API_KEY: "",
+      FIRECRAWL_API_KEY: "",
+      AGENTMAIL_API_KEY: "",
+      SARVAM_API_KEY: "",
     },
     projects: [
       {
@@ -22,6 +27,7 @@ export default defineConfig({
           name: "convex",
           environment: "edge-runtime",
           include: ["convex/**/*.test.ts"],
+          setupFiles: ["./src/test/convexSetup.ts"],
         },
       },
     ],

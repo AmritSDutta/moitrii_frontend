@@ -275,7 +275,7 @@ export function ContentReaderPage() {
             </div>
             <div className="aspect-video rounded-3xl overflow-hidden shadow-editorial border border-petal-200 bg-black">
               <iframe
-                src={`https://www.youtube.com/embed/${cleanVideoId}`}
+                src={`https://www.youtube-nocookie.com/embed/${cleanVideoId}`}
                 title={article.youtubeTitle || "YouTube video player"}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen

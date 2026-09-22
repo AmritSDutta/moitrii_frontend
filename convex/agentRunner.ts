@@ -8,8 +8,8 @@ import { evaluateContentReuse } from "./ai/reuseEngine";
 import { synthesizeLifestyleGuide } from "./ai/synthesizer";
 import { generateAndStoreAudioNarration } from "./ai/tts";
 import { generateAndSaveCoverImage } from "./ai/imagegen";
-import { discoverVideoCompanion } from "./ai/research";
 import { searchWebWithFirecrawl } from "./ai/tools";
+import { resolveVideoCompanionAsync } from "./ai/youtubeRecommender";
 import { sendAgentCompletionNotification } from "./ai/agentMail";
 import type { SupportedLanguage, SynthesizedGuide } from "./ai/types";
 
@@ -291,7 +291,7 @@ export const researchAndSynthesizeStep = internalAction({
       webSources
     );
 
-    const companion = discoverVideoCompanion(args.category ?? "wellness", args.prompt);
+    const companion = await resolveVideoCompanionAsync(args.category ?? "wellness", args.prompt);
     guide.youtubeId = companion.youtubeId;
     guide.youtubeTitle = companion.youtubeTitle;
 

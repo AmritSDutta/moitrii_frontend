@@ -184,7 +184,29 @@ export const Footer: React.FC = () => {
 
         {/* Bottom bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-charcoal-500 space-y-4 sm:space-y-0">
-          <p>© 2026 Moitrii. Built for the Convex Hackathon. All rights reserved.</p>
+          <div className="space-y-1">
+            <p>© 2026 Moitrii. Built for the Convex Hackathon. All rights reserved.</p>
+            <p className="text-[11px] text-charcoal-400">
+              Moitrii uses YouTube API Services. By viewing companion media, you agree to the{" "}
+              <a
+                href="https://www.youtube.com/t/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-forest-800"
+              >
+                YouTube Terms of Service
+              </a>{" "}
+              and{" "}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-forest-800"
+              >
+                Google Privacy Policy
+              </a>.
+            </p>
+          </div>
           <div className="flex items-center space-x-6">
             <span>Modern Lifestyle</span>
             <span>·</span>
