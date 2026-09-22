@@ -75,6 +75,40 @@ test("publishContent persists optional audioUrl and authorType", async () => {
   expect((article as any)?.audioUrl).toBe("https://example.com/narration.mp3");
 });
 
+test("getContentBySlug does not expose the raw request prompt that generated a guide", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const asUser = t.withIdentity({ subject: userId });
+
+  const rawPrompt = "Diet plan for my daughter Ananya, she has thyroid, we live in Kolkata";
+
+  const res = await asUser.mutation(api.content.publishContent, {
+    ...baseContent("private-request-guide"),
+    generatedFromPrompt: rawPrompt,
+  });
+
+  // Prove the value really is on the stored document, so this test cannot pass
+  // vacuously by the field simply never being written.
+  const stored = await t.run((ctx) =>
+    ctx.db.query("content").withIndex("by_slug", (q) => q.eq("slug", res.slug)).first()
+  );
+  expect((stored as any)?.generatedFromPrompt).toBe(rawPrompt);
+
+  // The regression guard: this query used to spread the whole document, which
+  // published the raw prompt on a public route at a guessable URL.
+  const article = await asUser.query(api.content.getContentBySlug, { slug: res.slug });
+  expect(article).not.toBeNull();
+  expect((article as any)?.generatedFromPrompt).toBeUndefined();
+
+  // Everything the reader page depends on must still come through.
+  expect((article as any)?.slug).toBe("private-request-guide");
+  expect((article as any)?.title).toBe("A Shared Guide");
+  expect((article as any)?.subtitle).toBe("How to live well");
+  expect((article as any)?.content).toBe("## Body\n\nSome content.");
+  expect((article as any)?.takeaways).toEqual(["Drink water"]);
+  expect((article as any)?.sources).toEqual([{ title: "Source", url: "https://example.com" }]);
+});
+
 test("getPublishedContent performs case-insensitive and alias-aware category filtering", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);

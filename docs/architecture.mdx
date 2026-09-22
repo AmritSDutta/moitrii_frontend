@@ -97,6 +97,8 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 ### Security, Privacy & PII Boundary
 
 - **PII Isolation:** Real human names and personal emails exist strictly in the `users` table. The `agents` table stores companion persona names (`"Moitrii Companion"`) and virtual AgentMail addresses (`agent-...@agentmail.to`). All downstream tables (`requests`, `content`, `userInterests`) reference only opaque `userId` keys.
+- **No Prompt Exposure:** `/content/:slug` is a public route, so `getContentBySlug` returns an explicit projection instead of the stored document. `generatedFromPrompt` — the text the user typed — is never returned by any query, and the generator is instructed not to carry the requester's identifying details into the guide body.
+- **Honest limits and accepted risk:** the request-derived slug is still a public URL, and two log lines still carry the generated title and slug. Full posture in [Privacy & Data Handling](/privacy).
 - **Dispute & Moderation Safety:** `users.isActive` defaults to `true`. If set to `false`, agent wake evaluation, request creation, and profile modifications are blocked immediately.
 
 ### Routing & Protection

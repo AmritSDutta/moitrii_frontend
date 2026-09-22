@@ -219,7 +219,7 @@ Retrieves a single article by its URL slug. Falls back to document ID lookup if 
 { slug: string }
 ```
 
-**Returns:** Content document | `null`
+**Returns:** An explicit projection of the content document — card metadata, body, takeaways, sources and companion media — or `null`. The stored document is deliberately **not** returned, so `generatedFromPrompt` (the user's raw request text) and internal ids never reach the client.
 
 ### `generateUploadUrl` (mutation)
 

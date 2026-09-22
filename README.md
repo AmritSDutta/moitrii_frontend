@@ -162,7 +162,7 @@ flowchart TD
 - **`convex/content.ts`:**
   - `getPublishedContent(category?, limit?)`: Realtime listing with category projections (capped at 50).
   - `getWhatsHot(limit?)`: Trending articles querying `.index("by_reused_count")` in descending order.
-  - `getContentBySlug(slug)`: Full markdown guide, key takeaways, and companion media for `/content/[id]`.
+  - `getContentBySlug(slug)`: Public reader query for `/content/:id`. Returns an explicit projection of the guide — body, takeaways, sources, companion media — and never the stored document, so the raw generation prompt stays private.
   - `publishContent(...)`: Secure mutation with slug sanitization, collision deduplication, audio metadata, and author type.
   - `internalPublishGuide(...)`: Internal mutation used by AI agent pipeline to atomically publish research deliverables.
   - `checkContentReuse(prompt, category?, language?)`: Language-scoped token-overlap reuse match over recently published guides. Scores recall over the prompt, requires at least 3 shared meaningful tokens and 0.5 prompt coverage, and never reuses a guide written in a different language.
@@ -238,6 +238,8 @@ flowchart TD
    - Real user names and personal email addresses exist **exclusively in the `users` table**.
    - The `agents` table stores persona names (`"Moitrii Companion"`) and companion AgentMail address (`moitrii@agentmail.to` on free tier; scaling roadmap provisions 1 virtual address per user).
    - Downstream tables (`requests`, `content`, `userInterests`) reference only opaque `userId: v.id("users")`.
+   - The public reader query (`getContentBySlug`) returns an explicit projection rather than the stored document, so `content.generatedFromPrompt` — the user's verbatim request — is never returned by any query.
+   - Requests carry a 3-day TTL and are removed by the daily retention cron; published guides are permanent. The full posture, **including the accepted risks** (the request-derived slug is still public), is documented in [`docs/privacy.mdx`](docs/privacy.mdx).
 
 2. **Dispute & Moderation Safety:**
    - `users.isActive` defaults to `true`. If set to `false`, agent wake evaluation, request creation, and profile modifications are blocked immediately.

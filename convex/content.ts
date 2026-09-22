@@ -307,8 +307,26 @@ export const getContentBySlug = query({
         }
       }
 
+      // Explicit projection: never spread the whole document to the client.
+      // `generatedFromPrompt` holds the user's raw request text, and this route
+      // is public, so returning the full doc published it at a guessable URL.
       return {
-        ...article,
+        _id: article._id,
+        slug: article.slug,
+        title: article.title,
+        subtitle: article.subtitle,
+        category: article.category,
+        author: article.author,
+        authorType: article.authorType,
+        readTime: article.readTime,
+        publishedAt: article.publishedAt,
+        reusedCount: article.reusedCount,
+        isReused: article.isReused,
+        takeaways: article.takeaways,
+        content: article.content,
+        youtubeId: article.youtubeId,
+        youtubeTitle: article.youtubeTitle,
+        sources: article.sources,
         coverImage,
         audioUrl,
       };

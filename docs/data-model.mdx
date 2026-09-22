@@ -187,6 +187,7 @@ To guarantee strict user privacy and seamless future anonymization:
 2. **Dedicated Agent Identity:** The `agents` table never copies human names or emails. It stores `name: "Moitrii Companion"` and a dedicated AgentMail address (`agent-<userId>@agentmail.to`).
 3. **Opaque Foreign Keys:** All application records (`requests`, `content`, `userInterests`) link to users strictly through opaque `userId: v.id("users")`.
 4. **Dispute Moderation (`users.isActive`):** When `isActive` is set to `false`, the platform immediately rejects new requests from the user and excludes their agent from scheduled wake cycles.
+5. **No Prompt on Public Surfaces:** `content.generatedFromPrompt` still holds the verbatim request text, but no query returns it — the public reader query projects an explicit field set instead of the stored document, so a new field cannot silently become public. See [Privacy & Data Handling](/privacy) for the accepted residual risks, notably the request-derived slug.
 
 ## Storage Decision
 

@@ -430,7 +430,7 @@ export const userWakeWorkflow = workflow.define({
         });
 
         if (reuseResult.isReused && reuseResult.contentId) {
-          console.log(`[Workflow] Content Reused: "${req.prompt}" ➔ "${reuseResult.contentTitle}"`);
+          console.log(`[Workflow] Content Reused: request ${req._id} ➔ "${reuseResult.contentTitle}"`);
           deliverables.push({
             requestId: req._id,
             contentId: reuseResult.contentId,

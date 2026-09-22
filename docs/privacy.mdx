@@ -1,0 +1,50 @@
+---
+title: Privacy & Data Handling
+description: Where Moitrii stores personal data, which surfaces are public, and the honest limits of what is protected today.
+---
+
+# Privacy & Data Handling
+
+Moitrii takes a sentence a user typed, generates an article from it, and publishes that article into a **shared** library every other user can read. That shape makes it easy to leak personal detail by accident, so this page states plainly what is protected, what is not, and where the boundaries sit.
+
+## Where personal data lives
+
+| Data | Table | Visibility |
+|------|-------|------------|
+| Real name, personal email, auth identity | `users` | Never exposed to other users |
+| Agent persona name and virtual inbox | `agents` | Persona only — no human name or email |
+| The request text a user submitted | `requests` | Owner only (`listUserRequests` is auth-scoped); auto-purged |
+| The request text that produced a published guide | `content.generatedFromPrompt` | **Never returned by any query** |
+| The published guide itself | `content` | **Public** — that is the product |
+
+Every downstream table links to a user only through an opaque `userId: v.id("users")`. No endpoint accepts a user identifier as an argument for authorization; the server derives identity from `ctx.auth.getUserIdentity()`.
+
+## The public reading surface
+
+`/content/:slug` is a public route — no sign-in, and any guide is readable by anyone who has or guesses the slug. That is intentional: the shared knowledge library is the point of the product.
+
+It does mean the guide body, title, takeaways and sources are public the moment an agent publishes. The one thing that must never be in that response is the user's raw request.
+
+`getContentBySlug` therefore returns an **explicit projection** rather than the stored document. `generatedFromPrompt` — the verbatim text the user typed — is deliberately omitted, along with the internal `authorId` and storage ids. It is a projection rather than a filter on purpose: a field added to the `content` table later cannot silently become public.
+
+## Keeping personal detail out of the guide body
+
+The generator receives the user's request verbatim, because that is what it is answering. The system prompt instructs it not to carry the requester's identifying details into the output — no names, ages, contact details, where they live, or specific medical conditions — while still naming the *topic* normally, so a request about hotels in a particular town stays about that town.
+
+That is an instruction to a language model, not a guarantee, and it is not covered by the test suite: the suite runs with API keys blanked, so it exercises the offline templates rather than the model.
+
+## Known, accepted exposure
+
+Stated explicitly, because a privacy page that only lists wins is not useful:
+
+- **The slug is derived from the request.** A request naming a person can produce a public URL such as `/content/diet-plan-for-ananya`. The title instruction reduces the likelihood on the model path; nothing prevents it.
+- **Convex logs.** The reuse step no longer logs the prompt text, but the publish step still logs the generated title and slug, both derived from the request.
+- **`generatedFromPrompt` is not scrubbed.** It still holds the request verbatim. It is private to the Convex dashboard rather than the public web, but nothing redacts it.
+
+## Retention
+
+`requests` carry an `expiresAt` stamp and are deleted by the daily `cleanupExpiredRequests` cron, so a user's own request record is gone within three days. Published guides are permanent — the `content` row, including `generatedFromPrompt`, stays indefinitely.
+
+## Dispute moderation
+
+`users.isActive` defaults to `true`. Setting it to `false` immediately blocks new request submission, agent wake evaluation, and profile changes for that account.

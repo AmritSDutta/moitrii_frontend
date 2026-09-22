@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** gpt-5.6-luna, gpt-4o-mini, gpt-image-1, bulbul:v3, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-22T21:27:37Z
+- **Last updated:** 2026-09-22T21:54:00Z
 
 
 
@@ -107,5 +107,11 @@ Extracted the infographic prompt into dedicated module `convex/ai/imagePrompts.t
 2. **Restrictive license (`LICENSE`, `package.json`, `README.md`, `AGENTS.md`):** the project is now source-available under the PolyForm Strict License 1.0.0 — noncommercial use permitted, redistribution and modified versions not — with the canonical license text checked in and an `AGENTS.md` note so future agent sessions do not relicense it.
 3. **Pre-public repo hygiene:** added `.env.example` listing all fourteen configuration variable names (names only, no values), and `.gitignore` now ignores `*.tsbuildinfo` and re-includes `.env.example` so the surrounding `.env*` rule does not swallow it. Removed three stale committed artifacts: the dead Next.js config `next.config.mjs`, an orphaned `tsconfig.tsbuildinfo` (the current tsconfig sets no `incremental` flag, so nothing regenerates it), and the internal design note `language_conflict_resolve.md`.
 4. **Verification:** 106 / 106 tests passing across 15 Vitest suites and 0 TypeScript errors (`npm run build`).
+
+### 2026-09-22 - working tree
+1. **User request prompts no longer exposed on public routes (`convex/content.ts`):** `getContentBySlug` returned `{ ...article }`, so the entire `content` document — including `generatedFromPrompt`, the user's verbatim request — was served to unauthenticated clients on the public `/content/:slug` route. It now returns an explicit projection of the fields the reader actually uses, which also means a field added to the table later cannot silently become public.
+2. **Generator told to keep the requester's details out of the guide (`convex/ai/prompts.ts`):** the published article is the permanently shared artifact, so the system prompt now forbids carrying names, ages, contact details, home location, or specific medical conditions into it. The wording deliberately leaves topic specifics alone, so a request about hotels in a particular town stays about that town.
+3. **Reuse log no longer prints the prompt (`convex/agentRunner.ts`):** it logs the request id instead, which stays recoverable in the dashboard for the request's 3-day TTL. Added a regression test (`convex/content.test.ts`) asserting the prompt is stored but not returned — written so it cannot pass vacuously.
+4. **Stated limit, not a fix:** the slug is derived from the request and is therefore a public URL (e.g. `/content/diet-plan-for-ananya`), and the publish step still logs the generated title and slug. Recorded under accepted exposure in the new `docs/privacy.mdx` rather than left implicit. Verification: 107 / 107 tests across 15 suites and 0 TypeScript errors; README and docs updated (`docs/privacy.mdx`, `docs/architecture.mdx`, `docs/data-model.mdx`, `docs/convex-api.mdx`, `docs/faq.mdx`, `README.md`).
 
 

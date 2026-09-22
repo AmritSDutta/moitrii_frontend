@@ -82,6 +82,8 @@ To ensure strict privacy and future anonymization readiness:
 1. **Isolated PII:** Real user names and personal emails exist solely in the `users` table.
 2. **Generic Companion Personas:** The `agents` table stores only persona name `"Moitrii Companion"` and the companion AgentMail address (`moitrii@agentmail.to`). It never stores the user's real name or email.
 3. **Opaque References:** All other tables (`requests`, `content`, `userInterests`) reference users only through opaque database IDs (`userId: v.id("users")`).
+4. **No Prompt Exposure on Public Routes:** `/content/:slug` is public, so `getContentBySlug` returns an explicit projection rather than the stored document. The raw request text (`content.generatedFromPrompt`) is never returned by any query.
+5. **Retention:** Requests carry a 3-day TTL and are removed by the daily `cleanupExpiredRequests` cron. Published guides are permanent, and the slug derived from a request can be a public URL — the full picture, including the accepted risks, is on [Privacy & Data Handling](/privacy).
 
 
 ## Why were images missing on reload with `net::ERR_FILE_NOT_FOUND`, and how is it prevented?
