@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { useConvexAuth } from "@convex-dev/auth/react";

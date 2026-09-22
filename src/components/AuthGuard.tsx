@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState } from "react";
 import { useValidatedAuth } from "@/lib/useValidatedAuth";
 import { AuthModal } from "@/components/AuthModal";

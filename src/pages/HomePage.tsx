@@ -426,7 +426,7 @@ export function HomePage() {
               Trending Lifestyle & Mindful Videos
             </h2>
             <p className="text-xs sm:text-sm text-charcoal-600">
-              Curated audio-visual companions discovered by agents during research cycles.
+              A curated selection of lifestyle and mindful videos from our editorial companions.
             </p>
           </div>
           <Link

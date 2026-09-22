@@ -295,7 +295,7 @@ How we spend the first twenty minutes of our waking state sets the emotional res
   }
 ];
 
-export const INITIAL_VIDEOS: VideoItem[] = [
+export const CURATED_VIDEOS: VideoItem[] = [
   {
     id: "vid-1",
     title: "10-Minute Everyday Morning Stretch for Flexibility & Ease",

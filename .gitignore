@@ -6,11 +6,9 @@ node_modules/
 # Testing
 coverage/
 
-# Next.js build output
+# Build output
 .next/
 out/
-
-# Production
 build/
 dist/
 
@@ -21,24 +19,13 @@ dist/
 # Local env files (strict confidentiality)
 .env*
 
-# Local Phase Plan
-phasewise_plan.md
-phase_wise_plan.md
-python_agent_plan.md
-phase4_plan.md
-phase_4_plan.md
-phase5_plan.md
-phase_5_plan.md
-convex_workflow_and_firecrawl_plan.md
+# Local planning & review notes
 *plan*.md
 *youtube_integration*.md
 glm_review.md
 
-
 # Agent configuration & skill directories
 .agents/
-.agent/
-.agent*
 .claude/
 skills-lock.json
 CLAUDE.md

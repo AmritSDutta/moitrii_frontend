@@ -9,7 +9,7 @@
 
 ## Project Structure & Module Organization
 
-This repository implements a pure React 18 / Vite Single Page Application (`src/`) backed by a Convex Cloud realtime backend (`convex/`). Static assets live in `public/`, and documentation is maintained in `docs/` (docs7 site), `README.md` (full project spec), `GEMINI.md` (UI/UX goals), `phasewise_plan.md` (engineering roadmap), and `hackathon.md` (build log). Keep UI code in `src/` (views in `src/pages/`, components in `src/components/`, static assets in `public/`), Convex functions and schema in `convex/`.
+This repository implements a pure React 18 / Vite Single Page Application (`src/`) backed by a Convex Cloud realtime backend (`convex/`). Static assets live in `public/`, and documentation is maintained in `docs/` (docs7 site), `README.md` (full project spec), `GEMINI.md` (UI/UX goals), and `hackathon.md` (build log). Keep UI code in `src/` (views in `src/pages/`, components in `src/components/`, static assets in `public/`), Convex functions and schema in `convex/`.
 
 ## Build, Test, and Development Commands
 

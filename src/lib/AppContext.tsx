@@ -1,5 +1,3 @@
-"use client";
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   Topic,
@@ -9,7 +7,7 @@ import {
   AgentState,
   INITIAL_TOPICS,
   INITIAL_ARTICLES,
-  INITIAL_VIDEOS,
+  CURATED_VIDEOS,
   INITIAL_AGENT_STATE,
   INITIAL_REQUESTS,
 } from "./mockData";
@@ -43,7 +41,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [agentState, setAgentState] = useState<AgentState>(INITIAL_AGENT_STATE);
   const [requests, setRequests] = useState<AgentRequest[]>(INITIAL_REQUESTS);
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
-  const [videos] = useState<VideoItem[]>(INITIAL_VIDEOS);
+  const [videos] = useState<VideoItem[]>(CURATED_VIDEOS);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Toggle user interest

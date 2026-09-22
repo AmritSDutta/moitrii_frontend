@@ -114,7 +114,7 @@ flowchart TD
       F_Workflow["@convex-dev/workflow<br/>• 8-step durable orchestration<br/>• Step retries & idempotency"]
       F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• checkContentReuse (reuse engine)<br/>• markAgentWorking / revertAgentWorking<br/>• completeAgentTask mutation"]
       F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
-      F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• GET /llms.txt & /llms-full.txt<br/>• POST /api/agent/complete"]
+      F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• GET /llms.txt"]
       F_Storage["Convex File Storage<br/>• _storage for Cover, Media & TTS Audio"]
     end
 
@@ -222,7 +222,7 @@ flowchart TD
 - **`convex/files.ts`:**
   - `getBrandAssets()`: Serves dynamic Convex CDN URLs for logo and hero images.
 - **`convex/auth.ts` & `convex/http.ts`:**
-  - Google OAuth routes, GET `/llms.txt` and `/llms-full.txt` standard-compliant AI crawler endpoints, and `POST /api/agent/complete` with fail-closed token authorization.
+  - Google OAuth routes and GET `/llms.txt` standard-compliant AI crawler endpoints.
 
 ---
 
@@ -436,10 +436,9 @@ To run the daily personalized category user digest directly:
   npx convex run userDigests:triggerUserDailyDigestManual "{\"force\":true}"
   ```
 
-To test standard-compliant `llms.txt` crawler endpoints:
+To test the standard-compliant `llms.txt` crawler endpoint:
 ```bash
 curl http://localhost:3000/llms.txt
-curl http://localhost:3000/llms-full.txt
 ```
 
 Alternatively, exercise the real cron wiring: temporarily register an interval cron in `convex/crons.ts` while `npx convex dev` is running, watch it fire in the dashboard logs, then remove it:

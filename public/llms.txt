@@ -20,7 +20,3 @@ Moitrii pairs every user with a dedicated, persistent AI agent companion that sl
 - [AI Voice & Audio Generation](https://moitrii-frontend.pages.dev/docs/audio-generation): Sarvam AI Bulbul v3 Indian TTS integration with female voice synthesis and fallback cascade.
 - [AI Infographic & Cover Generation](https://moitrii-frontend.pages.dev/docs/image-generation): WebP 16:9 banner generation via OpenAI gpt-image-1 stored directly in Convex File Storage CDN.
 - [Manual Testing & Verification](https://moitrii-frontend.pages.dev/docs/manual-testing): Cross-shell CLI commands and test workflows for autonomous agent dispatches.
-
-## Optional & Comprehensive Documentation
-
-- [Complete Technical Specification (llms-full.txt)](https://moitrii-frontend.pages.dev/llms-full.txt): Comprehensive deep-dive specification for LLMs, crawlers, and AI agents.

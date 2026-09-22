@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Private app routes require sign-in (AuthGuard). This is a crawl hint, not access control.
+Disallow: /dashboard
+Disallow: /requests
+Disallow: /onboarding
+Disallow: /publisher
+
+Sitemap: https://moitrii-frontend.pages.dev/sitemap.xml
