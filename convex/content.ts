@@ -40,9 +40,70 @@ async function toContentCard(ctx: any, doc: Doc<"content">) {
   };
 }
 
+export const TOPIC_ID_TO_CATEGORY: Record<string, string> = {
+  health: "Health & Nutrition",
+  cooking: "Cooking & Recipes",
+  beauty: "Beauty & Skincare",
+  yoga: "Yoga & Fitness",
+  wellness: "Mindful Wellness",
+  kids: "Kids & Education",
+  home: "Home & Living",
+  travel: "Travel & Escapes",
+  genz: "Gen-Z Trends",
+  anime: "Anime & Manga",
+};
+
+/**
+ * Case-insensitive and alias-aware category matcher.
+ */
+export function matchesCategory(articleCat: string | undefined, targetCat: string): boolean {
+  if (!targetCat || targetCat === "all") return true;
+  const a = (articleCat || "").toLowerCase().trim();
+  const t = targetCat.toLowerCase().trim();
+  if (a === t) return true;
+  if (a.includes(t) || t.includes(a)) return true;
+
+  for (const [id, title] of Object.entries(TOPIC_ID_TO_CATEGORY)) {
+    const normId = id.toLowerCase();
+    const normTitle = title.toLowerCase();
+    if (
+      (t === normId || t === normTitle) &&
+      (a === normId || a === normTitle || a.includes(normId) || normTitle.includes(a))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Resolves a topic ID, alias, or raw category string to its canonical Category title in the database.
+ * Returns null if the category is "all", empty, or undefined.
+ */
+export function resolveCanonicalCategory(inputCategory: string | undefined | null): string | null {
+  if (!inputCategory || inputCategory.trim().toLowerCase() === "all") return null;
+  const t = inputCategory.trim().toLowerCase();
+
+  if (TOPIC_ID_TO_CATEGORY[t]) {
+    return TOPIC_ID_TO_CATEGORY[t];
+  }
+  for (const [id, title] of Object.entries(TOPIC_ID_TO_CATEGORY)) {
+    if (title.toLowerCase() === t || id.toLowerCase() === t) {
+      return title;
+    }
+  }
+  for (const [id, title] of Object.entries(TOPIC_ID_TO_CATEGORY)) {
+    if (title.toLowerCase().includes(t) || t.includes(id.toLowerCase())) {
+      return title;
+    }
+  }
+  return inputCategory.trim();
+}
+
 /**
  * Lists published articles with optional category filtering and limit.
- * Bounded read returning card metadata with resolved CDN image URLs.
+ * Bounded index read returning card metadata with resolved CDN image URLs.
+ * Uses compound index `by_category_and_reused_count` for O(limit) execution.
  */
 export const getPublishedContent = query({
   args: {
@@ -51,17 +112,133 @@ export const getPublishedContent = query({
   },
   handler: async (ctx, args) => {
     const limit = Math.min(args.limit ?? DEFAULT_CONTENT_LIMIT, DEFAULT_CONTENT_LIMIT);
+    const canonicalCat = resolveCanonicalCategory(args.category);
 
-    const results =
-      args.category && args.category !== "all"
-        ? await ctx.db
-            .query("content")
-            .withIndex("by_category", (q) => q.eq("category", args.category!))
-            .order("desc")
-            .take(limit)
-        : await ctx.db.query("content").order("desc").take(limit);
+    let results: Doc<"content">[];
+    if (canonicalCat) {
+      // Query composite index directly by category and popular reusedCount order (desc)
+      results = await ctx.db
+        .query("content")
+        .withIndex("by_category_and_reused_count", (q) => q.eq("category", canonicalCat))
+        .order("desc")
+        .take(limit);
+
+      // Fallback: If input category wasn't in canonical list, also check direct category index
+      if (results.length === 0 && args.category && args.category !== canonicalCat) {
+        results = await ctx.db
+          .query("content")
+          .withIndex("by_category_and_reused_count", (q) => q.eq("category", args.category!))
+          .order("desc")
+          .take(limit);
+      }
+    } else {
+      // Bounded index read across all content ordered by popularity (reusedCount desc)
+      results = await ctx.db
+        .query("content")
+        .withIndex("by_reused_count")
+        .order("desc")
+        .take(limit);
+    }
 
     return await Promise.all(results.map((doc) => toContentCard(ctx, doc)));
+  },
+});
+
+/**
+ * Lists published articles with pagination, category filtering, and search.
+ * Returns paginated items with metadata (totalCount, page, totalPages, hasMore).
+ */
+export const getPaginatedContent = query({
+  args: {
+    category: v.optional(v.string()),
+    page: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
+    search: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const page = Math.max(1, args.page ?? 1);
+    const pageSize = Math.min(Math.max(1, args.pageSize ?? 12), 48);
+    const canonicalCat = resolveCanonicalCategory(args.category);
+    const searchTrim = args.search?.trim().toLowerCase();
+
+    // If search is present, perform search filtering over index-ordered records
+    if (searchTrim) {
+      let candidateDocs: Doc<"content">[];
+      if (canonicalCat) {
+        candidateDocs = await ctx.db
+          .query("content")
+          .withIndex("by_category_and_reused_count", (q) => q.eq("category", canonicalCat))
+          .order("desc")
+          .collect();
+      } else {
+        candidateDocs = await ctx.db
+          .query("content")
+          .withIndex("by_reused_count")
+          .order("desc")
+          .collect();
+      }
+
+      const filtered = candidateDocs.filter(
+        (doc) =>
+          doc.title.toLowerCase().includes(searchTrim) ||
+          doc.subtitle.toLowerCase().includes(searchTrim) ||
+          doc.category.toLowerCase().includes(searchTrim) ||
+          doc.author.toLowerCase().includes(searchTrim)
+      );
+
+      const totalCount = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const startIndex = (page - 1) * pageSize;
+      const pagedDocs = filtered.slice(startIndex, startIndex + pageSize);
+
+      const articles = await Promise.all(pagedDocs.map((doc) => toContentCard(ctx, doc)));
+      return {
+        articles,
+        totalCount,
+        page,
+        pageSize,
+        totalPages,
+        hasMore: page < totalPages,
+      };
+    }
+
+    // Standard pagination without search
+    let pagedDocs: Doc<"content">[];
+    let totalCount: number;
+
+    if (canonicalCat) {
+      const categoryDocs = await ctx.db
+        .query("content")
+        .withIndex("by_category_and_reused_count", (q) => q.eq("category", canonicalCat))
+        .order("desc")
+        .collect();
+
+      totalCount = categoryDocs.length;
+      const startIndex = (page - 1) * pageSize;
+      pagedDocs = categoryDocs.slice(startIndex, startIndex + pageSize);
+    } else {
+      const allDocs = await ctx.db
+        .query("content")
+        .withIndex("by_reused_count")
+        .order("desc")
+        .collect();
+
+      totalCount = allDocs.length;
+      const startIndex = (page - 1) * pageSize;
+      pagedDocs = allDocs.slice(startIndex, startIndex + pageSize);
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const articles = await Promise.all(pagedDocs.map((doc) => toContentCard(ctx, doc)));
+
+    return {
+      articles,
+      totalCount,
+      page,
+      pageSize,
+      totalPages,
+      hasMore: page < totalPages,
+    };
   },
 });
 

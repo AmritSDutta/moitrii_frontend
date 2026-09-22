@@ -3,6 +3,7 @@ import type { FirecrawlSearchResult } from "./tools";
 import { discoverVideoCompanion } from "./research";
 import { buildSystemPrompt } from "./prompts";
 import { CATEGORY_COVERS } from "./imagegen";
+import { TOPIC_ID_TO_CATEGORY } from "../content";
 
 /**
  * Fallback synthesizer producing rich localized editorial content when LLM API keys are unset.
@@ -13,8 +14,10 @@ function buildFallbackGuide(
   language: SupportedLanguage,
   webSources?: FirecrawlSearchResult[]
 ): SynthesizedGuide {
-  const normCat = category.toLowerCase().trim() || "wellness";
-  const coverImage = CATEGORY_COVERS[normCat] || CATEGORY_COVERS.default;
+  const rawCat = category.trim();
+  const normKey = rawCat.toLowerCase();
+  const canonicalCategory = TOPIC_ID_TO_CATEGORY[normKey] || rawCat || "Mindful Wellness";
+  const coverImage = CATEGORY_COVERS[normKey] || CATEGORY_COVERS.default;
   const companion = discoverVideoCompanion(category, prompt);
   const slugBase = prompt
     .toLowerCase()
@@ -26,7 +29,7 @@ function buildFallbackGuide(
   const sources: ArticleSource[] = webSources && webSources.length > 0
     ? webSources.map((s) => ({ title: s.title, url: s.url }))
     : [
-        { title: `Moitrii Holistic Living Research — ${normCat.charAt(0).toUpperCase() + normCat.slice(1)} (Verified Reference)`, url: "https://moitrii.ai" },
+        { title: `Moitrii Holistic Living Research — ${canonicalCategory} (Verified Reference)`, url: "https://moitrii.ai" },
         { title: "Traditional Indian Wellness & Lifestyle Principles", url: "https://moitrii.ai/research/wellness" },
       ];
 
@@ -35,7 +38,7 @@ function buildFallbackGuide(
       title: `দৈনন্দিন সুস্থতা ও প্রশান্ত জীবনের পূর্ণাঙ্গ সহায়িকা: ${prompt.slice(0, 35)}`,
       slug,
       subtitle: "আধুনিক ব্যস্ত জীবনে গভীর মানসিক প্রশান্তি, সঠিক পুষ্টি ও স্বাস্থ্যকর অভ্যাসের জন্য ব্যক্তিগত সহায়িকা।",
-      category: normCat,
+      category: canonicalCategory,
       readTime: "৫ মিনিট পাঠ",
       coverImage,
       takeaways: [
@@ -97,7 +100,7 @@ function buildFallbackGuide(
       title: `दैनिक स्वास्थ्य, संतुलन और सुकून की संपूर्ण मार्गदर्शिका: ${prompt.slice(0, 35)}`,
       slug,
       subtitle: "व्यस्त दिनचर्या में मानसिक स्पष्टता, पोषण और ऊर्जा बनाए रखने के लिए आपका व्यक्तिगत एआई साथी।",
-      category: normCat,
+      category: canonicalCategory,
       readTime: "5 मिनट पठन",
       coverImage,
       takeaways: [
@@ -159,7 +162,7 @@ function buildFallbackGuide(
     title: `Mindful Living, Vitality & Daily Nourishment: ${prompt.charAt(0).toUpperCase() + prompt.slice(1, 40)}`,
     slug,
     subtitle: "A comprehensive, evidence-backed lifestyle guide crafted by your personal Moitrii companion.",
-    category: normCat,
+    category: canonicalCategory,
     readTime: "5 min read",
     coverImage,
     takeaways: [
@@ -358,8 +361,10 @@ export async function synthesizeLifestyleGuide(
 
     const parsed = parseJsonSafely(rawContent);
 
-    const normCat = category.toLowerCase().trim() || "wellness";
-    const coverImage = CATEGORY_COVERS[normCat] || CATEGORY_COVERS.default;
+    const rawCat = category.trim();
+    const normKey = rawCat.toLowerCase();
+    const canonicalCategory = TOPIC_ID_TO_CATEGORY[normKey] || rawCat || "Mindful Wellness";
+    const coverImage = CATEGORY_COVERS[normKey] || CATEGORY_COVERS.default;
     const slugBase = (parsed.title || prompt)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -381,7 +386,7 @@ export async function synthesizeLifestyleGuide(
       title: parsed.title || `Lifestyle Guide: ${prompt.slice(0, 30)}`,
       slug,
       subtitle: parsed.subtitle || "Curated personal lifestyle insights.",
-      category: normCat,
+      category: canonicalCategory,
       readTime: parsed.readTime || "5 min read",
       coverImage,
       takeaways: Array.isArray(parsed.takeaways) && parsed.takeaways.length > 0

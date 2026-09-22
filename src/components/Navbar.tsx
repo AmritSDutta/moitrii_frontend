@@ -82,7 +82,7 @@ export const Navbar: React.FC = () => {
   };
 
   const navLinks = [
-    { name: "Explore", href: "/", icon: Compass, public: true },
+    { name: "Explore", href: "/explore", icon: Compass, public: true },
     { name: "My Agent", href: "/dashboard", icon: LayoutDashboard, public: false },
     { name: "Request Center", href: "/requests", icon: Inbox, public: false },
     { name: "Interests", href: "/onboarding", icon: BookmarkCheck, public: false },

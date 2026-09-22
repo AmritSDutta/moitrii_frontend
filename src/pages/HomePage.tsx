@@ -16,7 +16,7 @@ import { extractYouTubeId } from "@/lib/youtube";
 import { formatDisplayDate } from "@/lib/formatters";
 
 export function HomePage() {
-  const { articles: fallbackArticles, topics, videos, searchQuery, setSearchQuery } = useApp();
+  const { topics, videos, searchQuery, setSearchQuery } = useApp();
   const { heroUrl } = useBrandAssets();
   const [searchParams] = useSearchParams();
   const topicParam = searchParams.get("topic");
@@ -41,37 +41,33 @@ export function HomePage() {
 
   const convexArticles = useQuery(api.content.getPublishedContent, {
     category: selectedTopicFilter === "all" ? undefined : selectedTopicFilter,
+    limit: 4,
   });
 
-  // Prefer live Convex articles if available; otherwise use fallback
-  const rawArticles =
-    convexArticles && convexArticles.length > 0
-      ? convexArticles.map((a: any) => ({
-          id: a.slug || a._id,
-          title: a.title,
-          slug: a.slug,
-          subtitle: a.subtitle,
-          category: a.category,
-          author: a.author,
-          readTime: a.readTime,
-          publishedAt: formatDisplayDate(a.publishedAt),
-          coverImage: a.coverImage,
-          reusedCount: a.reusedCount ?? 0,
-        }))
-      : fallbackArticles;
+  const isLoading = convexArticles === undefined;
 
-  const filteredArticles = rawArticles.filter((art: any) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      art.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.category.toLowerCase().includes(searchQuery.toLowerCase());
+  // Sole source of truth: live Convex database articles
+  const articles = (convexArticles ?? []).map((a: any) => ({
+    id: a.slug || a._id,
+    title: a.title,
+    slug: a.slug,
+    subtitle: a.subtitle,
+    category: a.category,
+    author: a.author,
+    readTime: a.readTime,
+    publishedAt: formatDisplayDate(a.publishedAt),
+    coverImage: a.coverImage,
+    reusedCount: a.reusedCount ?? 0,
+  }));
 
-    const matchesTopic =
-      selectedTopicFilter === "all" ||
-      art.category.toLowerCase().includes(selectedTopicFilter.toLowerCase());
-
-    return matchesSearch && matchesTopic;
+  const filteredArticles = articles.filter((art: any) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      art.title.toLowerCase().includes(q) ||
+      art.subtitle.toLowerCase().includes(q) ||
+      art.category.toLowerCase().includes(q)
+    );
   });
 
   const popularPills = [
@@ -227,96 +223,159 @@ export function HomePage() {
             className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
               selectedTopicFilter === "all"
                 ? "bg-forest-800 text-white shadow-sm"
-                : "bg-white text-charcoal-700 border border-petal-200 hover:bg-petal-100"
+                : "bg-white text-charcoal-700 border border-petal-200 hover:bg-petal-100 cursor-pointer"
             }`}
           >
             All Stories
           </button>
-          {topics.slice(0, 6).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedTopicFilter(t.name)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
-                selectedTopicFilter === t.name
-                  ? "bg-forest-800 text-white shadow-sm"
-                  : "bg-white text-charcoal-700 border border-petal-200 hover:bg-petal-100"
-              }`}
-            >
-              {t.name}
-            </button>
-          ))}
+          {topics.map((t) => {
+            const isSelected =
+              selectedTopicFilter.toLowerCase() === t.name.toLowerCase() ||
+              selectedTopicFilter.toLowerCase() === t.id.toLowerCase();
+            return (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTopicFilter(t.name)}
+                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+                  isSelected
+                    ? "bg-forest-800 text-white shadow-sm"
+                    : "bg-white text-charcoal-700 border border-petal-200 hover:bg-petal-100 cursor-pointer"
+                }`}
+              >
+                {t.name}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Article Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredArticles.map((article: any) => (
-            <article
-              key={article.id}
-              className="bg-white rounded-2xl overflow-hidden border border-petal-200/90 shadow-card hover:shadow-editorial transition-all hover:translate-y-[-4px] flex flex-col group"
-            >
-              {/* Cover Image */}
-              <Link to={`/content/${article.id}`} className="relative aspect-[16/10] overflow-hidden block">
-                <img
-                  src={article.coverImage}
-                  alt={article.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "/images/moitrii.jpg";
-                  }}
-                />
-                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                  <span className="bg-white/90 backdrop-blur-sm text-charcoal-900 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-xs">
-                    {article.category}
-                  </span>
-                  {article.reusedCount > 0 && (
-                    <span className="bg-forest-800 text-white text-[10px] font-medium px-2 py-1 rounded-full flex items-center space-x-1 shadow-xs">
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Reused by {article.reusedCount} agents</span>
+        {/* Article Grid - 4 Cards in a single row on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-2xl overflow-hidden border border-petal-200 p-4 space-y-3 animate-pulse"
+              >
+                <div className="aspect-[16/10] bg-petal-100 rounded-xl" />
+                <div className="h-4 bg-petal-100 rounded w-3/4" />
+                <div className="h-3 bg-petal-100 rounded w-1/2" />
+              </div>
+            ))
+          ) : filteredArticles.length === 0 ? (
+            <div className="col-span-full bg-white p-12 rounded-3xl border border-petal-200 text-center space-y-4 shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-petal-100 text-forest-800 mx-auto flex items-center justify-center">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h3 className="font-editorial text-xl font-bold text-charcoal-900">
+                No articles published in {selectedTopicFilter === "all" ? "this collection" : selectedTopicFilter} yet
+              </h3>
+              <p className="text-xs sm:text-sm text-charcoal-500 max-w-md mx-auto leading-relaxed">
+                No articles have been published in this category yet. Submit a research prompt in your agent dashboard to have one synthesized!
+              </p>
+              <div className="pt-2 flex items-center justify-center gap-3">
+                {selectedTopicFilter !== "all" && (
+                  <button
+                    onClick={() => setSelectedTopicFilter("all")}
+                    className="text-xs bg-petal-100 hover:bg-petal-200 text-charcoal-800 px-4 py-2 rounded-full font-semibold transition-colors cursor-pointer"
+                  >
+                    View All Stories
+                  </button>
+                )}
+                <Link
+                  to="/dashboard"
+                  className="text-xs bg-forest-800 hover:bg-forest-900 text-white px-5 py-2 rounded-full font-bold transition-colors shadow-xs"
+                >
+                  Open Agent Dashboard →
+                </Link>
+              </div>
+            </div>
+          ) : (
+            filteredArticles.slice(0, 4).map((article: any) => (
+              <article
+                key={article.id}
+                className="bg-white rounded-2xl overflow-hidden border border-petal-200/90 shadow-card hover:shadow-editorial transition-all hover:translate-y-[-3px] flex flex-col group"
+              >
+                {/* Cover Image */}
+                <Link to={`/content/${article.id}`} className="relative aspect-[16/10] overflow-hidden block">
+                  <img
+                    src={article.coverImage}
+                    alt={article.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/images/moitrii.jpg";
+                    }}
+                  />
+                  <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1">
+                    <span className="bg-white/95 backdrop-blur-sm text-charcoal-900 text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-xs">
+                      {article.category}
                     </span>
-                  )}
-                </div>
-              </Link>
+                    {article.reusedCount > 0 && (
+                      <span className="bg-forest-800 text-white text-[9px] font-medium px-1.5 py-0.5 rounded-full flex items-center space-x-1 shadow-xs">
+                        <RefreshCw className="w-2.5 h-2.5" />
+                        <span>{article.reusedCount}</span>
+                      </span>
+                    )}
+                  </div>
+                </Link>
 
-              {/* Card Body */}
-              <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-xs text-charcoal-500">
-                    <span className="flex items-center space-x-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{article.readTime}</span>
-                    </span>
-                    <span>{article.publishedAt}</span>
+                {/* Card Body */}
+                <div className="p-4 sm:p-5 flex-grow flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-charcoal-500">
+                      <span className="flex items-center space-x-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{article.readTime}</span>
+                      </span>
+                      <span>{article.publishedAt}</span>
+                    </div>
+
+                    <Link to={`/content/${article.id}`}>
+                      <h3 className="font-editorial text-base sm:text-lg font-bold text-charcoal-900 group-hover:text-forest-800 transition-colors leading-snug line-clamp-2">
+                        {article.title}
+                      </h3>
+                    </Link>
+
+                    <p className="text-xs text-charcoal-600 line-clamp-2 leading-relaxed">
+                      {article.subtitle}
+                    </p>
                   </div>
 
-                  <Link to={`/content/${article.id}`}>
-                    <h3 className="font-editorial text-xl font-bold text-charcoal-900 group-hover:text-forest-800 transition-colors leading-snug line-clamp-2">
-                      {article.title}
-                    </h3>
-                  </Link>
-
-                  <p className="text-xs text-charcoal-600 line-clamp-3 leading-relaxed">
-                    {article.subtitle}
-                  </p>
+                  <div className="pt-3 border-t border-petal-100 flex items-center justify-between">
+                    <span className="text-[11px] text-charcoal-500 font-medium truncate max-w-[120px]">
+                      {article.author}
+                    </span>
+                    <Link
+                      to={`/content/${article.id}`}
+                      className="text-xs font-bold text-forest-800 hover:text-forest-900 flex items-center space-x-1"
+                    >
+                      <span>Read Guide</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
-
-                <div className="pt-4 border-t border-petal-100 flex items-center justify-between">
-                  <span className="text-[11px] text-charcoal-500 font-medium truncate max-w-[180px]">
-                    {article.author}
-                  </span>
-                  <Link
-                    to={`/content/${article.id}`}
-                    className="text-xs font-bold text-forest-800 hover:text-forest-900 flex items-center space-x-1"
-                  >
-                    <span>Read Guide</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))
+          )}
         </div>
+
+        {/* CTA to Explore Page */}
+        {!isLoading && filteredArticles.length > 0 && (
+          <div className="mt-10 text-center">
+            <Link
+              to={`/explore?category=${encodeURIComponent(selectedTopicFilter === "all" ? "all" : selectedTopicFilter)}`}
+              className="inline-flex items-center space-x-2 bg-white hover:bg-petal-50 text-forest-800 font-semibold px-6 py-3 rounded-full border border-forest-200/80 shadow-xs transition-all hover:shadow-sm text-xs sm:text-sm group"
+            >
+              <span>
+                {selectedTopicFilter === "all"
+                  ? "Explore All Stories in Knowledge Ecosystem"
+                  : `Explore All ${selectedTopicFilter} Stories (${filteredArticles.length})`}
+              </span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* 3. POPULAR CATEGORIES */}

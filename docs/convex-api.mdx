@@ -163,17 +163,43 @@ Creates a new research request in the agent's durable queue. Remains stored whil
 
 ### `getPublishedContent` (query)
 
-Lists published articles with optional category filtering and limit (capped at 50 results).
+Lists published articles with optional category filtering and limit. Uses the compound index `by_category_and_reused_count` and `resolveCanonicalCategory` for $O(\text{limit})$ bounded index execution without full-table scans, ordered by popularity (`reusedCount` desc).
 
 **Args:**
 ```ts
 {
-  category?: string,   // filter by category; "all" or omitted returns all
-  limit?: number       // optional cap on results (capped at max 50)
+  category?: string,   // filter by topic ID (e.g. "cooking") or category title; "all" or omitted returns all
+  limit?: number       // optional cap on results (e.g. 4 for Home Page)
 }
 ```
 
-**Returns:** `Array<Doc<"content">>`
+**Returns:** `Array<ContentCard>`
+
+### `getPaginatedContent` (query)
+
+Returns a paginated list of published articles with total count metadata, page slicing, category filtering, and optional keyword search.
+
+**Args:**
+```ts
+{
+  category?: string,   // topic ID or category title
+  page?: number,       // 1-indexed page number (default 1)
+  pageSize?: number,   // items per page (default 12, max 48)
+  search?: string      // optional keyword search
+}
+```
+
+**Returns:**
+```ts
+{
+  articles: Array<ContentCard>,
+  totalCount: number,
+  page: number,
+  pageSize: number,
+  totalPages: number,
+  hasMore: boolean
+}
+```
 
 ### `getWhatsHot` (query)
 

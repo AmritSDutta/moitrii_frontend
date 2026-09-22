@@ -7,19 +7,28 @@ description: Reference for all six core user-facing screens, routes, and their u
 
 Moitrii has six core user-facing screens covering the full lifestyle agent lifecycle.
 
-## 1. Public Landing & Explore (`/`)
+## 1. Public Landing (`/`)
 
 **Access:** Public (no auth required)
 
-- **Persistent Header & Navigation:** Responsive navigation with persistent Sign In button across all viewports (mobile, tablet, desktop) and editorial topic links (`?category=...#articles-section`)
-- Hero section with warm lifestyle banner, search bar, and popular search pills
-- "What's Hot" — featured articles sorted by reuse count
-- "Popular Categories" — interactive topic grid cards
-- "Latest Stories" — browsable article grid with reuse badges and dynamic category filtering
-- "Trending Videos" — curated YouTube video cards with modal player
-- "About Moitrii" mission footer with multi-language greetings and weekly curated lifestyle digest subscription input (subscribers mutation with Brevo welcome trigger)
+- **Persistent Header & Navigation:** Responsive navigation with persistent Sign In button across all viewports and editorial topic links (`?category=...#articles-section`)
+- Hero section with warm lifestyle editorial banner and quick topic exploration
+- **"What's Hot" (Top 4 Articles):** Single-row responsive 4-card grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6`) featuring reader-favorite articles ordered by popularity (`reusedCount` desc), compact card padding, and an explicit CTA linking to the full Explore library
+- **"Popular Categories":** Interactive curated topic grid cards (Health, Cooking, Beauty, Yoga, Wellness, Kids, Home, Travel, Gen-Z, Anime)
+- **"Trending Videos":** Curated YouTube video cards with companion modal player
+- **"About Moitrii":** Mission footer with weekly intentional lifestyle digest subscription input (subscribers mutation with Brevo welcome trigger)
 
-## 2. Onboarding & Interest Selection (`/onboarding`)
+## 2. Dedicated Explore Page (`/explore`)
+
+**Access:** Public (no auth required)
+
+- Full-featured knowledge discovery hub displaying **12 articles per page** in a responsive 4-column compact grid
+- **Topic Filter Pills:** All Stories + 10 lifestyle categories with live URL search params synchronization (`?category=...`)
+- **Live Search Bar:** Realtime debounced search across title, subtitle, category, and author
+- **Full Pagination Controls:** Previous / Next buttons, numbered page pills, and "Showing X–Y of Z stories" metadata
+- Direct "Synthesize in Agent Dashboard" CTA for topics without published guides
+
+## 3. Onboarding & Interest Selection (`/onboarding`)
 
 **Access:** Auth required (AuthGuard)
 

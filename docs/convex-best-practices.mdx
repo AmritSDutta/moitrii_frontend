@@ -289,3 +289,67 @@ Never store raw base64 data or ephemeral blob URLs in database tables. Instead:
 2. Persist the permanent `storageId: Id<"_storage">` on the document.
 3. Dynamically resolve signed CDN URLs via `await ctx.storage.getUrl(storageId)` in queries or API handlers.
 
+---
+
+## 12. Bounded Index Queries & Zero Full-Table Scans (`convex/content.ts`)
+
+### The Problem: In-Memory Filtering After Full-Table `.collect()`
+Fetching entire database collections into server memory via `.collect()` to perform category filtering or pagination creates a linear read bottleneck. As the article knowledge library grows, every page load reads all documents in the table, degrading response latency and spiking document read counts.
+
+```mermaid
+flowchart TD
+    subgraph AntiPattern["Anti-Pattern: Full-Table Scan + Memory Filter"]
+        A["Client Query - category: Cooking"] --> B["ctx.db.query(content).collect()"]
+        B --> C["Linear O(N) Table Scan across all documents"]
+        C --> D["In-memory filter(doc => doc.cat === Cooking)"]
+        D --> E["Slice top 4 items"]
+    end
+    subgraph BestPractice["Convex Best Practice: Composite Index + Bounded Read"]
+        F["Client Query - category: Cooking"] --> G["resolveCanonicalCategory('cooking')"]
+        G --> H["withIndex('by_category_and_reused_count')"]
+        H --> I[".take(4) - Strictly O(limit) Bounded Index Read"]
+    end
+```
+
+### The Solution: Compound Index & Canonical Resolution
+1. **Compound Index:** Defined `.index("by_category_and_reused_count", ["category", "reusedCount"])` in `convex/schema.ts`.
+2. **Canonical Category Normalization:** Built `resolveCanonicalCategory` to map topic IDs (e.g., `"cooking"`, `"health"`, `"wellness"`) and raw alias strings directly to their canonical stored titles (`"Cooking & Recipes"`, `"Health & Nutrition"`, `"Mindful Wellness"`).
+3. **Index-Targeted Bounded Queries:** `getPublishedContent` queries the composite index directly, reading strictly $O(\text{limit})$ index rows:
+
+```typescript
+// convex/content.ts
+export const getPublishedContent = query({
+  args: {
+    category: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? DEFAULT_CONTENT_LIMIT, DEFAULT_CONTENT_LIMIT);
+    const canonicalCat = resolveCanonicalCategory(args.category);
+
+    let results: Doc<"content">[];
+    if (canonicalCat) {
+      // Query composite index directly by category and popular reusedCount order (desc)
+      results = await ctx.db
+        .query("content")
+        .withIndex("by_category_and_reused_count", (q) => q.eq("category", canonicalCat))
+        .order("desc")
+        .take(limit);
+    } else {
+      // Bounded index read across all content ordered by popularity (reusedCount desc)
+      results = await ctx.db
+        .query("content")
+        .withIndex("by_reused_count")
+        .order("desc")
+        .take(limit);
+    }
+
+    return await Promise.all(results.map((doc) => toContentCard(ctx, doc)));
+  },
+});
+```
+
+- Reads strictly $O(\text{limit})$ index rows (e.g. 4 rows on Home Page) directly from the index, eliminating whole-table scans while maintaining popular ranking (`reusedCount` desc).
+- Explore page (`getPaginatedContent`) utilizes the same composite index for fast, paginated segment retrieval.
+
+

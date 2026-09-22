@@ -33,23 +33,30 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 
 ## 📱 Core UI Screens & User Journeys
 
-### 1. Public Landing & Exploration (`/` or `/explore`)
+## 📱 Core UI Screens & User Journeys
+
+### 1. Public Landing (`/`)
 - **Editorial Header & Navigation:** Categories (Health, Food, Beauty, Wellness, Kids, Home, Travel, Gen-Z, Anime).
-- **Hero Banner:** Editorial lifestyle hero with core value proposition.
-- **What's Hot:** Curated carousel/grid of top lifestyle stories backed by index `by_reused_count`.
-- **Popular Categories:** Interactive exploration pills.
-- **Latest Stories & Shared Library:** Browse published articles with reuse badges.
-- **Trending Videos:** Curated YouTube video cards and embeds.
+- **Hero Banner:** Editorial lifestyle hero with core value proposition and quick exploration.
+- **What's Hot (Top 4 Articles):** Single-row responsive 4-card grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6`) of reader favorites backed by the `by_category_and_reused_count` index, with compact padding and an explicit CTA linking to `/explore`.
+- **Popular Categories:** Interactive exploration topic cards.
+- **Trending Videos:** Curated YouTube video cards and companion modal player.
 - **Weekly Lifestyle Digest Subscription:** Email newsletter subscription input in footer with RFC 5322 validation and deduplication.
 - **About Moitrii:** Mission and platform philosophy footer.
 
-### 2. Onboarding & Interest Selection (`/onboarding`)
+### 2. Dedicated Explore Page (`/explore`)
+- **Knowledge Discovery Hub:** Displays 12 articles per page in a responsive 4-column compact grid.
+- **Topic Filter Pills:** All Stories + 10 lifestyle categories with live URL search params synchronization (`?category=...`).
+- **Live Search Bar:** Realtime debounced search across title, subtitle, category, and author.
+- **Full Pagination Controls:** Previous / Next buttons, numbered page pills, and "Showing X–Y of Z stories" metadata.
+
+### 3. Onboarding & Interest Selection (`/onboarding`)
 - Interactive topic grid for first-time setup:
   - *Core Lifestyle:* Health, Cooking, Beauty/Makeup, Yoga/Fitness, Wellness, Kids & Education, Home, Travel.
   - *Parent & Youth Culture:* Gen-Z trends, Anime, Comics.
 - Selections persisted directly to user profile via Convex mutations.
 
-### 3. Agent Dashboard (`/dashboard`)
+### 4. Agent Dashboard (`/dashboard`)
 - **Agent Status Indicator:** Visual state badge (`SLEEPING`, `ACTIVE`, `WORKING`, `WAITING`, `ERROR`) with calm pulsing indicator.
 - **Wake Schedule Card:** Configurable schedule defaulting to **11:00 PM IST** (customizable to any 24h time in IST) and countdown to next cycle.
 - **Preferred Language Selector:** Warm editorial segmented pill control for **English** (`EN`), **বাংলা** (`BN`), and **हिन्दी** (`HI`) with localized synthesis micro-copy.
@@ -59,13 +66,13 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
   - *Completed Deliverables:* Ready-to-read cards with links.
   - *Queued / Processing Requests:* Status tracker for next wake-up.
 
-### 4. Request Center & History (`/requests`)
+### 5. Request Center & History (`/requests`)
 - Submit requests at any time (persisted durably even while agent sleeps).
 - Realtime request lifecycle tracking:
   `PENDING` ➔ `PROCESSING` ➔ `COMPLETED` / `FAILED`
 - Request details: submission timestamp, processing window, content reuse vs. generated status, delivery logs.
 
-### 5. Content & Article Reader View (`/content/:id`)
+### 6. Content & Article Reader View (`/content/:id`)
 - Editorial layout for generated and reused content.
 - **In-Article Audio Narration Player:** Interactive audio playback bar positioned directly below the headline (disabled state if narration is unavailable).
 - **Author Transparency & AI Disclaimer:** Distinct author badges (`AI Agent Companion` vs `Human Author`) and editorial synthetic content disclaimer banner.
@@ -73,7 +80,7 @@ Moitrii avoids generic dark/cold SaaS styling in favor of a warm, editorial life
 - Related content recommendations from the shared knowledge base.
 - Shareable public links.
 
-### 6. Publisher Studio (`/publisher`)
+### 7. Publisher Studio (`/publisher`)
 - Authoring and drafting tools for verified publishers.
 - Rich content preview (markdown, image/video embeds, audio narration URL).
 - Single-click publish with automatic slug sanitization and duplicate collision handling.
@@ -87,7 +94,8 @@ Documentation for this project lives at [`docs/`](docs/index.mdx) (preview local
 ```mermaid
 flowchart TD
     subgraph Frontend ["React 18 / Vite SPA (react-router-dom)"]
-      P_Home["Explore (/)"]
+      P_Home["Landing (/)"]
+      P_Explore["Explore (/explore)"]
       P_Dash["Dashboard (/dashboard)"]
       P_Req["Request Center (/requests)"]
       P_Reader["Reader (/content/:id)"]
@@ -96,7 +104,7 @@ flowchart TD
     end
 
     subgraph ConvexBackend ["Convex Cloud Realtime Backend (brazen-rook-983)"]
-      F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent / internalPublishGuide<br/>• generateUploadUrl"]
+      F_Content["convex/content.ts<br/>• getPublishedContent (by_category_and_reused_count O(limit))<br/>• getPaginatedContent (12/page)<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent / internalPublishGuide<br/>• generateUploadUrl"]
       F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (24h customizable IST)<br/>• forceWakeAgent (instant trigger)"]
       F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest (isActive guard)"]
       F_Users["convex/users.ts<br/>• viewer / setUserActiveStatus<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]

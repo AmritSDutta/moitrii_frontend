@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AuthGuard } from "@/components/AuthGuard";
 import { HomePage } from "@/pages/HomePage";
+import { ExplorePage } from "@/pages/ExplorePage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { RequestsPage } from "@/pages/RequestsPage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
@@ -24,7 +25,7 @@ export function App() {
             <main className="flex-grow">
               <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="/explore" element={<HomePage />} />
+                <Route path="/explore" element={<ExplorePage />} />
                 <Route
                   path="/dashboard"
                   element={

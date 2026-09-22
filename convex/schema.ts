@@ -112,6 +112,7 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_category", ["category"])
     .index("by_reused_count", ["reusedCount"])
+    .index("by_category_and_reused_count", ["category", "reusedCount"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["category"],
