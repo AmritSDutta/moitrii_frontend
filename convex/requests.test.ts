@@ -194,3 +194,22 @@ test("createRequest rejects inactive or disputed users", async () => {
     t.withIdentity({ subject: userId }).mutation(api.requests.createRequest, { prompt: "A valid prompt" })
   ).rejects.toThrow(/Account is inactive or under review/);
 });
+
+test("createRequest enforces 250 character prompt limit", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+
+  // 250 characters succeeds
+  const exact250 = "a".repeat(250);
+  const reqId = await t
+    .withIdentity({ subject: userId })
+    .mutation(api.requests.createRequest, { prompt: exact250 });
+  expect(reqId).toBeDefined();
+
+  // 251 characters fails
+  const tooLong = "a".repeat(251);
+  await expect(
+    t.withIdentity({ subject: userId }).mutation(api.requests.createRequest, { prompt: tooLong })
+  ).rejects.toThrow(/exceeds maximum length of 250 characters/i);
+});
+

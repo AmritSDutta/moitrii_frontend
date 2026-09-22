@@ -13,6 +13,7 @@ import {
   Play
 } from "lucide-react";
 import { extractYouTubeId } from "@/lib/youtube";
+import { formatDisplayDate } from "@/lib/formatters";
 
 export function HomePage() {
   const { articles: fallbackArticles, topics, videos, searchQuery, setSearchQuery } = useApp();
@@ -53,9 +54,7 @@ export function HomePage() {
           category: a.category,
           author: a.author,
           readTime: a.readTime,
-          publishedAt: a.publishedAt.includes("T")
-            ? new Date(a.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-            : a.publishedAt,
+          publishedAt: formatDisplayDate(a.publishedAt),
           coverImage: a.coverImage,
           reusedCount: a.reusedCount ?? 0,
         }))

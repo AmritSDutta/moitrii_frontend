@@ -57,8 +57,11 @@ export interface AgentState {
   statusMessage: string;
   nextWakeTime: string;
   lastActiveTime: string;
-  wakeFrequency: "Daily (08:00 AM)" | "Every 12 Hours" | "3x a Week";
-  subscriptionTier: "Starter" | "Plus" | "Daily Companion";
+  wakeFrequency: "Daily (08:00 AM)" | "Every 12 Hours" | "3x a Week" | string;
+  wakeTimeOfDay?: string;
+  email?: string;
+  timezone?: string;
+  subscriptionTier: "Starter" | "Plus" | "Daily Companion" | string;
   activeTask?: string;
 }
 
@@ -325,9 +328,10 @@ export const INITIAL_VIDEOS: VideoItem[] = [
 export const INITIAL_AGENT_STATE: AgentState = {
   status: "SLEEPING",
   statusMessage: "Your agent is currently resting. All submitted requests are queued safely and will be processed during the next wake window.",
-  nextWakeTime: "Tomorrow at 08:00 AM",
-  lastActiveTime: "Today at 08:30 AM",
-  wakeFrequency: "Daily (08:00 AM)",
+  nextWakeTime: "Tonight, 11:00 PM IST",
+  lastActiveTime: "Today, 11:30 PM IST",
+  wakeFrequency: "Daily (11:00 PM IST)",
+  wakeTimeOfDay: "23:00",
   subscriptionTier: "Daily Companion",
   activeTask: "Scheduled: Digesting latest kids nutrition guides"
 };

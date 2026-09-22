@@ -6,6 +6,9 @@ import { computeAgentEmail, computeAgentName } from "./agents";
 /** Maximum allowed pending research requests per user at any given time. */
 export const MAX_PENDING_REQUESTS_PER_USER = 5;
 
+/** Maximum allowed character length for a user research prompt/question. */
+export const MAX_PROMPT_LENGTH = 250;
+
 /** Time-to-live retention window: 3 days in milliseconds. */
 export const REQUEST_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -64,6 +67,12 @@ export const createRequest = mutation({
     const trimmedPrompt = args.prompt.trim();
     if (!trimmedPrompt) {
       throw new Error("Prompt cannot be empty");
+    }
+
+    if (trimmedPrompt.length > MAX_PROMPT_LENGTH) {
+      throw new Error(
+        `Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters. Please keep your request concise.`
+      );
     }
 
     // Enforce 5-message pending queue cap

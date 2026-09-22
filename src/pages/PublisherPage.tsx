@@ -16,6 +16,7 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
 export function PublisherPage() {
   const navigate = useNavigate();
@@ -459,8 +460,8 @@ export function PublisherPage() {
             </div>
           )}
 
-          <div className="text-xs text-charcoal-800 space-y-4 whitespace-pre-wrap leading-relaxed">
-            {content}
+          <div className="pt-2">
+            <MarkdownRenderer content={content} />
           </div>
 
           <div className="pt-6 border-t border-petal-200 flex justify-end">

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { MAX_PENDING_REQUESTS } from "@/lib/constants";
+import { formatDisplayDate, formatWakeTime12h } from "@/lib/formatters";
 import {
   Moon,
   Zap,
@@ -126,6 +127,16 @@ export function DashboardPage() {
     }
   };
 
+  const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => {
+    const hStr = i < 10 ? `0${i}` : `${i}`;
+    const period = i >= 12 ? "PM" : "AM";
+    const h12 = i % 12 === 0 ? 12 : i % 12;
+    const h12Str = h12 < 10 ? `0${h12}` : `${h12}`;
+    return { value: hStr, label: `${h12Str}:00 ${period} (${hStr}:00)` };
+  });
+
+  const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+
   const WAKE_SCHEDULE_PRESETS = [
     { label: "07:00 AM IST (Morning)", value: "07:00" },
     { label: "09:00 AM IST", value: "09:00" },
@@ -137,8 +148,42 @@ export function DashboardPage() {
     { label: "12:00 AM IST (Midnight)", value: "00:00" },
   ];
 
+  const initialTime = (liveAgent as any)?.wakeTimeOfDay || "23:00";
+  const [selectedHour, setSelectedHour] = useState(() => initialTime.split(":")[0] || "23");
+  const [selectedMinute, setSelectedMinute] = useState(() => initialTime.split(":")[1] || "00");
+
+  useEffect(() => {
+    const time = (liveAgent as any)?.wakeTimeOfDay;
+    if (time) {
+      setSelectedWakeTime(time);
+      const [h, m] = time.split(":");
+      setSelectedHour(h || "23");
+      setSelectedMinute(m || "00");
+    }
+  }, [(liveAgent as any)?.wakeTimeOfDay]);
+
+  const handlePresetSelect = (presetVal: string) => {
+    setSelectedWakeTime(presetVal);
+    const [h, m] = presetVal.split(":");
+    setSelectedHour(h || "23");
+    setSelectedMinute(m || "00");
+    setScheduleError("");
+  };
+
+  const handleHourChange = (newHour: string) => {
+    setSelectedHour(newHour);
+    setSelectedWakeTime(`${newHour}:${selectedMinute}`);
+    setScheduleError("");
+  };
+
+  const handleMinuteChange = (newMinute: string) => {
+    setSelectedMinute(newMinute);
+    setSelectedWakeTime(`${selectedHour}:${newMinute}`);
+    setScheduleError("");
+  };
+
   const handleScheduleSave = async (timeToSet?: string) => {
-    const target = timeToSet || selectedWakeTime;
+    const target = timeToSet || `${selectedHour}:${selectedMinute}` || selectedWakeTime;
     setScheduleError("");
 
     setSavingSchedule(true);
@@ -262,7 +307,11 @@ export function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedWakeTime((liveAgent as any)?.wakeTimeOfDay || "23:00");
+                    const time = (liveAgent as any)?.wakeTimeOfDay || "23:00";
+                    setSelectedWakeTime(time);
+                    const [h, m] = time.split(":");
+                    setSelectedHour(h || "23");
+                    setSelectedMinute(m || "00");
                     setScheduleError("");
                     setScheduleSuccess(false);
                     setShowScheduleModal(true);
@@ -490,53 +539,62 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* 4. AGENT WORK FEED */}
+      {/* 3. SPLIT FEED: DELIVERABLES (LEFT) & QUEUED TASKS (RIGHT) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left: Completed Deliverables */}
+        {/* Left: Completed Deliverables Feed */}
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-editorial text-2xl font-bold text-charcoal-900">
-                Ready to Read
+                Completed Deliverables
               </h3>
               <p className="text-xs text-charcoal-500">
-                Deliverables prepared and verified by your agent.
+                Researched, validated, and synthesized by your personal agent.
               </p>
             </div>
-            <span className="text-xs bg-forest-50 text-forest-800 font-bold px-3 py-1 rounded-full border border-forest-100">
-              {completedRequests.length} Ready
+            <span className="text-xs bg-forest-50 text-forest-800 font-bold px-3 py-1 rounded-full border border-forest-200">
+              {completedRequests.length} Delivered
             </span>
           </div>
 
           <div className="space-y-4">
             {requestsLoading ? (
-              <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center">
-                <p className="text-xs text-charcoal-500">Loading your agent's work…</p>
+              <div className="bg-white p-8 rounded-2xl border border-petal-200 text-center">
+                <p className="text-xs text-charcoal-500">Loading deliverables…</p>
               </div>
             ) : completedRequests.length === 0 ? (
-              <div className="bg-white p-6 rounded-2xl border border-petal-200 text-center space-y-2">
-                <p className="text-xs text-charcoal-500">No deliverables yet.</p>
+              <div className="bg-white p-8 rounded-2xl border border-petal-200 text-center space-y-2">
+                <p className="text-xs text-charcoal-500">No completed requests yet.</p>
                 <p className="text-[11px] text-charcoal-400">
-                  Submit a prompt above — your agent will prepare a guide at its next wake.
+                  Submit a prompt above or wait for your agent's wake cycle!
                 </p>
               </div>
             ) : (
               completedRequests.map((req: any) => (
                 <div
                   key={req.id}
-                  className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-3 group"
+                  className="bg-white p-6 rounded-2xl border border-petal-200 shadow-sm hover:shadow-md transition-all space-y-4"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-rosebrand uppercase tracking-wider">
-                        {req.category}
-                      </span>
-                      <h4 className="font-editorial text-lg font-bold text-charcoal-900 group-hover:text-forest-800 transition-colors">
-                        {req.contentTitle || req.prompt}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-forest-800 bg-forest-50 px-2.5 py-0.5 rounded-full border border-forest-100">
+                      {req.category}
+                    </span>
+                    <span className="text-[10px] text-charcoal-400">
+                      Prompt: &ldquo;{req.prompt}&rdquo;
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="font-editorial text-lg font-bold text-charcoal-900">
+                        {req.contentTitle || "Synthesized Lifestyle & Wellness Guide"}
                       </h4>
-                      <p className="text-xs text-charcoal-600 italic">
-                        Original prompt: &ldquo;{req.prompt}&rdquo;
-                      </p>
+                      {req.reuseNote && (
+                        <p className="text-xs text-forest-800 mt-1 flex items-center space-x-1">
+                          <RefreshCw className="w-3 h-3 text-forest-700" />
+                          <span>{req.reuseNote}</span>
+                        </p>
+                      )}
                     </div>
 
                     <Link
@@ -551,7 +609,7 @@ export function DashboardPage() {
                   <div className="pt-3 border-t border-petal-100 flex items-center justify-between text-xs text-charcoal-500">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="w-4 h-4 text-emerald-600" />
-                      <span>Fulfilled at {req.completedAt}</span>
+                      <span>Fulfilled at {formatDisplayDate(req.completedAt)}</span>
                     </div>
                     {req.isReused && (
                       <span className="text-[10px] bg-petal-100 text-charcoal-700 px-2 py-0.5 rounded-full flex items-center space-x-1">
@@ -604,14 +662,14 @@ export function DashboardPage() {
                     <span className="font-bold text-rosebrand uppercase">{req.category}</span>
                     <span className="flex items-center space-x-1 text-indigo-600 font-medium">
                       <Hourglass className="w-3 h-3" />
-                      <span>Wake Window: 08:00 AM</span>
+                      <span>Wake Window: {formatWakeTime12h(agentState.wakeTimeOfDay)}</span>
                     </span>
                   </div>
                   <p className="text-xs font-medium text-charcoal-900 leading-snug">
                     {req.prompt}
                   </p>
                   <div className="pt-2 text-[10px] text-charcoal-400">
-                    Submitted {req.submittedAt}
+                    Submitted {formatDisplayDate(req.submittedAt)}
                   </div>
                 </div>
               ))
@@ -664,10 +722,7 @@ export function DashboardPage() {
                     <button
                       key={preset.value}
                       type="button"
-                      onClick={() => {
-                        setSelectedWakeTime(preset.value);
-                        setScheduleError("");
-                      }}
+                      onClick={() => handlePresetSelect(preset.value)}
                       className={`px-3 py-2 text-xs rounded-xl border text-left transition-all ${
                         isSelected
                           ? "bg-forest-800 text-white border-forest-800 font-bold shadow-xs"
@@ -681,20 +736,44 @@ export function DashboardPage() {
               </div>
             </div>
 
-            {/* Custom Time Picker */}
+            {/* 15-Minute Discrete Custom Time Picker */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-charcoal-700 uppercase tracking-wider block">
-                Or Custom Wake Time
+                Or Custom Wake Time (15-Minute Increments)
               </label>
-              <input
-                type="time"
-                value={selectedWakeTime}
-                onChange={(e) => {
-                  setSelectedWakeTime(e.target.value);
-                  setScheduleError("");
-                }}
-                className="w-full px-4 py-2.5 text-sm bg-petal-50 rounded-xl border border-petal-200 text-charcoal-800 focus:outline-none focus:ring-2 focus:ring-forest-800/30 font-mono"
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-charcoal-500 block mb-1">Hour (IST)</label>
+                  <select
+                    value={selectedHour}
+                    onChange={(e) => handleHourChange(e.target.value)}
+                    className="w-full px-3 py-2.5 text-xs bg-petal-50 rounded-xl border border-petal-200 text-charcoal-900 focus:outline-none focus:ring-2 focus:ring-forest-800/30 font-medium"
+                  >
+                    {HOUR_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-charcoal-500 block mb-1">Minute</label>
+                  <select
+                    value={selectedMinute}
+                    onChange={(e) => handleMinuteChange(e.target.value)}
+                    className="w-full px-3 py-2.5 text-xs bg-petal-50 rounded-xl border border-petal-200 text-charcoal-900 focus:outline-none focus:ring-2 focus:ring-forest-800/30 font-medium"
+                  >
+                    {MINUTE_OPTIONS.map((min) => (
+                      <option key={min} value={min}>
+                        :{min}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="text-[11px] text-charcoal-500 text-right pt-0.5">
+                Selected: <span className="font-bold text-forest-900 font-mono">{formatWakeTime12h(selectedWakeTime)} IST</span>
+              </div>
             </div>
 
             {/* Error Message */}

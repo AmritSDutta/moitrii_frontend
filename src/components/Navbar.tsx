@@ -3,7 +3,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "@/lib/AppContext";
 import { useBrandAssets } from "@/lib/useBrandAssets";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { useValidatedAuth } from "@/lib/useValidatedAuth";
+import { formatWakeTime12h } from "@/lib/formatters";
 import { AuthModal } from "@/components/AuthModal";
 import {
   Compass,
@@ -36,6 +39,14 @@ export const Navbar: React.FC = () => {
   // confirms the stored token against the backend.
   const isUserReady = authStatus === "signedIn";
   const isAuthChecking = authStatus === "checking";
+
+  // Live Convex Agent State (synced with user's backend schedule)
+  const liveAgent = useQuery(api.agents.getAgentState);
+  const currentAgent = liveAgent || agentState;
+  const isAgentWorking = currentAgent?.status === "WORKING";
+  const isAgentActive = currentAgent?.status === "ACTIVE";
+  const isAgentResting = !isAgentWorking && !isAgentActive;
+  const wakeDisplay = formatWakeTime12h(currentAgent?.wakeTimeOfDay);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -143,7 +154,7 @@ export const Navbar: React.FC = () => {
                   className="hidden sm:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cream-100 border border-petal-200 shadow-sm hover:border-forest-500/40 transition-colors"
                 >
                   <div className="relative flex items-center justify-center">
-                    {agentState.status === "SLEEPING" ? (
+                    {isAgentResting ? (
                       <>
                         <Moon className="w-3.5 h-3.5 text-indigo-500" />
                         <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping opacity-75" />
@@ -157,10 +168,10 @@ export const Navbar: React.FC = () => {
                   </div>
                   <div className="text-left">
                     <span className="text-[11px] font-semibold text-charcoal-800 block leading-tight">
-                      {agentState.status === "SLEEPING" ? "Agent Resting" : "Agent Active"}
+                      {isAgentWorking ? "Agent Working" : isAgentActive ? "Agent Active" : "Agent Resting"}
                     </span>
                     <span className="text-[10px] text-charcoal-500 block leading-tight">
-                      Wake: 08:00 AM
+                      Wake: {wakeDisplay}
                     </span>
                   </div>
                 </Link>

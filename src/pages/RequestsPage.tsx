@@ -4,6 +4,7 @@ import { useApp } from "@/lib/AppContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { MAX_PENDING_REQUESTS } from "@/lib/constants";
+import { formatDisplayDate } from "@/lib/formatters";
 import {
   PlusCircle,
   Clock,
@@ -106,11 +107,21 @@ export function RequestsPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-charcoal-700 block">
-              Your Request / Question
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-charcoal-700 block">
+                Your Request / Question
+              </label>
+              <span
+                className={`text-[11px] font-mono ${
+                  prompt.length >= 240 ? "text-amber-600 font-bold" : "text-charcoal-400"
+                }`}
+              >
+                {prompt.length}/250
+              </span>
+            </div>
             <textarea
               rows={3}
+              maxLength={250}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g. Find 3 budget-friendly boutique homestays in Coorg with organic coffee plantations and walking trails..."
@@ -251,7 +262,7 @@ export function RequestsPage() {
                     </div>
 
                     <span className="text-[11px] text-charcoal-500">
-                      Submitted: {req.submittedAt}
+                      Submitted: {formatDisplayDate(req.submittedAt)}
                     </span>
                   </div>
 

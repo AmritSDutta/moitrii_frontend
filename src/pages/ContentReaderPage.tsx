@@ -19,6 +19,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { extractYouTubeId } from "@/lib/youtube";
+import { formatDisplayDate } from "@/lib/formatters";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
 export function ContentReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -190,7 +192,7 @@ export function ContentReaderPage() {
               <span>{article.readTime}</span>
             </span>
             <span>·</span>
-            <span>{article.publishedAt}</span>
+            <span>{formatDisplayDate(article.publishedAt)}</span>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -285,30 +287,8 @@ export function ContentReaderPage() {
       })()}
 
       {/* 5. Article Content Body */}
-      <div className="prose prose-stone max-w-none text-charcoal-800 space-y-6 text-sm sm:text-base leading-relaxed">
-        {article.content ? (
-          article.content.split("\n\n").map((block: string, idx: number) => {
-            if (block.startsWith("### ")) {
-              return (
-                <h3 key={idx} className="font-editorial text-2xl font-bold text-charcoal-900 pt-4">
-                  {block.replace("### ", "")}
-                </h3>
-              );
-            }
-            if (block.startsWith("#### ")) {
-              return (
-                <h4 key={idx} className="font-editorial text-xl font-bold text-charcoal-900 pt-2">
-                  {block.replace("#### ", "")}
-                </h4>
-              );
-            }
-            return (
-              <p key={idx} className="text-charcoal-700 leading-relaxed">
-                {block}
-              </p>
-            );
-          })
-        ) : null}
+      <div className="pt-2">
+        <MarkdownRenderer content={article.content} />
       </div>
 
       {/* 6. Verified Sources & Citations */}
