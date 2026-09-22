@@ -49,10 +49,11 @@ export function isWakeDue(wakeTimeOfDay: string, nowIstMinutes: number): boolean
 export const getDueAgentsWithRequests = internalQuery({
   args: {
     nowIso: v.string(),
+    force: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const nowIstMinutes = istMinutesNow(args.nowIso);
-    if (nowIstMinutes < 0) {
+    if (!args.force && nowIstMinutes < 0) {
       return [];
     }
 
@@ -83,7 +84,7 @@ export const getDueAgentsWithRequests = internalQuery({
 
       if (!agent) continue;
       if (user && (user as any).isActive === false) continue;
-      if (!isWakeDue(agent.wakeTimeOfDay ?? "23:00", nowIstMinutes)) continue;
+      if (!args.force && !isWakeDue(agent.wakeTimeOfDay ?? "23:00", nowIstMinutes)) continue;
 
       const agentName = agent.name ?? computeAgentName();
       const agentEmail = agent.email ?? computeAgentEmail(userId);
@@ -332,6 +333,8 @@ export const notifyCompletionStep = internalAction({
         isReused: v.boolean(),
         contentId: v.optional(v.string()),
         audioUrl: v.optional(v.string()),
+        youtubeId: v.optional(v.string()),
+        youtubeTitle: v.optional(v.string()),
       })
     ),
   },
@@ -384,6 +387,8 @@ export const userWakeWorkflow = workflow.define({
         slug?: string;
         takeaways?: string[];
         audioUrl?: string;
+        youtubeId?: string;
+        youtubeTitle?: string;
       }> = [];
 
       for (const reqId of args.requestIds) {
@@ -462,6 +467,8 @@ export const userWakeWorkflow = workflow.define({
             slug: published.slug,
             takeaways: guide.takeaways,
             audioUrl: audio.audioUrl,
+            youtubeId: guide.youtubeId,
+            youtubeTitle: guide.youtubeTitle,
           });
         }
       }
@@ -538,11 +545,13 @@ export const triggerScheduledWakes = internalAction({
   args: {
     targetUserId: v.optional(v.string()),
     nowIso: v.optional(v.string()),
+    force: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ triggeredCount: number }> => {
     // Actions may read the wall clock; the query must not, so pass it in.
     const dueAgents: DueAgent[] = await ctx.runQuery(internal.agentRunner.getDueAgentsWithRequests, {
       nowIso: args.nowIso ?? new Date().toISOString(),
+      force: args.force,
     });
 
     const targets: DueAgent[] = args.targetUserId

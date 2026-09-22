@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { computeAgentEmail, computeAgentName } from "./agents";
 
 /** Maximum allowed pending research requests per user at any given time. */
 export const MAX_PENDING_REQUESTS_PER_USER = 5;
@@ -85,6 +86,27 @@ export const createRequest = mutation({
       month: "short",
       day: "numeric",
     })}, ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+    const existingAgent = await ctx.db
+      .query("agents")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!existingAgent) {
+      await ctx.db.insert("agents", {
+        userId,
+        name: computeAgentName(),
+        email: computeAgentEmail(userId),
+        status: "SLEEPING",
+        statusMessage: "Your agent is resting and preparing for the next scheduled research cycle.",
+        nextWakeTime: "Tonight, 11:00 PM IST",
+        lastActiveTime: "Today, 11:30 PM IST",
+        wakeFrequency: "Daily (11:00 PM IST)",
+        wakeTimeOfDay: "23:00",
+        timezone: "Asia/Kolkata",
+        subscriptionTier: "Starter",
+      });
+    }
 
     const requestId = await ctx.db.insert("requests", {
       userId,

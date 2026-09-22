@@ -38,6 +38,8 @@ export interface AgentDeliverableSummary {
   isReused: boolean;
   contentId?: string;
   audioUrl?: string;
+  youtubeId?: string;
+  youtubeTitle?: string;
 }
 
 export interface AgentNotificationPayload {

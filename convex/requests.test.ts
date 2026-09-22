@@ -41,6 +41,16 @@ test("createRequest persists a PENDING request with 3-day TTL stamp for its owne
     status: "PENDING",
   });
   expect(requests[0].expiresAt).toBeGreaterThanOrEqual(beforeMs + REQUEST_TTL_MS - 1000);
+
+  // Verifies agent record was automatically initialized for user
+  const agentDoc = await t.run((ctx) =>
+    ctx.db
+      .query("agents")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first()
+  );
+  expect(agentDoc).toBeDefined();
+  expect(agentDoc?.status).toBe("SLEEPING");
 });
 
 test("createRequest rejects the 6th pending request when user reaches max 5 limit", async () => {

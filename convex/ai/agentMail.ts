@@ -16,8 +16,20 @@ export function renderEditorialNotificationEmail(payload: AgentNotificationPaylo
         ? `<span style="display: inline-block; background-color: #E6DEC8; color: #4A4A4A; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; margin-left: 8px;">🎧 Audio Narration Included</span>`
         : "";
 
+      const videoBadge = d.youtubeId
+        ? `<a href="https://www.youtube.com/watch?v=${d.youtubeId}" target="_blank" style="display: inline-block; background-color: #FDEDEC; color: #C0392B; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; margin-left: 8px; text-decoration: none;">▶ Watch Video Companion</a>`
+        : "";
+
       const reuseBadge = d.isReused
         ? `<span style="display: inline-block; background-color: #E8F0EA; color: #2D4A34; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; margin-left: 8px;">✨ Verified Knowledge Match</span>`
+        : "";
+
+      const articleLink = d.slug
+        ? `<div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #EBE7DF;">
+             <a href="https://moitrii-frontend.pages.dev/content/${d.slug}" style="color: #2D4A34; font-size: 13px; font-weight: 600; text-decoration: none;">
+               📖 Read Full Editorial Guide on Moitrii →
+             </a>
+           </div>`
         : "";
 
       return `
@@ -27,9 +39,11 @@ export function renderEditorialNotificationEmail(payload: AgentNotificationPaylo
           </h3>
           <div style="margin-bottom: 10px;">
             ${audioBadge}
+            ${videoBadge}
             ${reuseBadge}
           </div>
           ${takeawayList}
+          ${articleLink}
         </div>
       `;
     })
@@ -85,7 +99,7 @@ export function renderEditorialNotificationEmail(payload: AgentNotificationPaylo
           <!-- CTA Button -->
           <tr>
             <td align="center" style="padding: 24px 0;">
-              <a href="https://brazen-rook-983.convex.site" style="display: inline-block; background-color: #2D4A34; color: #FAF7F2; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: 500; font-size: 15px;">
+              <a href="https://moitrii-frontend.pages.dev/dashboard" style="display: inline-block; background-color: #2D4A34; color: #FAF7F2; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: 500; font-size: 15px;">
                 Explore on Moitrii Dashboard
               </a>
             </td>
@@ -112,7 +126,38 @@ export function renderEditorialNotificationEmail(payload: AgentNotificationPaylo
 }
 
 /**
- * Dispatches an email notification via AgentMail / Resend or logs the delivery payload.
+ * Renders a clean plain-text version for email deliverability and accessibility.
+ */
+export function renderEditorialNotificationText(payload: AgentNotificationPayload): string {
+  const deliverableSummaries = payload.deliverables
+    .map((d, idx) => {
+      const audioNote = d.audioUrl ? " (Audio narration included)" : "";
+      const videoNote = d.youtubeId ? `\n  ▶ Video Companion: https://www.youtube.com/watch?v=${d.youtubeId}` : "";
+      const reuseNote = d.isReused ? " [Verified knowledge match]" : "";
+      const takeaways = d.takeaways && d.takeaways.length > 0
+        ? "\n" + d.takeaways.map((t) => `  • ${t}`).join("\n")
+        : "";
+      const articleLink = d.slug ? `\n  📖 Read Full Guide: https://moitrii-frontend.pages.dev/content/${d.slug}` : "";
+      return `${idx + 1}. ${d.title}${audioNote}${reuseNote}${takeaways}${videoNote}${articleLink}`;
+    })
+    .join("\n\n");
+
+  return `
+Namaste ${payload.userName},
+
+Your personal AI companion ${payload.agentName} has completed your research wake cycle. Here are your personalized lifestyle takeaways:
+
+${deliverableSummaries}
+
+Explore more on your dashboard: https://moitrii-frontend.pages.dev/dashboard
+
+Sent from your companion: ${payload.agentEmail}
+Moitrii • Calm Technology for Modern Indian Living
+  `.trim();
+}
+
+/**
+ * Dispatches an email notification via official AgentMail REST API or logs the delivery payload.
  */
 export async function sendAgentCompletionNotification(
   payload: AgentNotificationPayload,
@@ -120,6 +165,8 @@ export async function sendAgentCompletionNotification(
 ): Promise<boolean> {
   const subject = `✨ New Insights from ${payload.agentName}: ${payload.deliverables[0]?.title ?? "Your Research Guide"}`;
   const html = renderEditorialNotificationEmail(payload);
+  const text = renderEditorialNotificationText(payload);
+  const inboxId = encodeURIComponent(payload.agentEmail.trim());
 
   console.log(
     `[AgentMail] Preparing notification from ${payload.agentEmail} to ${payload.userEmail} (${payload.deliverables.length} deliverable(s))`
@@ -127,17 +174,19 @@ export async function sendAgentCompletionNotification(
 
   if (apiKey) {
     try {
-      const response = await fetch("https://api.agentmail.to/v1/send", {
+      // Official AgentMail API: POST /v0/inboxes/:inbox_id/messages/send
+      const response = await fetch(`https://api.agentmail.to/v0/inboxes/${inboxId}/messages/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          from: payload.agentEmail,
           to: payload.userEmail,
           subject,
+          text,
           html,
+          labels: ["moitrii-deliverable"],
         }),
       });
 
@@ -145,7 +194,8 @@ export async function sendAgentCompletionNotification(
         console.log(`[AgentMail] Successfully delivered notification to ${payload.userEmail}`);
         return true;
       } else {
-        console.warn(`[AgentMail] Service returned status ${response.status}`);
+        const errText = await response.text();
+        console.warn(`[AgentMail] Service returned status ${response.status}: ${errText}`);
       }
     } catch (err) {
       console.warn("[AgentMail] Delivery request failed:", err);
@@ -156,3 +206,4 @@ export async function sendAgentCompletionNotification(
   console.log(`[AgentMail] Demo delivery recorded for ${payload.userEmail}`);
   return true;
 }
+

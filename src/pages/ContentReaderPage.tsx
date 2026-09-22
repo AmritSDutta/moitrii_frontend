@@ -254,11 +254,22 @@ export function ContentReaderPage() {
         if (!cleanVideoId) return null;
         return (
           <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <Play className="w-4 h-4 text-rosebrand fill-rosebrand" />
-              <h3 className="font-editorial text-lg font-bold text-charcoal-900">
-                Video Companion: {article.youtubeTitle || "Curated Guide"}
-              </h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <Play className="w-4 h-4 text-rosebrand fill-rosebrand" />
+                <h3 className="font-editorial text-lg font-bold text-charcoal-900">
+                  Video Companion: {article.youtubeTitle || "Curated Guide"}
+                </h3>
+              </div>
+              <a
+                href={`https://www.youtube.com/watch?v=${cleanVideoId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-forest-800 hover:text-forest-900 hover:underline font-medium inline-flex items-center space-x-1"
+              >
+                <span>Watch on YouTube</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
             <div className="aspect-video rounded-3xl overflow-hidden shadow-editorial border border-petal-200 bg-black">
               <iframe

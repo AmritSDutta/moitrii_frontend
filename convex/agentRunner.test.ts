@@ -80,6 +80,14 @@ test("getDueAgentsWithRequests only returns agents inside their wake window", as
     nowIso: "2026-09-21T08:30:00.000Z",
   });
   expect(notDue).toHaveLength(0);
+
+  // With force: true, executes immediately regardless of time window
+  const forcedDue = await t.query(internal.agentRunner.getDueAgentsWithRequests, {
+    nowIso: "2026-09-21T08:30:00.000Z",
+    force: true,
+  });
+  expect(forcedDue).toHaveLength(1);
+  expect(forcedDue[0].requests[0].prompt).toBe("Find immunity boosting soups");
 });
 
 test("getDueAgentsWithRequests skips agents belonging to inactive or disputed users", async () => {
