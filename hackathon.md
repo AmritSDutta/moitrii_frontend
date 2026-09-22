@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** gpt-5.6-luna, gpt-4o-mini, gpt-image-1, bulbul:v3, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-22T20:57:07Z
+- **Last updated:** 2026-09-22T21:27:37Z
 
 
 
@@ -101,5 +101,11 @@ Extracted the infographic prompt into dedicated module `convex/ai/imagePrompts.t
 2. **Reuse is language-scoped (`convex/ai/language.ts`, `convex/schema.ts`, `convex/content.ts`, `convex/agentRunner.ts`):** added a failsafe `detectScriptLanguage()` (title-based, never throws, defaults to English) and an optional `content.language` persisted at publish time. `checkContentReuse` now receives the user's `preferredLanguage` and never reuses a guide written in another language — previously a Hindi user could be handed an English article. No migration is required: the field is optional and existing rows are classified from their title. Added 7 regression tests (`convex/ai/reuseEngine.test.ts`).
 3. **Public surface and repo hygiene:** dropped `llms-full.txt` and its HTTP route (the full specification exposed internal model names and pipeline detail) while keeping `llms.txt`; removed the retired `/api/agent/complete` webhook and its tests; added `public/robots.txt` and `public/sitemap.xml`, clearing the invalid-robots crawl error the SPA rewrite was causing; deleted dead Next.js build output and stale gitignored notes; removed leftover `"use client"` directives; renamed the Home Page's hardcoded video list to `CURATED_VIDEOS` so it is no longer presented as agent-discovered.
 4. **Verification:** 106 / 106 tests passing across 15 Vitest suites and 0 TypeScript errors (`npm run build`); regenerated Convex bindings with `npx convex codegen` for the new optional field. Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http, workflows, components (`convex/schema.ts`, `convex/ai/**`, `convex/content.ts`, `convex/agentRunner.ts`, `convex/http.ts`, `public/**`, `.gitignore`).
+
+### 2026-09-22 - working tree
+1. **Documentation brought in line with the code (`docs/**`, `README.md`):** corrected the reuse engine, which every reference described as "full-text search" — it is token overlap over the `by_category` index, and `checkContentReuse` is an internal mutation rather than a query. Followed the `ai/research.ts` → `ai/youtubeRecommender.ts` rename through the architecture, screens and getting-started pages, documented the new `language` field and `ai/language.ts` in the data model and file tables, and fixed stale test counts, the retired `_redirects` instruction, and two wrong TTS and infographic facts. Added a dedicated `docs/environment.mdx` page covering every configuration variable, where each one is set, and what degrades when it is missing, registered in `docs/docs.json`; the README environment section now lists the full set instead of seven of fourteen.
+2. **Restrictive license (`LICENSE`, `package.json`, `README.md`, `AGENTS.md`):** the project is now source-available under the PolyForm Strict License 1.0.0 — noncommercial use permitted, redistribution and modified versions not — with the canonical license text checked in and an `AGENTS.md` note so future agent sessions do not relicense it.
+3. **Pre-public repo hygiene:** added `.env.example` listing all fourteen configuration variable names (names only, no values), and `.gitignore` now ignores `*.tsbuildinfo` and re-includes `.env.example` so the surrounding `.env*` rule does not swallow it. Removed three stale committed artifacts: the dead Next.js config `next.config.mjs`, an orphaned `tsconfig.tsbuildinfo` (the current tsconfig sets no `incremental` flag, so nothing regenerates it), and the internal design note `language_conflict_resolve.md`.
+4. **Verification:** 106 / 106 tests passing across 15 Vitest suites and 0 TypeScript errors (`npm run build`).
 
 

@@ -1,0 +1,125 @@
+---
+title: Environment & Credentials
+description: Every environment variable Moitrii reads — where it is set, whether it is required, and exactly what degrades when it is missing.
+---
+
+# Environment & Credentials
+
+Moitrii reads configuration from two completely separate places. Getting this wrong is the most common setup problem, so start here:
+
+| Where | What belongs there | How it is set |
+|---|---|---|
+| Local `.env.local`, or the Cloudflare Pages build environment | Only variables prefixed `VITE_` | Vite inlines them into the browser bundle at build time |
+| The Convex deployment | Every credential the backend uses | `npx convex env set <NAME> <value>` (or the Convex dashboard) |
+
+These are not interchangeable. `npx convex env set` cannot deliver a value to the browser bundle, and `.env.local` cannot deliver a secret to a Convex function. `.env.example` lists every name involved, grouped by which side it belongs to.
+
+> `CONVEX_SITE_URL` and `CONVEX_CLOUD_URL` are provided by the Convex platform and are already available on `env` inside functions. Never set them yourself — `convex/auth.config.ts` reads `CONVEX_SITE_URL` directly.
+
+## Local & Build-time Variables
+
+### `VITE_CONVEX_URL`
+
+The URL of your Convex deployment, e.g. `https://brazen-rook-983.convex.cloud`. Read by `src/components/ConvexClientProvider.tsx` and used to construct the `ConvexReactClient`.
+
+Set it in `.env.local` for local development and in the Cloudflare Pages project settings for production builds.
+
+```bash
+VITE_CONVEX_URL=https://<your-deployment-name>.convex.cloud
+```
+
+The provider falls back to `process.env.NEXT_PUBLIC_CONVEX_URL` and then to a hardcoded deployment URL, so a build with the variable unset still boots — convenient in development, but it means a missing value fails silently rather than loudly. If the deployed app ever talks to the wrong backend, check this variable first.
+
+## Convex Deployment Variables
+
+Set every one of these with `npx convex env set`, or in the Convex dashboard under **Settings → Environment Variables**.
+
+### Convex Auth — signing keys
+
+| Variable | Purpose |
+|---|---|
+| `JWT_PRIVATE_KEY` | RS256 private key used to sign session JWTs |
+| `JWKS` | The matching public key set, published for verification |
+| `SITE_URL` | Canonical base URL of the app, used when building auth callbacks |
+
+Generate the key pair locally with the included script rather than inventing one:
+
+```bash
+node generateKeys.mjs
+```
+
+It prints the two values to your terminal — the private key never leaves your machine — and the comments at the top of the file show the exact `npx convex env set` commands. Restart `npx convex dev` afterwards; environment changes are not picked up by a running process.
+
+### Google OAuth
+
+| Variable | Purpose |
+|---|---|
+| `AUTH_GOOGLE_ID` | OAuth 2.0 Client ID |
+| `AUTH_GOOGLE_SECRET` | OAuth 2.0 Client Secret |
+
+Create these in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) under **APIs & Services → Credentials → Create Credentials → OAuth client ID**, with application type **Web application**.
+
+The authorized redirect URI must point at the Convex Auth callback on your deployment's site URL:
+
+```text
+https://<your-deployment-name>.convex.site/api/auth/callback/google
+```
+
+`convex/auth.ts` constructs the provider with no explicit credentials, so `@convex-dev/auth` reads these two names by default. Google is the only configured provider — see the `prompt: "select_account"` parameter, which forces the account chooser on every sign-in instead of silently resuming the previous session.
+
+### AI Providers
+
+| Variable | Purpose | If omitted |
+|---|---|---|
+| `OPENAI_API_KEY` | Guide synthesis (`gpt-5.6-luna`, falling back to `gpt-4o-mini`) and cover image generation (`gpt-image-1`) | Synthesis falls back to the offline localized guide templates (still 500+ words in EN/BN/HI), and covers fall back to curated category imagery |
+| `FIRECRAWL_API_KEY` | Live web research that grounds the synthesized guide | Citations fall back to honest offline references rather than fabricated ones |
+| `SARVAM_API_KEY` | Primary TTS narration (Bulbul v3, female voice `ritu`) | Falls through to OpenAI `tts-1`, then to a silent WAV placeholder |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 companion-video discovery | A deterministic offline catalog supplies the companion video |
+
+Every one of these is optional by design. The agent pipeline is built so that a missing key degrades the output rather than failing the wake workflow — see [Audio Generation & TTS](/audio-generation) and [YouTube Recommender](/youtube-recommender) for the full cascades.
+
+### Messaging
+
+| Variable | Purpose | If omitted |
+|---|---|---|
+| `BREVO_API_KEY` | Transactional welcome emails, the Sunday top-10 digest, and the daily user category digest | Demo mode: deliveries are logged, nothing is sent |
+| `BREVO_SENDER_EMAIL` | The `From` address on Brevo mail. **Must be a verified sender** in Brevo (Senders & IP → Senders) or sends are rejected | Falls back to `newsletter@moitrii.ai` |
+| `AGENTMAIL_API_KEY` | 1:1 personal agent deliverable notifications | Falls back to mock delivery logging |
+| `APP_ORIGIN` | Public origin used for links inside emails (article CTAs, unsubscribe footer). Set it to your real origin or every link points at the wrong host | Falls back to `https://moitrii.ai` |
+
+`APP_ORIGIN` matters more than it looks: without it, an unsubscribe link inside a digest points at a host that is not yours, and the one-click unsubscribe flow breaks.
+
+## Complete Reference
+
+| Variable | Scope | Required |
+|---|---|---|
+| `VITE_CONVEX_URL` | Local / build-time | Yes, for the frontend |
+| `SITE_URL` | Convex | Yes, for Convex Auth |
+| `JWT_PRIVATE_KEY` | Convex | Yes, for Convex Auth |
+| `JWKS` | Convex | Yes, for Convex Auth |
+| `AUTH_GOOGLE_ID` | Convex (from Google Cloud Console) | Yes, for Google sign-in |
+| `AUTH_GOOGLE_SECRET` | Convex (from Google Cloud Console) | Yes, for Google sign-in |
+| `OPENAI_API_KEY` | Convex | No — offline fallbacks |
+| `FIRECRAWL_API_KEY` | Convex | No — offline fallbacks |
+| `SARVAM_API_KEY` | Convex | No — cascade fallback |
+| `YOUTUBE_API_KEY` | Convex | No — offline catalog |
+| `BREVO_API_KEY` | Convex | No — demo mode |
+| `BREVO_SENDER_EMAIL` | Convex | No — default sender |
+| `AGENTMAIL_API_KEY` | Convex | No — mock delivery |
+| `APP_ORIGIN` | Convex | No — default origin |
+
+## Setting Variables per Environment
+
+Convex keeps development and production deployments separate. `--prod` targets the production deployment; without it you are configuring the dev deployment.
+
+```bash
+# Development
+npx convex env set OPENAI_API_KEY sk-proj-your-key-here
+npx convex env set APP_ORIGIN http://localhost:3000
+
+# Production
+npx convex env set --prod OPENAI_API_KEY sk-proj-your-key-here
+npx convex env set --prod APP_ORIGIN https://moitrii-frontend.pages.dev
+```
+
+Restart `npx convex dev` after changing anything — a running process holds the old values.

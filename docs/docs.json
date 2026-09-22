@@ -8,7 +8,7 @@
   },
   "navigation": {
     "groups": [
-      { "group": "Getting Started", "pages": ["index", "getting-started"] },
+      { "group": "Getting Started", "pages": ["index", "getting-started", "environment"] },
       { "group": "Architecture", "pages": ["architecture", "data-model", "convex-best-practices"] },
       { "group": "AI Engine", "pages": ["audio-generation", "image-generation", "youtube-recommender"] },
       { "group": "Product", "pages": ["design-system", "screens"] },

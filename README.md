@@ -378,27 +378,63 @@ In the [Brevo dashboard](https://app.brevo.com):
 
 ### 2. Environment Variables
 
-#### For Development (Local Testing):
+Variables live in **two separate places**, and mixing them up is the usual setup problem:
+
+- **`VITE_` variables** → `.env.local` locally, and the Cloudflare Pages build environment for production. Vite inlines them into the browser bundle at build time.
+- **Everything else** → the Convex deployment, via `npx convex env set`. `.env.local` cannot supply a secret to a Convex function, and `npx convex env set` cannot reach the browser bundle.
+
+Full reference, including what degrades when each optional key is missing: [`docs/environment.mdx`](docs/environment.mdx).
+
+#### Local / build-time
+
 ```bash
-npx convex env set BREVO_API_KEY xkeysib-your-key-here
-npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
-npx convex env set AGENTMAIL_API_KEY your-agentmail-key-here
+VITE_CONVEX_URL=https://<your-deployment-name>.convex.cloud
+```
+
+#### Convex deployment — development
+
+```bash
+# Auth signing keys — generate the pair with: node generateKeys.mjs
+npx convex env set JWT_PRIVATE_KEY "<value from first line>"
+npx convex env set JWKS "<value from second line>"
+npx convex env set SITE_URL http://localhost:3000
+
+# Google OAuth (Google Cloud Console → APIs & Services → Credentials → OAuth client ID, type "Web application")
+npx convex env set AUTH_GOOGLE_ID your-google-client-id-here
+npx convex env set AUTH_GOOGLE_SECRET your-google-client-secret-here
+
+# AI providers
 npx convex env set OPENAI_API_KEY sk-proj-your-key-here
 npx convex env set SARVAM_API_KEY your-sarvam-key-here
 npx convex env set FIRECRAWL_API_KEY fc-your-key-here
+npx convex env set YOUTUBE_API_KEY your-youtube-key-here
+
+# Messaging
+npx convex env set BREVO_API_KEY xkeysib-your-key-here
+npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set AGENTMAIL_API_KEY your-agentmail-key-here
 npx convex env set APP_ORIGIN http://localhost:3000
 ```
 
-#### For Production (Cloudflare Pages + Convex Prod):
+#### Convex deployment — production
+
+The same variables with `--prod` and production values:
+
 ```bash
-npx convex env set --prod BREVO_API_KEY xkeysib-your-key-here
-npx convex env set --prod BREVO_SENDER_EMAIL your-verified-address@gmail.com
-npx convex env set --prod AGENTMAIL_API_KEY your-agentmail-key-here
+npx convex env set --prod SITE_URL https://moitrii-frontend.pages.dev
+npx convex env set --prod AUTH_GOOGLE_ID your-google-client-id-here
+npx convex env set --prod AUTH_GOOGLE_SECRET your-google-client-secret-here
 npx convex env set --prod OPENAI_API_KEY sk-proj-your-key-here
 npx convex env set --prod SARVAM_API_KEY your-sarvam-key-here
 npx convex env set --prod FIRECRAWL_API_KEY fc-your-key-here
+npx convex env set --prod YOUTUBE_API_KEY your-youtube-key-here
+npx convex env set --prod BREVO_API_KEY xkeysib-your-key-here
+npx convex env set --prod BREVO_SENDER_EMAIL your-verified-address@gmail.com
+npx convex env set --prod AGENTMAIL_API_KEY your-agentmail-key-here
 npx convex env set --prod APP_ORIGIN https://moitrii-frontend.pages.dev
 ```
+
+Only the auth set (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `AUTH_GOOGLE_*`) is strictly required — without it sign-in cannot work. Every other key is optional and degrades to an offline or demo-mode path. Restart `npx convex dev` after changing any value.
 
 
 
