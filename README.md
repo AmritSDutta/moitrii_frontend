@@ -165,7 +165,7 @@ flowchart TD
   - `getContentBySlug(slug)`: Full markdown guide, key takeaways, and companion media for `/content/[id]`.
   - `publishContent(...)`: Secure mutation with slug sanitization, collision deduplication, audio metadata, and author type.
   - `internalPublishGuide(...)`: Internal mutation used by AI agent pipeline to atomically publish research deliverables.
-  - `checkContentReuse(prompt, category)`: Full-text search and keyword similarity engine for knowledge reuse.
+  - `checkContentReuse(prompt, category?, language?)`: Language-scoped token-overlap reuse match over recently published guides. Scores recall over the prompt, requires at least 3 shared meaningful tokens and 0.5 prompt coverage, and never reuses a guide written in a different language.
   - `generateUploadUrl()`: Upload URL generator for direct image uploads to Convex File Storage.
 - **`convex/agents.ts`:**
   - `getAgentState()`: Persistent personal agent state query with 11:00 PM IST auto-initialization.
@@ -173,7 +173,7 @@ flowchart TD
   - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation updating agent wake schedule to any valid 24h time in IST.
 - **`convex/agentRunner.ts` & `convex/crons.ts`:**
   - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the 8-step durable AI workflow with automatic rollback on failure:
-    1. Content Reuse Check (`checkContentReuse` → `reuseEngine.ts`) — matches prompt against existing guides; on reuse, increments `reusedCount` (the shared social knowledge signal)
+    1. Content Reuse Check (`checkContentReuse` → `reuseEngine.ts`) — language-scoped token-overlap match; on reuse, increments `reusedCount` (the shared social knowledge signal)
     2. Live Web Research (`firecrawlSearchTool` in `convex/ai/tools/`)
     3. Multilingual Synthesis (`synthesizeLifestyleGuide` in EN/BN/HI using dynamic `{CURRENT_DATE}` prompts)
     4. 16:9 Horizontal Infographic Poster Generation (`generateInfographicCover` in `imagegen.ts` → Convex `_storage`)
@@ -211,13 +211,14 @@ flowchart TD
   - Link origin resolution: explicit `baseUrl` argument → `APP_ORIGIN` environment variable → `https://moitrii.ai` fallback. Set `APP_ORIGIN` (e.g. your deployment or `http://localhost:3000` for demos) so email links resolve.
   - Sender resolution: `BREVO_SENDER_EMAIL` environment variable → `newsletter@moitrii.ai` fallback. The address must be a verified sender in the Brevo dashboard (`Senders & IP → Senders`).
 - **`convex/ai/` Modular AI Engine:**
-  - `reuseEngine.ts`: Full-text search match score against existing published guides for cost reduction.
+  - `language.ts`: Failsafe title-based script detection (`detectScriptLanguage`) resolving `en` / `bn` / `hi` and defaulting to `en` on any unusable input — it never throws, so it cannot break a wake cycle.
+  - `reuseEngine.ts`: Language-scoped token-overlap reuse matching (prompt-recall score, a 3-shared-token floor, and a 0.5 threshold) against existing published guides for cost reduction.
   - `prompts.ts`: Dynamic system prompt builder injecting `{CURRENT_DATE}` (in `Asia/Kolkata` IST timezone) and language-specific tone directives.
   - `tools/firecrawl.ts`: Convex AI Agent live web search and deep-scraping tool.
   - `synthesizer.ts`: Multilingual editorial guide synthesis (`gpt-5.6-luna` with JSON mode in English, Bengali, Hindi) with citations and structured takeaways.
   - `imagegen.ts`: 16:9 horizontal pictorial infographic poster generation (`gpt-image-1`, `1536x1024`, `quality: "low"`, `output_format: "webp"`, `output_compression: 80`) with strict no-text and zero-vulgarity rules.
   - `tts.ts`: Sarvam AI Bulbul v3 (`bulbul:v3`) female voice (`speaker: "ritu"`) primary TTS (2 attempts) + OpenAI `tts-1` fallback + offline WAV fallback stored in Convex `_storage`.
-  - `research.ts`: Relevant YouTube video discovery and embed linking.
+  - `youtubeRecommender.ts`: YouTube Data API v3 video discovery with a deterministic offline catalog fallback.
   - `agentMail.ts`: HTML formatted research report dispatch from `agent.email` to user.
 - **`convex/files.ts`:**
   - `getBrandAssets()`: Serves dynamic Convex CDN URLs for logo and hero images.
@@ -328,14 +329,14 @@ Your Agent's Work
 | Consideration | Database Document (`content: v.string()`) [SELECTED] | File Storage (`_storage` file) |
 | :--- | :--- | :--- |
 | **Reader Latency & UX** | ⚡ **Instant (1 Hop):** Single reactive query loads metadata + full article body with zero waterfall lag. | ⏳ **Waterfall (2 Hops):** Requires querying metadata, then firing a 2nd client HTTP fetch to download text blob. |
-| **Searchability & Reuse** | 🔍 **Native Full-Text Search:** Direct Convex `.searchIndex("search_content", { searchField: "content" })` enables instant matching for AI content reuse. | ❌ **No Direct Search:** Convex search indexes cannot index binary files in File Storage. |
+| **Searchability & Reuse** | 🔍 **Searchable Metadata:** `title`, `subtitle`, `takeaways`, and `category` live beside the body, so the reuse engine can score a prompt against them in a single indexed read. A `search_content` full-text index is declared on the body but is not currently queried — reuse is token overlap, not full-text search. | ❌ **No Direct Search:** Convex search indexes cannot index binary files in File Storage. |
 | **Publishing / Agent Action** | ✍️ **1-Step Atomic Transaction:** Single database mutation writes title, takeaways, photos, and markdown atomically. | 🔄 **Multi-Step Flow:** Generate upload URL $\rightarrow$ HTTP POST blob $\rightarrow$ get `storageId` $\rightarrow$ insert document (risk of orphaned blobs). |
 | **Capacity & Economics** | A typical 2,000-word article is **~8 KB**, utilizing <1% of the **1 MB Convex document limit**. | Unlimited storage; ideal for multi-megabyte PDFs, audio, or video binaries. |
 | **Payload Optimization** | **List Projections:** Landing page queries fetch only card metadata (`title`, `slug`, `subtitle`, `coverImage`), keeping grid payloads lightweight. | Separate files, but introduces network roundtrips. |
 
 ### Decision Summary
 - **Binary Photos & Uploads:** Use **Convex File Storage (`_storage`)** or optimized CDN URLs for cover images.
-- **Article Markdown Body & Key Takeaways:** Store directly in the **Convex Database Document (`content: v.string()`)** for instant loading, full-text search indexing, and atomic agent deliverables.
+- **Article Markdown Body & Key Takeaways:** Store directly in the **Convex Database Document (`content: v.string()`)** for instant single-hop loading and atomic agent deliverables.
 
 ---
 
@@ -518,7 +519,7 @@ npm test
 
 ### How are Audio Summaries, Infographic Covers, and YouTube Video Companions generated?
 
-- **Audio Summaries (`convex/ai/tts.ts`):** Synthesized using Sarvam AI Bulbul v3 (`bulbul:v3`) with female speaker `"ritu"` and natural Indic prosody and pacing (2 retry attempts). Automatically falls back to OpenAI `tts-1` (`alloy` voice) or an offline 44-byte silent WAV storage fallback if external APIs fail.
+- **Audio Summaries (`convex/ai/tts.ts`):** Synthesized using Sarvam AI Bulbul v3 (`bulbul:v3`) with female speaker `"ritu"` and natural Indic prosody and pacing (2 retry attempts). Automatically falls back to OpenAI `tts-1` (`nova` voice) or an offline 44-byte silent WAV storage fallback if external APIs fail.
 - **Infographic Cover Images (`convex/ai/imagegen.ts`):** Generates 16:9 horizontal landscape (`1536x1024`, `quality: "low"`, `output_format: "webp"`, `output_compression: 80`) visual infographics via `gpt-image-1` enforcing **strictly no text, words, or typography** (with subtle `"Moitrii"` watermark exception) and family-safe zero-vulgarity ethics. Uploads to Convex File Storage (`_storage`) as WebP with fallback to curated high-resolution category imagery.
 - **YouTube Video Companions (`convex/ai/youtubeRecommender.ts`):** Queries the YouTube Data API v3 (`search.list`) using server-side `YOUTUBE_API_KEY` with mandatory policy filters (`part=snippet, type=video, videoEmbeddable=true, videoSyndicated=true, safeSearch=moderate, order=relevance, maxResults=1`) and HTML entity/emoji normalization (`decodeHtmlEntities`). Automatically falls back to a deterministic offline lifestyle catalog (`discoverVideoCompanion`) if the API key is unset or quota is exhausted (HTTP 403). Reader views render privacy-enhanced embeds (`https://www.youtube-nocookie.com/embed/...`) with uncropped 16:9 frames and direct "Watch on YouTube" fallback links.
 
@@ -529,6 +530,20 @@ npm test
 Full interactive documentation is powered by **docs7**:
 - **Preview Docs Locally:** `docs7 dev docs --port 3333`
 - **End-to-End Testing Guide:** See [`docs/manual-testing.mdx`](docs/manual-testing.mdx) for step-by-step verification instructions covering Agent Force Wake, Request Lifecycle, Multi-Language Audio/Infographics, and Brevo Digests.
+
+---
+
+## 📄 License
+
+Moitrii is **source-available, not open source**. It is licensed under the [**PolyForm Strict License 1.0.0**](LICENSE).
+
+- ✅ **Permitted:** noncommercial use — personal study, research, experiment, hobby projects, and use by charitable, educational, or government institutions. You may read, run, and study the code.
+- ❌ **Not permitted:** distributing the software, or making and publishing changes or new works based on it.
+- 💬 **Commercial use** of any kind requires a separate license from the licensor.
+
+Copyright (c) 2026 Amrit Shankar Dutta. All rights reserved.
+
+Third-party dependencies bundled with the app remain under their own licenses (predominantly MIT and ISC, see `package-lock.json`); this license covers the Moitrii source code in this repository only.
 
 
 

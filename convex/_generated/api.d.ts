@@ -13,6 +13,7 @@ import type * as agents from "../agents.js";
 import type * as ai_agentMail from "../ai/agentMail.js";
 import type * as ai_imagePrompts from "../ai/imagePrompts.js";
 import type * as ai_imagegen from "../ai/imagegen.js";
+import type * as ai_language from "../ai/language.js";
 import type * as ai_prompts from "../ai/prompts.js";
 import type * as ai_reuseEngine from "../ai/reuseEngine.js";
 import type * as ai_synthesizer from "../ai/synthesizer.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "ai/agentMail": typeof ai_agentMail;
   "ai/imagePrompts": typeof ai_imagePrompts;
   "ai/imagegen": typeof ai_imagegen;
+  "ai/language": typeof ai_language;
   "ai/prompts": typeof ai_prompts;
   "ai/reuseEngine": typeof ai_reuseEngine;
   "ai/synthesizer": typeof ai_synthesizer;

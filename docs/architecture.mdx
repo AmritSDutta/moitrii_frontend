@@ -31,13 +31,14 @@ Convex Cloud Realtime Backend (convex/) [brazen-rook-983]
   ├── Modular AI Engine      (convex/ai/)
   │     ├── prompts.ts       (System prompt template & dynamic date injection)
   │     ├── tools/           (Convex Agent tools barrel & Firecrawl search)
-  │     ├── reuseEngine.ts   (Search reuse check)
+  │     ├── language.ts      (Failsafe title→language detection)
+  │     ├── reuseEngine.ts   (Language-scoped token-overlap reuse match)
   │     ├── synthesizer.ts   (500+ word multilingual EN/BN/HI guide synthesis)
   │     ├── imagegen.ts      (16:9 infographic poster generation + _storage)
   │     ├── tts.ts           (Sarvam Bulbul v3 TTS primary + OpenAI + _storage)
-  │     ├── research.ts      (YouTube video companion discovery)
+  │     ├── youtubeRecommender.ts (YouTube video companion discovery)
   │     └── agentMail.ts     (Personal Agent update dispatch)
-  └── HTTP Router Webhook    (convex/http.ts)
+  └── HTTP Router            (convex/http.ts — auth routes & llms.txt)
 ```
 
 ## System Components
@@ -71,11 +72,12 @@ All backend logic lives in `convex/`. Every function is a serializable, type-saf
 | `emails/brevo.ts` | Brevo REST integration for subscriber welcome confirmations, weekly top 10 digests, and daily category-filtered user digests |
 | `ai/prompts.ts` | Extracted editorial system prompt template with `{CURRENT_DATE}` and language directives |
 | `ai/tools/` | Convex AI Agent tools barrel (`firecrawl.ts` with `firecrawlSearchTool` and `firecrawlToolDefinition`) |
-| `ai/reuseEngine.ts` | Full-text search and keyword similarity engine for knowledge reuse |
+| `ai/language.ts` | Failsafe title-based script detection (`en` / `bn` / `hi`), defaulting to `en` and never throwing |
+| `ai/reuseEngine.ts` | Language-scoped token-overlap reuse matching (prompt-recall score, 3-token floor, 0.5 threshold) over published guides |
 | `ai/synthesizer.ts` | Multilingual editorial guide synthesis via `gpt-5.6-luna` (English, Bengali, Hindi) with citations and 500+ word depth |
 | `ai/imagegen.ts` | Dynamic 16:9 horizontal pictorial infographic poster generation + Convex File Storage upload |
 | `ai/tts.ts` | Sarvam AI Bulbul v3 primary TTS with 2-attempt retry loop, OpenAI TTS fallback, and offline WAV persistence |
-| `ai/research.ts` | YouTube lifestyle video discovery and embed linking |
+| `ai/youtubeRecommender.ts` | YouTube Data API v3 lifestyle video discovery with a deterministic offline catalog fallback |
 | `ai/agentMail.ts` | HTML email rendering and delivery from dedicated `agent.email` inboxes |
 | `agentRunner.ts` | Autonomous wake scheduler action & `@convex-dev/workflow` orchestrator |
 | `crons.ts` | Recurring crons: hourly agent wake cycle, Sunday top 10 digest broadcast, daily user category digest (07:30 AM IST), and 24h retention cleanup |

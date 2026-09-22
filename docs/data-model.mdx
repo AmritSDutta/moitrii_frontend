@@ -112,7 +112,7 @@ requests: defineTable({
 
 ## Table: content
 
-Published articles/guides in the Shared Knowledge Ecosystem. Article body stored as `v.string()` for instant loading and native full-text search.
+Published articles/guides in the Shared Knowledge Ecosystem. Article body stored as `v.string()` for instant single-hop loading and atomic publishing.
 
 ```ts
 content: defineTable({
@@ -137,6 +137,7 @@ content: defineTable({
   youtubeTitle: v.optional(v.string()),
   sources: v.array(v.object({ title: v.string(), url: v.string() })),
   generatedFromPrompt: v.optional(v.string()),
+  language: v.optional(v.union(v.literal("en"), v.literal("bn"), v.literal("hi"))),
 })
   .index("by_slug", ["slug"])
   .index("by_category", ["category"])
@@ -147,6 +148,8 @@ content: defineTable({
     filterFields: ["category"],
   })
 ```
+
+The `search_content` index is declared on the article body but is not currently queried — content reuse is scored by `convex/ai/reuseEngine.ts` through token overlap over the `by_category` index, not full-text search.
 
 ## Table: subscribers
 
@@ -189,7 +192,7 @@ To guarantee strict user privacy and seamless future anonymization:
 
 **Article body & takeaways** → stored in the Convex database document (`content: v.string()`) for:
 - Instant reader latency (single reactive query)
-- Native full-text search for content reuse matching
 - Atomic 1-step publishing mutations
+- Language classification at publish time, from the title, stored in `language` (`en` / `bn` / `hi`)
 
 **Cover images & photos & TTS audio** → stored in Convex File Storage (`_storage`) with CDN delivery URLs, referenced via `coverImageStorageId` and `audioStorageId`.

@@ -2,6 +2,7 @@ import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
+import { detectScriptLanguage } from "./ai/language";
 
 const DEFAULT_CONTENT_LIMIT = 24;
 const FALLBACK_COVER_IMAGE =
@@ -415,6 +416,7 @@ export const publishContent = mutation({
       youtubeTitle: args.youtubeTitle,
       sources: args.sources,
       generatedFromPrompt: args.generatedFromPrompt,
+      language: detectScriptLanguage(args.title),
     });
 
     return { contentId, slug: targetSlug };
@@ -499,6 +501,7 @@ export const internalPublishGuide = internalMutation({
       youtubeTitle: args.youtubeTitle,
       sources: args.sources,
       generatedFromPrompt: args.generatedFromPrompt,
+      language: detectScriptLanguage(args.title),
     });
 
     return { contentId, slug: targetSlug };

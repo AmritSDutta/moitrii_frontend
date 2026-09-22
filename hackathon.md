@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth
 - **AI models:** gpt-5.6-luna, gpt-4o-mini, gpt-image-1, bulbul:v3, tts-1
 - **Started:** 2026-09-20T15:15:16Z
-- **Last updated:** 2026-09-22T17:52:20Z
+- **Last updated:** 2026-09-22T20:57:07Z
 
 
 
@@ -95,5 +95,11 @@ Completed end-to-end integration of `@convex-dev/workflow`, fault-tolerance hard
 
 ### 2026-09-22 - working tree
 Extracted the infographic prompt into dedicated module `convex/ai/imagePrompts.ts` with a `buildInfographicPrompt` builder that sanitizes the topic before injection (trim, 300-character cap, `"mindful living"` default), replacing the raw template string replace in `convex/ai/imagegen.ts` (which re-exports the symbols for importer compatibility). Extended prompt tests to cover topic injection, full `{image_topic}` placeholder replacement, and the empty-topic default. Verified 102/102 tests passing and a clean production build (`npm run build`); updated `docs/image-generation.mdx` to reference the new module.
+
+### 2026-09-22 - working tree
+1. **Reuse matching corrected (`convex/ai/reuseEngine.ts`):** the similarity score divided by `min(prompt, candidate)` token counts, so a 5-token prompt reused an unrelated guide on two generic words alone (`2/5 = 0.40`). It now scores recall over the prompt only, with a 3-shared-token absolute floor, a 0.5 threshold, and a tokenizer that keeps letters, combining marks, and digits so Devanagari and Bengali prompts tokenize at all.
+2. **Reuse is language-scoped (`convex/ai/language.ts`, `convex/schema.ts`, `convex/content.ts`, `convex/agentRunner.ts`):** added a failsafe `detectScriptLanguage()` (title-based, never throws, defaults to English) and an optional `content.language` persisted at publish time. `checkContentReuse` now receives the user's `preferredLanguage` and never reuses a guide written in another language — previously a Hindi user could be handed an English article. No migration is required: the field is optional and existing rows are classified from their title. Added 7 regression tests (`convex/ai/reuseEngine.test.ts`).
+3. **Public surface and repo hygiene:** dropped `llms-full.txt` and its HTTP route (the full specification exposed internal model names and pipeline detail) while keeping `llms.txt`; removed the retired `/api/agent/complete` webhook and its tests; added `public/robots.txt` and `public/sitemap.xml`, clearing the invalid-robots crawl error the SPA rewrite was causing; deleted dead Next.js build output and stale gitignored notes; removed leftover `"use client"` directives; renamed the Home Page's hardcoded video list to `CURATED_VIDEOS` so it is no longer presented as agent-discovered.
+4. **Verification:** 106 / 106 tests passing across 15 Vitest suites and 0 TypeScript errors (`npm run build`); regenerated Convex bindings with `npx convex codegen` for the new optional field. Convex features: schema, indexes, full-text search, queries, mutations, actions, crons, file storage, http, workflows, components (`convex/schema.ts`, `convex/ai/**`, `convex/content.ts`, `convex/agentRunner.ts`, `convex/http.ts`, `public/**`, `.gitignore`).
 
 

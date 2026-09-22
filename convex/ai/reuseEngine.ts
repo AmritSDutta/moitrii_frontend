@@ -1,5 +1,6 @@
 import type { MutationCtx } from "../_generated/server";
-import type { ReuseEvaluationResult } from "./types";
+import type { ReuseEvaluationResult, SupportedLanguage } from "./types";
+import { detectScriptLanguage } from "./language";
 
 /** Stopwords to ignore during token overlap evaluation */
 const STOP_WORDS = new Set([
@@ -19,38 +20,84 @@ const STOP_WORDS = new Set([
   "guide", "help", "please", "can"
 ]);
 
+/**
+ * Minimum number of shared meaningful tokens before a candidate may be reused.
+ * Two generic words ("budget", "hotels") must never be enough on their own.
+ */
+export const MIN_SHARED_TOKENS = 3;
+
+/**
+ * Fraction of the *prompt's* meaningful tokens a candidate must contain.
+ */
+export const REUSE_SIMILARITY_THRESHOLD = 0.5;
+
 function tokenize(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
+      // Keep letters, combining marks, and digits from every script. The
+      // previous [^a-z0-9] pattern erased Devanagari and Bengali text entirely,
+      // so native-script prompts tokenized to nothing. \p{M} is essential:
+      // Indic vowel signs (matras) are marks, not letters, so requiring only
+      // \p{L} would split every Hindi/Bengali word into filtered fragments.
+      .replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ")
       .split(/\s+/)
       .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
   );
 }
 
-function computeOverlapScore(setA: Set<string>, setB: Set<string>): number {
-  if (setA.size === 0 || setB.size === 0) return 0;
-  let matches = 0;
-  for (const item of setA) {
-    if (setB.has(item)) matches++;
+/** Number of the prompt's tokens that also appear in the candidate. */
+function countShared(promptTokens: Set<string>, candidateTokens: Set<string>): number {
+  let shared = 0;
+  for (const token of promptTokens) {
+    if (candidateTokens.has(token)) shared++;
   }
-  return matches / Math.min(setA.size, setB.size);
+  return shared;
+}
+
+/**
+ * Language a stored guide is written in. Prefers the persisted field and falls
+ * back to detecting the title, which is how documents written before
+ * `content.language` existed are classified.
+ *
+ * Failsafe: never throws, and defaults to English on any unexpected input.
+ */
+function resolveStoredLanguage(row: {
+  language?: string;
+  title?: string | null;
+}): SupportedLanguage {
+  try {
+    const stored = row.language;
+    if (stored === "en" || stored === "bn" || stored === "hi") return stored;
+    return detectScriptLanguage(row.title);
+  } catch {
+    return "en";
+  }
+}
+
+/** Normalizes an untrusted language argument, defaulting to English. */
+function normalizeLanguage(language?: string): SupportedLanguage {
+  return language === "bn" || language === "hi" ? language : "en";
 }
 
 /**
  * Evaluates whether a prompt matches an existing guide in the shared knowledge ecosystem.
- * If a match is found, increments the existing guide's reusedCount.
+ * A candidate must match the user's language and clear both the absolute shared-token
+ * floor and the prompt-coverage threshold. If a match is found, the existing guide's
+ * reusedCount is incremented.
  */
 export async function evaluateContentReuse(
   ctx: MutationCtx,
   prompt: string,
-  category?: string
+  category?: string,
+  language?: string
 ): Promise<ReuseEvaluationResult> {
   const promptTokens = tokenize(prompt);
   if (promptTokens.size === 0) {
     return { isReused: false };
   }
+
+  const desiredLanguage = normalizeLanguage(language);
 
   // Check recent published content in the same category or all categories
   const candidates = category && category !== "all"
@@ -64,19 +111,27 @@ export async function evaluateContentReuse(
   let bestScore = 0;
 
   for (const candidate of candidates) {
+    // Never hand a user a guide written in a different language.
+    if (resolveStoredLanguage(candidate) !== desiredLanguage) continue;
+
     const candidateTokens = tokenize(
       `${candidate.title} ${candidate.subtitle} ${candidate.takeaways.join(" ")}`
     );
-    const score = computeOverlapScore(promptTokens, candidateTokens);
 
+    const shared = countShared(promptTokens, candidateTokens);
+    if (shared < MIN_SHARED_TOKENS) continue;
+
+    // Recall over the prompt only. Normalizing by min(|prompt|, |candidate|)
+    // let a 5-token prompt reuse on 2 generic words alone (2/5 = 0.4).
+    const score = shared / promptTokens.size;
     if (score > bestScore) {
       bestScore = score;
       bestMatch = candidate;
     }
   }
 
-  // If match score exceeds 40% keyword overlap, reuse existing guide
-  if (bestMatch && bestScore >= 0.4) {
+  // Reuse only when a candidate covers enough of the prompt
+  if (bestMatch && bestScore >= REUSE_SIMILARITY_THRESHOLD) {
     // Atomically increment reusedCount on existing content
     await ctx.db.patch(bestMatch._id, {
       reusedCount: (bestMatch.reusedCount ?? 0) + 1,
@@ -88,7 +143,7 @@ export async function evaluateContentReuse(
       contentId: bestMatch._id,
       contentTitle: bestMatch.title,
       matchedSlug: bestMatch.slug,
-      reuseNote: `Reused verified guide (${Math.round(bestScore * 100)}% match with '${bestMatch.title}')`,
+      reuseNote: `Reused verified guide (${Math.round(bestScore * 100)}% prompt match with '${bestMatch.title}')`,
     };
   }
 

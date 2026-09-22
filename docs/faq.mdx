@@ -112,22 +112,24 @@ To ensure strict privacy and future anonymization readiness:
 **Cause:** React Router handles routing entirely on the client side (in the browser). When you refresh or type a subroute URL directly, the browser asks Cloudflare Pages for a file at `/dashboard.html` or `/dashboard/index.html`. Since Vite creates a single static `index.html` at the root of `dist/`, Cloudflare Pages does not find a static file matching that path and serves a 404 error.
 
 **Fix:**
-Create a `_redirects` file in `public/_redirects` with the rewrite rule:
+Configure a single-page-application rewrite so unmatched paths serve `/index.html` with an HTTP 200 status:
 ```text
 /*    /index.html   200
 ```
-When Vite runs `npm run build`, it copies `public/_redirects` to `dist/_redirects`. Cloudflare Pages reads this rule and redirects all non-static asset requests to `/index.html` with an HTTP 200 status code, allowing React Router to boot up and render the correct subpage.
+On Cloudflare Pages this is the project's **SPA fallback** setting (Settings → Builds & deployments), which is how the deployed app is configured today. The identical rule can also be checked in as `public/_redirects` — Vite copies `public/` into `dist/` during `npm run build`, so the file ships with the build and Pages applies it. Either way React Router boots and renders the correct subpage.
+
+Because the rewrite matches every path, any file that must be served verbatim has to exist in the build output — which is why `public/robots.txt` and `public/sitemap.xml` are checked in rather than served through the fallback.
 
 ## How are Audio Summaries and Infographic Covers generated?
 
 1. **Audio Summaries (`convex/ai/tts.ts`):**
    - **Primary Engine:** Sarvam AI Bulbul v3 (`bulbul:v3`) with Indic pacing, emotional prosody, and natural audio synthesis (2 retry attempts).
-   - **Fallback 1:** OpenAI `tts-1` (`alloy` voice) if Sarvam encounters rate limits or network issues.
+   - **Fallback 1:** OpenAI `tts-1` (`nova` voice) if Sarvam encounters rate limits or network issues.
    - **Fallback 2:** Offline 44-byte silent WAV generation ensuring storage persistence is always resilient and non-blocking.
    - **Storage:** Generated audio is stored in Convex File Storage and attached directly to the published article.
 
 2. **Infographic Cover Images (`convex/ai/imagegen.ts`):**
-   - **Format:** 16:9 horizontal landscape (`1792x1024`) pictorial infographic poster.
+   - **Format:** 16:9 horizontal landscape (`1536x1024`) pictorial infographic poster.
    - **Strict Visual Rules:** Enforces 100% visual and pictorial depiction with **strictly no text, words, or typography**.
    - **Modesty & Safety Ethics:** Strict guardrails ensure family-safe, culturally respectful lifestyle imagery with zero vulgarity.
    - **Fallback:** Curated high-resolution category covers if image generation is disabled or unavailable.

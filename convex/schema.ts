@@ -108,6 +108,10 @@ export default defineSchema({
       })
     ),
     generatedFromPrompt: v.optional(v.string()),
+    // Language the guide is written in, inferred from its title's dominant
+    // script at publish time. Optional: documents written before this field
+    // existed stay valid and are classified on read instead.
+    language: v.optional(v.union(v.literal("en"), v.literal("bn"), v.literal("hi"))),
   })
     .index("by_slug", ["slug"])
     .index("by_category", ["category"])

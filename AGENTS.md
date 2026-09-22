@@ -46,6 +46,8 @@ No repository-specific commit convention is documented yet. Use short, imperativ
 
 Never commit `.env*` files, tokens, deployment keys, private records, or personal data. Keep secrets in the approved local/host configuration and document only variable names. Validate external webhooks, preserve idempotency for agent execution, and redact sensitive values from public logs.
 
+This project is source-available under the **PolyForm Strict License 1.0.0** (`LICENSE`) — not open source. Do not add MIT/Apache license headers, relicense files, or copy code out of this repository.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

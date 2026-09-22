@@ -72,7 +72,7 @@ moitrii_frontend/
 │       └── useBrandAssets.ts   # Dynamic CDN asset hook
 ├── convex/                     # Convex backend (Deployment: brazen-rook-983)
 │   ├── schema.ts               # Database schema with PII anonymization
-│   ├── content.ts              # Content queries, mutations & reuse search
+│   ├── content.ts              # Content queries, mutations & publishing
 │   ├── agents.ts               # Agent state & AgentMail inbox initialization
 │   ├── requests.ts             # Request queue lifecycle & isActive guard
 │   ├── users.ts                # User profile, interests & moderation
@@ -82,13 +82,14 @@ moitrii_frontend/
 │   ├── files.ts                # Brand asset CDN serving
 │   ├── auth.ts                 # Convex Auth config (Google)
 │   ├── auth.config.ts          # Auth configuration
-│   ├── http.ts                 # HTTP router for auth & webhooks
+│   ├── http.ts                 # HTTP router for auth & llms.txt
 │   ├── ai/                     # Modular Convex Cloud AI Engine
 │   │   ├── types.ts            # Research and guide types
-│   │   ├── reuseEngine.ts      # Full-text search match score engine
+│   │   ├── language.ts         # Failsafe title→language detection
+│   │   ├── reuseEngine.ts      # Language-scoped token-overlap reuse match
 │   │   ├── synthesizer.ts      # Multilingual guide synthesis (EN/BN/HI)
 │   │   ├── tts.ts              # Speech synthesis & Convex _storage
-│   │   ├── research.ts         # YouTube video discovery
+│   │   ├── youtubeRecommender.ts # YouTube video discovery
 │   │   └── agentMail.ts        # AgentMail inbox dispatch
 │   └── emails/                 # Platform messaging
 │       └── brevo.ts            # Brevo welcome emails & weekly broadcasts

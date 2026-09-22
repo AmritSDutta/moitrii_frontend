@@ -154,9 +154,10 @@ export const checkContentReuse = internalMutation({
   args: {
     prompt: v.string(),
     category: v.optional(v.string()),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await evaluateContentReuse(ctx, args.prompt, args.category);
+    return await evaluateContentReuse(ctx, args.prompt, args.category, args.language);
   },
 });
 
@@ -425,6 +426,7 @@ export const userWakeWorkflow = workflow.define({
         const reuseResult = await step.runMutation(internal.agentRunner.checkContentReuse, {
           prompt: req.prompt,
           category: req.category,
+          language: userInfo.preferredLanguage,
         });
 
         if (reuseResult.isReused && reuseResult.contentId) {

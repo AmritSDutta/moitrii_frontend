@@ -134,10 +134,10 @@ Moitrii's agent operates on a **sleeping agent model** with autonomous scheduled
 
 When an agent is due and has queued `PENDING` requests, the runner executes a 6-step pipeline:
 
-1. **Content Reuse Check** (`convex/ai/reuseEngine.ts`) — Full-text search against the shared knowledge library. If an existing guide matches the prompt with high confidence, the agent **reuses it** instead of regenerating (incrementing `reusedCount` on the published guide — the social sharing signal).
+1. **Content Reuse Check** (`convex/ai/reuseEngine.ts`) — Language-scoped token-overlap scoring against the shared knowledge library. A guide is reused only when it is written in the user's preferred language, shares at least 3 meaningful tokens with the prompt, and covers at least half of the prompt's tokens; the matched guide's `reusedCount` increments — the social sharing signal.
 2. **Multilingual Synthesis** (`convex/ai/synthesizer.ts`) — Generates a novel editorial guide in the user's preferred language (**English / বাংলা / हिन्दी**) with citations and key takeaways.
 3. **Audio Narration** (`convex/ai/tts.ts`) — Synthetic speech generation stored in Convex `_storage`; linked to the published guide for in-article playback.
-4. **Video Discovery** (`convex/ai/research.ts`) — Curates relevant YouTube companion videos matched by category and prompt.
+4. **Video Discovery** (`convex/ai/youtubeRecommender.ts`) — Curates relevant YouTube companion videos via the YouTube Data API v3, matched by category and prompt, with a deterministic offline catalog fallback.
 5. **Personal Notification** (`convex/ai/agentMail.ts`) — Sends an HTML research report from the user's dedicated agent inbox (`agent-<userId>@agentmail.to`) to their personal email via AgentMail.
 6. **Atomic Publish** (`convex/content.ts` → `internalPublishGuide`) — Writes the deliverable into the **Shared Knowledge Library** (available to all users for reuse).
 

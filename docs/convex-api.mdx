@@ -268,9 +268,27 @@ Publishes a new guide to the Shared Knowledge Ecosystem. Features automatic slug
 
 Internal mutation used exclusively by the AI agent execution pipeline to atomically write research deliverables into the Shared Knowledge library.
 
-### `checkContentReuse` (internal query helper)
+### `checkContentReuse` (internal mutation)
 
-Performs full-text search against the `content` table to match user prompts with high-confidence existing guides, incrementing reuse counters rather than duplicating LLM generation.
+Scores a user prompt against recently published guides in the same category and reuses one when it is a strong match, incrementing `reusedCount` rather than duplicating LLM generation.
+
+Matching is **token overlap, not full-text search**. The score is recall over the prompt (`shared / |promptTokens|`), and a candidate must clear both gates before it is reused:
+
+- `MIN_SHARED_TOKENS = 3` — an absolute floor, so two generic words such as "budget" and "hotels" can never match on their own.
+- `REUSE_SIMILARITY_THRESHOLD = 0.5` — at least half of the prompt's meaningful tokens must appear in the candidate.
+
+Candidates are tokenized with `/[^\p{L}\p{M}\p{N}\s]/gu`, which keeps letters and combining marks from any script so Devanagari and Bengali prompts tokenize correctly. (`\p{M}` matters: Indic vowel signs are Unicode marks, not letters, so a `\p{L}`-only class splits every Hindi/Bengali word into fragments.) A candidate is skipped unless its language matches the caller's.
+
+**Args:**
+```ts
+{
+  prompt: string,
+  category?: string,
+  language?: "en" | "bn" | "hi"   // defaults to "en"
+}
+```
+
+**Returns:** `{ isReused: false }`, or `{ isReused: true, contentId, contentTitle, matchedSlug, reuseNote }`
 
 ## Subscribers (`convex/subscribers.ts`)
 
@@ -491,7 +509,7 @@ The autonomous scheduler:
 
 ### Pipeline Steps (orchestrated via `@convex-dev/workflow` per due agent)
 
-1. **Content Reuse Check** (`checkContentReuse` internal mutation) — Full-text search against published guides. If a high-confidence match exists, returns `{ isReused: true, contentId, contentTitle, reuseNote }`. The matched guide's `reusedCount` increments — this is the **social sharing signal** that powers "What's Hot".
+1. **Content Reuse Check** (`checkContentReuse` internal mutation) — Language-scoped token-overlap match against published guides (3 shared meaningful tokens minimum, 0.5 prompt coverage, same language only). If a match exists, returns `{ isReused: true, contentId, contentTitle, reuseNote }`. The matched guide's `reusedCount` increments — this is the **social sharing signal** that powers "What's Hot".
 2. **Web Grounding & Live Research** (`searchWebWithFirecrawl` / `firecrawlSearchTool`) — Live web search using Firecrawl API (`limit: 3`) with honest offline curated fallbacks.
 3. **Multilingual Synthesis** (`researchAndSynthesizeStep`) — 500+ word deep guide generation in the user's preferred language (`en` / `bn` / `hi`) dynamically injecting `{CURRENT_DATE}`.
 4. **16:9 Infographic Cover Generation** (`imageGenStep` / `generateAndSaveCoverImage`) — Generates 16:9 horizontal pictorial infographics with strict no-text and family-safe zero-vulgarity ethics, stored in Convex File Storage (`_storage`).
