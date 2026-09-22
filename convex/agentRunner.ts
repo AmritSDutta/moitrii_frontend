@@ -7,8 +7,9 @@ import { computeAgentEmail, computeAgentName } from "./agents";
 import { evaluateContentReuse } from "./ai/reuseEngine";
 import { synthesizeLifestyleGuide } from "./ai/synthesizer";
 import { generateAndStoreAudioNarration } from "./ai/tts";
+import { generateAndSaveCoverImage } from "./ai/imagegen";
 import { discoverVideoCompanion } from "./ai/research";
-import { searchWebWithFirecrawl } from "./ai/firecrawl";
+import { searchWebWithFirecrawl } from "./ai/tools";
 import { sendAgentCompletionNotification } from "./ai/agentMail";
 import type { SupportedLanguage, SynthesizedGuide } from "./ai/types";
 
@@ -299,17 +300,36 @@ export const researchAndSynthesizeStep = internalAction({
 });
 
 /**
+ * Isolated workflow action step: Cover image / Infographic generation & storage.
+ */
+export const imageGenStep = internalAction({
+  args: {
+    topic: v.string(),
+    category: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ coverImage: string; coverImageStorageId?: Id<"_storage"> }> => {
+    return await generateAndSaveCoverImage(
+      ctx,
+      args.topic,
+      args.category,
+      process.env.OPENAI_API_KEY
+    );
+  },
+});
+
+/**
  * Isolated workflow action step: Audio narration generation & storage.
  */
 export const narrationStep = internalAction({
   args: {
     text: v.string(),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ audioUrl?: string; audioStorageId?: Id<"_storage"> }> => {
     return await generateAndStoreAudioNarration(
       ctx,
       args.text,
-      process.env.OPENAI_API_KEY
+      args.language
     );
   },
 });
@@ -426,10 +446,26 @@ export const userWakeWorkflow = workflow.define({
             }
           );
 
+          const imageResult = await step.runAction(
+            internal.agentRunner.imageGenStep,
+            {
+              topic: req.prompt,
+              category: req.category,
+            },
+            {
+              retry: {
+                maxAttempts: 2,
+                initialBackoffMs: 1000,
+                base: 2,
+              },
+            }
+          );
+
           const audio = await step.runAction(
             internal.agentRunner.narrationStep,
             {
               text: guide.takeaways.join(". "),
+              language: guide.language,
             },
             {
               retry: {
@@ -448,9 +484,10 @@ export const userWakeWorkflow = workflow.define({
             category: guide.category,
             author: userInfo.agentName,
             readTime: guide.readTime,
-            coverImage: guide.coverImage,
+            coverImage: guide.coverImage || imageResult.coverImage,
+            coverImageStorageId: imageResult.coverImageStorageId,
             audioUrl: audio.audioUrl,
-            audioStorageId: audio.audioStorageId as any,
+            audioStorageId: audio.audioStorageId,
             takeaways: guide.takeaways,
             content: guide.markdownBody,
             youtubeId: guide.youtubeId,

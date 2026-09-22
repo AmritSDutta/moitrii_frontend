@@ -15,7 +15,7 @@ All users receive **identical** agent capabilities. Subscription tiers determine
 
 - **1 User ➔ 1 Distinct Personal Agent** — Dedicated personal AI companion (`Moitrii Companion`) with its own virtual inbox (`agent-...@agentmail.to`).
 - **Sleeping Agent Model** — Agent sleeps and wakes periodically based on subscription tier (defaults to 11:00 PM IST with 9 PM–9 AM calm-tech window).
-- **Modular Cloud AI Engine (`convex/ai/`)** — Realtime reuse engine, multilingual synthesis (English, Bengali, Hindi), TTS audio narration, and YouTube video discovery.
+- **Modular Cloud AI Engine (`convex/ai/`)** — Realtime reuse engine, dynamic date prompts, Firecrawl web search tool, multilingual synthesis (English, Bengali, Hindi), Sarvam Bulbul v3 TTS audio narration with OpenAI fallback, 16:9 pictorial infographics, and YouTube video discovery.
 - **Dual-Channel Messaging Separation** — Brevo for newsletter broadcasts & welcome emails; AgentMail for 1:1 personal agent research updates.
 - **Strict PII Anonymization** — Human names and personal emails exist solely in `users` table; all agent state and content references use opaque IDs.
 - **Dispute & Moderation Safety** — `users.isActive` safety switch instantly guards agent execution and request queues.
@@ -50,8 +50,11 @@ This starts the Vite React dev server at `http://localhost:3000`. You also need 
 - **Getting Started** — Local setup and development workflow
 - **Architecture** — System overview and data flow
 - **Data Model** — Convex schema and table relationships
+- **AI Engine** — [Audio Generation & TTS](/audio-generation) and [Infographic Cover Generation](/image-generation)
 - **Design System** — Color palette, typography, and component conventions
 - **Screens** — UI screen specifications and user journeys
+- **Testing** — [Manual Testing & Verification](/manual-testing) for all end-to-end flows
 - **Convex API** — Reference for all backend queries and mutations
 - **FAQ** — Troubleshooting common local setup issues
+
 

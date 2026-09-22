@@ -10,7 +10,9 @@
     "groups": [
       { "group": "Getting Started", "pages": ["index", "getting-started"] },
       { "group": "Architecture", "pages": ["architecture", "data-model", "convex-best-practices"] },
+      { "group": "AI Engine", "pages": ["audio-generation", "image-generation"] },
       { "group": "Product", "pages": ["design-system", "screens"] },
+      { "group": "Testing", "pages": ["manual-testing"] },
       { "group": "Reference", "pages": ["convex-api"] },
       { "group": "FAQ", "pages": ["faq"] }
     ]

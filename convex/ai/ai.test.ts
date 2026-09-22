@@ -3,18 +3,49 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import schema from "../schema";
 import { evaluateContentReuse } from "./reuseEngine";
-import { synthesizeLifestyleGuide } from "./synthesizer";
+import { synthesizeLifestyleGuide, extractResponseContent, parseJsonSafely } from "./synthesizer";
 import { renderEditorialNotificationEmail, renderEditorialNotificationText, sendAgentCompletionNotification } from "./agentMail";
 import { discoverVideoCompanion } from "./research";
-import { searchWebWithFirecrawl } from "./firecrawl";
+import { searchWebWithFirecrawl, firecrawlSearchTool, firecrawlToolDefinition } from "./tools";
+import { buildSystemPrompt, MOITRII_SYSTEM_PROMPT_TEMPLATE } from "./prompts";
+import { INFOGRAPHIC_PROMPT_TEMPLATE, CATEGORY_COVERS, getKeywordUnsplashCover, base64ToUint8Array } from "./imagegen";
 
 const modules = import.meta.glob("../**/*.ts");
+
+test("buildSystemPrompt dynamically injects current date and language instructions", () => {
+  expect(MOITRII_SYSTEM_PROMPT_TEMPLATE).toContain("{CURRENT_DATE}");
+  expect(MOITRII_SYSTEM_PROMPT_TEMPLATE).toContain("{LANGUAGE_INSTRUCTIONS}");
+
+  const customDate = "Tuesday, September 22, 2026";
+  const enPrompt = buildSystemPrompt("en", customDate);
+  expect(enPrompt).toContain("You are executing this task on: Tuesday, September 22, 2026.");
+  expect(enPrompt).toContain("editorial English");
+  expect(enPrompt).toContain("AT LEAST 500 words");
+  expect(enPrompt).not.toContain("{CURRENT_DATE}");
+  expect(enPrompt).not.toContain("{LANGUAGE_INSTRUCTIONS}");
+
+  const bnPrompt = buildSystemPrompt("bn", customDate);
+  expect(bnPrompt).toContain("You are executing this task on: Tuesday, September 22, 2026.");
+  expect(bnPrompt).toContain("Bengali (বাংলা)");
+
+  const hiPrompt = buildSystemPrompt("hi");
+  expect(hiPrompt).toContain("Hindi (हिन्दी)");
+  expect(hiPrompt).toContain("You are executing this task on:");
+});
 
 test("searchWebWithFirecrawl provides verified fallback sources when API key is unset", async () => {
   const sources = await searchWebWithFirecrawl("Immunity boosting herbal kadha", "wellness");
   expect(sources.length).toBeGreaterThanOrEqual(1);
   expect(sources[0].url).toContain("http");
   expect(sources[0].title).toBeDefined();
+});
+
+test("firecrawlToolDefinition conforms to Convex AI Agent tool specifications", () => {
+  expect(firecrawlToolDefinition.name).toBe("firecrawlWebSearch");
+  expect(firecrawlToolDefinition.description).toContain("Searches the live web");
+  expect(firecrawlToolDefinition.args).toBeDefined();
+  expect(firecrawlToolDefinition.handler).toBeDefined();
+  expect(firecrawlSearchTool).toBeDefined();
 });
 
 test("synthesizeLifestyleGuide generates comprehensive 500+ word multilingual lifestyle guides", async () => {
@@ -202,3 +233,81 @@ test("evaluateContentReuse detects existing guide and increments reusedCount", a
   );
   expect(noMatchResult.isReused).toBe(false);
 });
+
+test("INFOGRAPHIC_PROMPT_TEMPLATE contains clean pictorial rules, strict no text with watermark exception, horizontal layout, and safety ethics", () => {
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("{image_topic}");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("pictorial");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("STRICTLY NO TEXT");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("WATERMARK (SOLE TEXT EXCEPTION)");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("horizontal landscape");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("NO vulgarity");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("family-safe");
+  expect(INFOGRAPHIC_PROMPT_TEMPLATE).toContain("Moitrii");
+});
+
+test("getKeywordUnsplashCover extracts keywords from topic and category with resilient fallbacks", () => {
+  expect(CATEGORY_COVERS.wellness).toContain("images.unsplash.com");
+  expect(CATEGORY_COVERS.food).toContain("images.unsplash.com");
+  expect(CATEGORY_COVERS.beauty).toContain("images.unsplash.com");
+
+  // Topic keywords match
+  const teaCover = getKeywordUnsplashCover("Ayurvedic kadha recipe and herbal drink", "general");
+  expect(teaCover).toBe(CATEGORY_COVERS.food);
+
+  const glowCover = getKeywordUnsplashCover("Daily facial skincare routine for glow", "general");
+  expect(glowCover).toBe(CATEGORY_COVERS.beauty);
+
+  const yogaCover = getKeywordUnsplashCover("Morning meditation routine", "wellness");
+  expect(yogaCover).toBe(CATEGORY_COVERS.wellness);
+
+  const unknownCatCover = getKeywordUnsplashCover("Mindful reflection", "unknown_category");
+  expect(unknownCatCover).toBe(CATEGORY_COVERS.default);
+});
+
+test("base64ToUint8Array accurately decodes base64 strings into Blobs without Node Buffer", () => {
+  // Test with standard base64 sample string ("Hello Convex" in base64: "SGVsbG8gQ29udmV4")
+  const sampleBase64 = "SGVsbG8gQ29udmV4";
+  const bytes = base64ToUint8Array(sampleBase64);
+  expect(bytes).toBeInstanceOf(Uint8Array);
+  expect(bytes.length).toBe(12);
+
+  const decodedText = new TextDecoder().decode(bytes);
+  expect(decodedText).toBe("Hello Convex");
+
+  // Verify Blob creation is fully compatible
+  const audioBlob = new Blob([bytes.buffer as ArrayBuffer], { type: "audio/wav" });
+  expect(audioBlob.size).toBe(12);
+  expect(audioBlob.type).toBe("audio/wav");
+
+  const imageBlob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/webp" });
+  expect(imageBlob.size).toBe(12);
+  expect(imageBlob.type).toBe("image/webp");
+});
+
+test("extractResponseContent extracts JSON text from both Responses API and Chat Completions API shapes", () => {
+  // 1. Responses API output_text
+  expect(extractResponseContent({ output_text: '{"title":"Test Responses"}' })).toBe('{"title":"Test Responses"}');
+
+  // 2. Responses API output array
+  expect(extractResponseContent({ output: [{ content: [{ text: '{"title":"Test Output Array"}' }] }] })).toBe('{"title":"Test Output Array"}');
+
+  // 3. Chat completions choices array
+  expect(extractResponseContent({ choices: [{ message: { content: '{"title":"Test Chat Choices"}' } }] })).toBe('{"title":"Test Chat Choices"}');
+
+  // 4. Null / empty safety
+  expect(extractResponseContent(null)).toBeNull();
+  expect(extractResponseContent({})).toBeNull();
+});
+
+test("parseJsonSafely parses plain JSON and markdown-fenced JSON cleanly", () => {
+  const plain = parseJsonSafely('{"title":"Plain Title"}');
+  expect(plain.title).toBe("Plain Title");
+
+  const fenced = parseJsonSafely('```json\n{"title":"Fenced Title"}\n```');
+  expect(fenced.title).toBe("Fenced Title");
+
+  const genericFenced = parseJsonSafely('```\n{"title":"Generic Fenced"}\n```');
+  expect(genericFenced.title).toBe("Generic Fenced");
+});
+
+

@@ -385,14 +385,23 @@ The autonomous scheduler:
 - For each user: loads their agent, skips inactive users (`users.isActive === false`), checks `isWakeDue(agent.wakeTimeOfDay, nowIstMinutes)`.
 - Returns the due list with user info, agent identity, and queued request summaries.
 
-### Pipeline Steps (executed per due agent, per request)
+### Pipeline Steps (orchestrated via `@convex-dev/workflow` per due agent)
 
 1. **Content Reuse Check** (`checkContentReuse` internal mutation) — Full-text search against published guides. If a high-confidence match exists, returns `{ isReused: true, contentId, contentTitle, reuseNote }`. The matched guide's `reusedCount` increments — this is the **social sharing signal** that powers "What's Hot".
-2. **Multilingual Synthesis** (`synthesizeLifestyleGuide`) — Novel guide generation in the user's preferred language (`en` / `bn` / `hi`).
-3. **Audio Narration** (`generateAndStoreAudioNarration`) — TTS stored in Convex `_storage`, URL attached to the published guide.
-4. **Video Discovery** (`discoverVideoCompanion`) — YouTube video matching by category and prompt keywords.
-5. **AgentMail Notification** (`sendAgentCompletionNotification`) — HTML research report dispatched from `agent-<userId>@agentmail.to` to the user's personal email.
-6. **Atomic Publish** (`internalPublishGuide`) — Writes the deliverable into the shared knowledge library; available for reuse by other agents.
+2. **Web Grounding & Live Research** (`searchWebWithFirecrawl` / `firecrawlSearchTool`) — Live web search using Firecrawl API (`limit: 3`) with honest offline curated fallbacks.
+3. **Multilingual Synthesis** (`researchAndSynthesizeStep`) — 500+ word deep guide generation in the user's preferred language (`en` / `bn` / `hi`) dynamically injecting `{CURRENT_DATE}`.
+4. **16:9 Infographic Cover Generation** (`imageGenStep` / `generateAndSaveCoverImage`) — Generates 16:9 horizontal pictorial infographics with strict no-text and family-safe zero-vulgarity ethics, stored in Convex File Storage (`_storage`).
+5. **Audio Narration** (`narrationStep` / `generateAndStoreAudioNarration`) — Sarvam AI Bulbul v3 primary TTS with 2-attempt retry loop, OpenAI `tts-1` fallback, and offline WAV persistence stored in Convex `_storage`.
+6. **Video Discovery** (`discoverVideoCompanion`) — YouTube video matching by category and prompt keywords.
+7. **Atomic Publish** (`internalPublishGuide`) — Writes the deliverable into the shared knowledge library with `coverImageStorageId` and `audioStorageId`; available for reuse by other agents.
+8. **AgentMail Notification** (`notifyCompletionStep` / `sendAgentCompletionNotification`) — Rich HTML and plain-text research report dispatched from `agent-<userId>@agentmail.to` to the user's personal email.
+
+### Convex Agent Tools (`convex/ai/tools/`)
+
+| Tool / Action | Purpose |
+|---|---|
+| `firecrawlSearchTool` | Internal action searching verified live web sources via Firecrawl |
+| `firecrawlToolDefinition` | Standard Convex Agent tool metadata descriptor for agentic registration |
 
 ### State-Management Mutations
 
@@ -402,12 +411,13 @@ The autonomous scheduler:
 | `revertAgentWorking` | On failure: agent → `SLEEPING`, requests → `PENDING` |
 | `completeAgentTask` | On success: requests → `COMPLETED`, agent → `SLEEPING`, records `lastActiveTime` |
 
-### `POST /api/agent/complete` (HTTP endpoint)
+### Instant Wake Execution (`force: true`)
 
-Callback mounted in `convex/http.ts` for external agent backends to submit completed research deliverables.
-- **Fail-Closed Security:** Rejects with `503` if `AGENT_SERVICE_SECRET` is not configured; `401` if the `Authorization: Bearer <secret>` or `x-agent-secret` header is invalid.
-- **Runtime Payload Validation:** Parses and shape-checks the untrusted body via `parseCompletionBody` (`agentId` string, `deliverables` array) before invoking `completeAgentTask`.
-- Transitions requests to `COMPLETED` and resets agent to `SLEEPING`.
+Developers can trigger instantaneous wake execution for local testing and live demos:
+
+```bash
+npx convex run agentRunner:triggerScheduledWakes '{"force": true}'
+```
 
 ## Frontend Client Imports
 

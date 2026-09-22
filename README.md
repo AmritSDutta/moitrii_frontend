@@ -97,12 +97,13 @@ flowchart TD
 
     subgraph ConvexBackend ["Convex Cloud Realtime Backend (brazen-rook-983)"]
       F_Content["convex/content.ts<br/>• getPublishedContent<br/>• getWhatsHot (by_reused_count)<br/>• getContentBySlug<br/>• publishContent / internalPublishGuide<br/>• generateUploadUrl"]
-      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (24h customizable IST)"]
+      F_Agents["convex/agents.ts<br/>• getAgentState (11PM IST default)<br/>• initializeAgent (Moitrii Companion + AgentMail)<br/>• updateWakeSchedule (24h customizable IST)<br/>• forceWakeAgent (instant trigger)"]
       F_Requests["convex/requests.ts<br/>• listUserRequests<br/>• createRequest (isActive guard)"]
       F_Users["convex/users.ts<br/>• viewer / setUserActiveStatus<br/>• getInterests / updateInterests<br/>• updatePreferredLanguage (en/bn/hi)"]
       F_Subscribers["convex/subscribers.ts<br/>• subscribeDigest (RFC 5322 validation)"]
       F_Crons["convex/crons.ts<br/>• Hourly wake evaluator (crons.hourly off-peak)"]
-       F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• checkContentReuse (reuse engine)<br/>• markAgentWorking / revertAgentWorking<br/>• completeAgentTask mutation"]
+      F_Workflow["@convex-dev/workflow<br/>• 8-step durable orchestration<br/>• Step retries & idempotency"]
+      F_Runner["convex/agentRunner.ts<br/>• triggerScheduledWakes action<br/>• checkContentReuse (reuse engine)<br/>• markAgentWorking / revertAgentWorking<br/>• completeAgentTask mutation"]
       F_Files["convex/files.ts<br/>• getBrandAssets (CDN serving)"]
       F_Auth["convex/auth.ts & convex/http.ts<br/>• Google OAuth<br/>• POST /api/agent/complete"]
       F_Storage["Convex File Storage<br/>• _storage for Cover, Media & TTS Audio"]
@@ -110,8 +111,11 @@ flowchart TD
 
     subgraph ModularAIEngine ["Modular Convex AI Engine (convex/ai/)"]
       AI_Reuse["reuseEngine.ts<br/>• checkContentReuse"]
+      AI_Prompts["prompts.ts<br/>• Dynamic {CURRENT_DATE} & Multilingual"]
+      AI_Tools["tools/firecrawl.ts<br/>• Live Web Search & Scraping"]
       AI_Synth["synthesizer.ts<br/>• synthesizeLifestyleGuide (EN/BN/HI)"]
-      AI_TTS["tts.ts<br/>• generateAndStoreNarration"]
+      AI_Image["imagegen.ts<br/>• 16:9 Pictorial Infographics"]
+      AI_TTS["tts.ts<br/>• Sarvam Bulbul v3 + OpenAI Fallback"]
       AI_Res["research.ts<br/>• discoverLifestyleVideos"]
       AI_Mail["agentMail.ts<br/>• sendAgentCompletionNotification"]
     end
@@ -134,9 +138,11 @@ flowchart TD
 
     F_Subscribers -->|Dispatch| M_Brevo
     F_Crons -->|hourly| F_Runner
-    F_Runner -->|Execute Pipeline| ModularAIEngine
+    F_Agents -->|force wake| F_Runner
+    F_Runner -->|Durable Steps| F_Workflow
+    F_Workflow -->|Execute Pipeline| ModularAIEngine
     ModularAIEngine -->|Dispatch| M_AgentMail
-    ModularAIEngine -->|Store Audio| F_Storage
+    ModularAIEngine -->|Store Audio & Infographics| F_Storage
 ```
 
 ### Convex Function & Subsystem Responsibilities
@@ -154,15 +160,17 @@ flowchart TD
 
   - `updateWakeSchedule(wakeTimeOfDay, timezone?)`: Mutation updating agent wake schedule to any valid 24h time in IST.
 - **`convex/agentRunner.ts` & `convex/crons.ts`:**
-  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the modular AI pipeline with graceful fallback and automatic rollback on failure:
+  - `triggerScheduledWakes()`: Hourly cron-triggered action querying due agents (filtering active users), executing the 8-step durable AI workflow with automatic rollback on failure:
     1. Content Reuse Check (`checkContentReuse` → `reuseEngine.ts`) — matches prompt against existing guides; on reuse, increments `reusedCount` (the shared social knowledge signal)
-    2. Multilingual Synthesis (`synthesizeLifestyleGuide` in EN/BN/HI)
-    3. Audio Narration (`generateAndStoreAudioNarration` → Convex `_storage`)
-    4. Video Discovery (`discoverVideoCompanion`)
-    5. AgentMail Notification (`sendAgentCompletionNotification` from `agent-...@agentmail.to`)
-    6. Atomic Publish (`internalPublishGuide` → shared knowledge library)
+    2. Live Web Research (`firecrawlSearchTool` in `convex/ai/tools/`)
+    3. Multilingual Synthesis (`synthesizeLifestyleGuide` in EN/BN/HI using dynamic `{CURRENT_DATE}` prompts)
+    4. 16:9 Horizontal Infographic Poster Generation (`generateInfographicCover` in `imagegen.ts` → Convex `_storage`)
+    5. Audio Narration (`generateAndStoreAudioNarration` with Sarvam Bulbul v3 primary + OpenAI fallback → Convex `_storage`)
+    6. Video Discovery (`discoverLifestyleVideos` → YouTube embed linking)
+    7. Atomic Publish (`internalPublishGuide` → shared knowledge library)
+    8. AgentMail Notification (`sendAgentCompletionNotification` from `agent-...@agentmail.to`)
   - `markAgentWorking` / `revertAgentWorking` / `completeAgentTask`: State transitions for the dispatch window (60 min, `DISPATCH_WINDOW_MINUTES`). On pipeline error, agent reverts to `SLEEPING` and requests return to `PENDING` for the next cycle.
-  - Dispatch logic: `crons.hourly` runs with automatic off-peak spreading away from top-of-the-hour; `isWakeDue` checks if the agent's configured `wakeTimeOfDay` falls in the elapsed 60-minute window.
+  - Dispatch logic: `crons.hourly` runs with automatic off-peak spreading away from top-of-the-hour; `isWakeDue` checks if the agent's configured `wakeTimeOfDay` falls in the elapsed 60-minute window. Also supports immediate execution via `forceWakeAgent` (`force: true`).
 - **`convex/requests.ts`:**
   - `listUserRequests()`: Realtime query of user's research requests sorted chronologically.
   - `createRequest(prompt, category?)`: Mutation queueing research tasks (blocked if user `isActive: false`).
@@ -185,9 +193,12 @@ flowchart TD
   - Link origin resolution: explicit `baseUrl` argument → `APP_ORIGIN` environment variable → `https://moitrii.ai` fallback. Set `APP_ORIGIN` (e.g. your deployment or `http://localhost:3000` for demos) so email links resolve.
   - Sender resolution: `BREVO_SENDER_EMAIL` environment variable → `newsletter@moitrii.ai` fallback. The address must be a verified sender in the Brevo dashboard (`Senders & IP → Senders`).
 - **`convex/ai/` Modular AI Engine:**
-  - `reuseEngine.ts`: Full-text search match score against existing published guides.
-  - `synthesizer.ts`: Multilingual editorial guide synthesis (English, Bengali, Hindi) with citations.
-  - `tts.ts`: Synthetic speech generation stored in Convex `_storage`.
+  - `reuseEngine.ts`: Full-text search match score against existing published guides for cost reduction.
+  - `prompts.ts`: Dynamic system prompt builder injecting `{CURRENT_DATE}` (in `Asia/Kolkata` IST timezone) and language-specific tone directives.
+  - `tools/firecrawl.ts`: Convex AI Agent live web search and deep-scraping tool.
+  - `synthesizer.ts`: Multilingual editorial guide synthesis (`gpt-5.6-luna` with JSON mode in English, Bengali, Hindi) with citations and structured takeaways.
+  - `imagegen.ts`: 16:9 horizontal pictorial infographic poster generation (`gpt-image-1`, `1536x1024`, `quality: "low"`, `output_format: "webp"`, `output_compression: 80`) with strict no-text and zero-vulgarity rules.
+  - `tts.ts`: Sarvam AI Bulbul v3 (`bulbul:v3`) female voice (`speaker: "ritu"`) primary TTS (2 attempts) + OpenAI `tts-1` fallback + offline WAV fallback stored in Convex `_storage`.
   - `research.ts`: Relevant YouTube video discovery and embed linking.
   - `agentMail.ts`: HTML formatted research report dispatch from `agent.email` to user.
 - **`convex/files.ts`:**
@@ -353,6 +364,9 @@ In the [Brevo dashboard](https://app.brevo.com):
 npx convex env set BREVO_API_KEY xkeysib-your-key-here
 npx convex env set BREVO_SENDER_EMAIL your-verified-address@gmail.com
 npx convex env set AGENTMAIL_API_KEY your-agentmail-key-here
+npx convex env set OPENAI_API_KEY sk-proj-your-key-here
+npx convex env set SARVAM_API_KEY your-sarvam-key-here
+npx convex env set FIRECRAWL_API_KEY fc-your-key-here
 npx convex env set APP_ORIGIN http://localhost:3000
 ```
 
@@ -361,6 +375,9 @@ npx convex env set APP_ORIGIN http://localhost:3000
 npx convex env set --prod BREVO_API_KEY xkeysib-your-key-here
 npx convex env set --prod BREVO_SENDER_EMAIL your-verified-address@gmail.com
 npx convex env set --prod AGENTMAIL_API_KEY your-agentmail-key-here
+npx convex env set --prod OPENAI_API_KEY sk-proj-your-key-here
+npx convex env set --prod SARVAM_API_KEY your-sarvam-key-here
+npx convex env set --prod FIRECRAWL_API_KEY fc-your-key-here
 npx convex env set --prod APP_ORIGIN https://moitrii-frontend.pages.dev
 ```
 
@@ -374,10 +391,19 @@ Then restart `npx convex dev` so running functions pick up the new values. Witho
 - At least one **ACTIVE subscriber** — subscribe with your own email via the site footer.
 - At least one row in the `content` table — publish one via the Publisher page (the dispatcher skips with `No published articles found` otherwise).
 
-### 4. Trigger the Digest Without Waiting for Sunday
+### 4. Trigger Instant Agent Wake or Sunday Digest
+ 
+To trigger the immediate wake of due/pending user requests:
+- **Bash / PowerShell:**
+  ```bash
+  npx convex run agentRunner:triggerScheduledWakes '{"force":true}'
+  ```
+- **Windows DOS Command Prompt (`cmd.exe`):**
+  ```cmd
+  npx convex run agentRunner:triggerScheduledWakes "{\"force\":true}"
+  ```
 
-Run the dispatcher directly:
-
+To run the weekly newsletter digest dispatcher directly:
 ```bash
 npx convex run subscribers:dispatchWeeklyDigestCron
 ```
@@ -398,9 +424,14 @@ crons.interval(
 1. The email arrives from your verified sender with ranked top 10 cards and `/content/[slug]` links pointing at `APP_ORIGIN`.
 2. Click **Unsubscribe from weekly digest** (with `npm run dev` running) — the page confirms unsubscription.
 3. Confirm the status flip from the CLI:
-   ```bash
-   npx convex run subscribers:getSubscriberStatus '{"email":"your-email@gmail.com"}'
-   ```
+   - **Bash / PowerShell:**
+     ```bash
+     npx convex run subscribers:getSubscriberStatus '{"email":"your-email@gmail.com"}'
+     ```
+   - **Windows DOS Command Prompt (`cmd.exe`):**
+     ```cmd
+     npx convex run subscribers:getSubscriberStatus "{\"email\":\"your-email@gmail.com\"}"
+     ```
    → `{ isSubscribed: false, status: "UNSUBSCRIBED" }`
 4. Click **resubscribe** on the page — the same command returns `ACTIVE`, and a re-run of the dispatcher proves unsubscribed addresses are skipped.
 
@@ -451,6 +482,20 @@ Tests run across two projects under `vitest.config.ts`:
 ```bash
 npm test
 ```
+
+### How are Audio Summaries and Infographic Covers generated?
+
+- **Audio Summaries (`convex/ai/tts.ts`):** Synthesized using Sarvam AI Bulbul v3 (`bulbul:v3`) with female speaker `"ritu"` and natural Indic prosody and pacing (2 retry attempts). Automatically falls back to OpenAI `tts-1` (`alloy` voice) or an offline 44-byte silent WAV storage fallback if external APIs fail.
+- **Infographic Cover Images (`convex/ai/imagegen.ts`):** Generates 16:9 horizontal landscape (`1536x1024`, `quality: "low"`, `output_format: "webp"`, `output_compression: 80`) visual infographics via `gpt-image-1` enforcing **strictly no text, words, or typography** (with subtle `"Moitrii"` watermark exception) and family-safe zero-vulgarity ethics. Uploads to Convex File Storage (`_storage`) as WebP with fallback to curated high-resolution category imagery.
+
+---
+
+## 📖 Complete Documentation & Manual Testing Guide
+
+Full interactive documentation is powered by **docs7**:
+- **Preview Docs Locally:** `docs7 dev docs --port 3333`
+- **End-to-End Testing Guide:** See [`docs/manual-testing.mdx`](docs/manual-testing.mdx) for step-by-step verification instructions covering Agent Force Wake, Request Lifecycle, Multi-Language Audio/Infographics, and Brevo Digests.
+
 
 
 

@@ -153,18 +153,18 @@ Autonomous agent execution involves multi-step async operations (Firecrawl web r
 
 ```mermaid
 flowchart TD
-    Cron["Hourly Dispatcher<br/><code>triggerScheduledWakes</code>"] -->|"<code>workflow.start(...)</code>"| WF["<b>User Wake Workflow</b><br/><code>@convex-dev/workflow</code>"]
-    
-    subgraph Durable Journaled Steps
-        WF --> S1["<code>step.runMutation(markAgentWorking)</code>"]
-        S1 --> S2["<code>step.runMutation(checkContentReuse)</code>"]
-        S2 -->|Cache Miss| S3["<code>step.runAction(researchAndSynthesizeStep)</code><br/><i>(Firecrawl + OpenAI, Retry: max 3, exp backoff)</i>"]
-        S3 --> S4["<code>step.runAction(narrationStep)</code><br/><i>(TTS Audio, Retry: max 3)</i>"]
-        S4 --> S5["<code>step.runMutation(internalPublishGuide)</code>"]
+    Cron["Hourly Dispatcher - triggerScheduledWakes"] -->|"workflow.start"| WF["User Wake Workflow - @convex-dev/workflow"]
+    subgraph Steps["Durable Journaled Steps"]
+        WF --> S1["step.runMutation - markAgentWorking"]
+        S1 --> S2["step.runMutation - checkContentReuse"]
+        S2 -->|Cache Miss| S3["step.runAction - researchAndSynthesizeStep"]
+        S3 --> S3B["step.runAction - imageGenStep (gpt-image-1 WebP)"]
+        S3B --> S4["step.runAction - narrationStep (Sarvam Bulbul v3)"]
+        S4 --> S5["step.runMutation - internalPublishGuide"]
         S2 -->|Cache Hit| S6["Reuse Existing Shared Guide"]
-        S5 --> S7["<code>step.runMutation(completeAgentTask)</code>"]
+        S5 --> S7["step.runMutation - completeAgentTask"]
         S6 --> S7
-        S7 --> S8["<code>step.runAction(notifyCompletionStep)</code><br/><i>(AgentMail, Retry: max 2)</i>"]
+        S7 --> S8["step.runAction - notifyCompletionStep (AgentMail)"]
     end
 ```
 
@@ -239,3 +239,53 @@ To ensure member privacy:
 Client-side tokens in `localStorage` can become stale or orphaned (e.g., if a server session is revoked). 
 
 Moitrii uses the `useValidatedAuth` custom hook, which treats a session as signed in **only after** the `users.viewer` query returns a valid user document from the Convex backend. If validation times out or resolves to null, the UI gracefully renders the signed-out state.
+
+---
+
+## 11. Edge Runtime Binary Decoding & Convex File Storage (`_storage`)
+
+### The Problem: Node `Buffer` in Default Convex Runtime
+Convex functions execute in an isolated V8/Edge runtime. While modern Web APIs (`fetch`, `Blob`, `atob`, `Uint8Array`, `ArrayBuffer`) are native, Node.js globals such as `Buffer` do not exist. Calling `Buffer.from(base64, "base64")` inside default Convex actions throws:
+`ReferenceError: Buffer is not defined`.
+
+```mermaid
+flowchart TD
+  subgraph Antipattern["Anti-Pattern: Node.js Buffer in Edge Actions"]
+    A["API returns Base64 string"] --> B["Buffer.from (Node global)"]
+    B --> C["ReferenceError: Buffer is not defined"]
+  end
+  subgraph BestPractice["Convex Best Practice: Web Standards + Convex Storage"]
+    D["API returns Base64 string"] --> E["atob + Uint8Array (Web Standards)"]
+    E --> F["new Blob - typed binary"]
+    F --> G["ctx.storage.store - Convex File Storage"]
+    G --> H["Persist Id in Document"]
+  end
+```
+
+### The Web Standards Solution
+Moitrii decodes base64 API payloads (from OpenAI Image generation and Sarvam Bulbul TTS) using pure Web-standard `atob` and `Uint8Array`, wrapping them directly in a typed Web `Blob` for storage:
+
+```typescript
+// convex/ai/imagegen.ts
+export function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Storing binary as WebP Blob in Convex File Storage
+const bytes = base64ToUint8Array(b64);
+const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/webp" });
+const storageId = await ctx.storage.store(blob);
+```
+
+### Invariant: Store `Id<"_storage">`, Resolve CDN URLs on Read
+Never store raw base64 data or ephemeral blob URLs in database tables. Instead:
+1. Store the binary in Convex File Storage via `await ctx.storage.store(blob)`.
+2. Persist the permanent `storageId: Id<"_storage">` on the document.
+3. Dynamically resolve signed CDN URLs via `await ctx.storage.getUrl(storageId)` in queries or API handlers.
+

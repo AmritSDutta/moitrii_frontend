@@ -1,3 +1,6 @@
+import { v } from "convex/values";
+import { internalAction } from "../../_generated/server";
+
 export interface FirecrawlSearchResult {
   title: string;
   url: string;
@@ -72,3 +75,34 @@ export async function searchWebWithFirecrawl(
     return buildFallbackSources(query, category);
   }
 }
+
+/**
+ * Convex Agent Tool: Firecrawl Web Research.
+ * Enables AI agents to perform live web research on lifestyle, wellness, recipes, and culture.
+ */
+export const firecrawlSearchTool = internalAction({
+  args: {
+    query: v.string(),
+    category: v.optional(v.string()),
+  },
+  handler: async (_ctx, args): Promise<FirecrawlSearchResult[]> => {
+    return await searchWebWithFirecrawl(
+      args.query,
+      args.category,
+      process.env.FIRECRAWL_API_KEY
+    );
+  },
+});
+
+/**
+ * Metadata descriptor for tool registration in Convex AI Agent systems.
+ */
+export const firecrawlToolDefinition = {
+  name: "firecrawlWebSearch",
+  description: "Searches the live web for verified wellness, nutrition, beauty, and lifestyle facts and citations using Firecrawl API.",
+  args: {
+    query: v.string(),
+    category: v.optional(v.string()),
+  },
+  handler: firecrawlSearchTool,
+};

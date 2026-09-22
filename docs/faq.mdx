@@ -24,7 +24,7 @@ npm install --include=dev
 ## How do environment variables work in Vite vs Convex?
 
 - **Frontend Variables:** Vite exposes variables prefixed with `VITE_` via `import.meta.env` (e.g., `VITE_CONVEX_URL`).
-- **Convex Backend Variables:** Backend credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `BREVO_API_KEY`, `AGENTMAIL_API_KEY`, `OPENAI_API_KEY`) are configured directly in your Convex Cloud Dashboard for deployment `brazen-rook-983`.
+- **Convex Backend Variables:** Backend credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `BREVO_API_KEY`, `AGENTMAIL_API_KEY`, `OPENAI_API_KEY`, `SARVAM_API_KEY`, `FIRECRAWL_API_KEY`) are configured directly in your Convex Cloud Dashboard for deployment `brazen-rook-983`.
 
 
 ## Tests fail with `act(...) is not supported in production builds of React`
@@ -117,4 +117,19 @@ Create a `_redirects` file in `public/_redirects` with the rewrite rule:
 /*    /index.html   200
 ```
 When Vite runs `npm run build`, it copies `public/_redirects` to `dist/_redirects`. Cloudflare Pages reads this rule and redirects all non-static asset requests to `/index.html` with an HTTP 200 status code, allowing React Router to boot up and render the correct subpage.
+
+## How are Audio Summaries and Infographic Covers generated?
+
+1. **Audio Summaries (`convex/ai/tts.ts`):**
+   - **Primary Engine:** Sarvam AI Bulbul v3 (`bulbul:v3`) with Indic pacing, emotional prosody, and natural audio synthesis (2 retry attempts).
+   - **Fallback 1:** OpenAI `tts-1` (`alloy` voice) if Sarvam encounters rate limits or network issues.
+   - **Fallback 2:** Offline 44-byte silent WAV generation ensuring storage persistence is always resilient and non-blocking.
+   - **Storage:** Generated audio is stored in Convex File Storage and attached directly to the published article.
+
+2. **Infographic Cover Images (`convex/ai/imagegen.ts`):**
+   - **Format:** 16:9 horizontal landscape (`1792x1024`) pictorial infographic poster.
+   - **Strict Visual Rules:** Enforces 100% visual and pictorial depiction with **strictly no text, words, or typography**.
+   - **Modesty & Safety Ethics:** Strict guardrails ensure family-safe, culturally respectful lifestyle imagery with zero vulgarity.
+   - **Fallback:** Curated high-resolution category covers if image generation is disabled or unavailable.
+
 

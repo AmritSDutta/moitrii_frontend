@@ -1,17 +1,8 @@
 import type { SynthesizedGuide, SupportedLanguage, ArticleSource } from "./types";
-import type { FirecrawlSearchResult } from "./firecrawl";
+import type { FirecrawlSearchResult } from "./tools";
 import { discoverVideoCompanion } from "./research";
-
-const CATEGORY_COVERS: Record<string, string> = {
-  wellness: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?q=80&w=1200&auto=format&fit=crop",
-  food: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1200&auto=format&fit=crop",
-  beauty: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=1200&auto=format&fit=crop",
-  travel: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop",
-  health: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1200&auto=format&fit=crop",
-  home: "https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=1200&auto=format&fit=crop",
-  parenting: "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?q=80&w=1200&auto=format&fit=crop",
-  default: "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?q=80&w=1200&auto=format&fit=crop",
-};
+import { buildSystemPrompt } from "./prompts";
+import { CATEGORY_COVERS } from "./imagegen";
 
 /**
  * Fallback synthesizer producing rich localized editorial content when LLM API keys are unset.
@@ -218,7 +209,45 @@ Quality restorative sleep is the cornerstone of immune resilience, emotional equ
 }
 
 /**
+ * Safely extracts raw JSON string content from varied OpenAI responses (Responses API vs Chat Completions API).
+ */
+export function extractResponseContent(data: any): string | null {
+  if (!data) return null;
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text;
+  }
+  if (Array.isArray(data.output) && data.output.length > 0) {
+    const text = data.output[0]?.content?.[0]?.text;
+    if (typeof text === "string" && text.trim()) return text;
+  }
+  if (Array.isArray(data.choices) && data.choices.length > 0) {
+    const msg = data.choices[0]?.message?.content;
+    if (typeof msg === "string" && msg.trim()) return msg;
+  }
+  if (typeof data.text === "string" && data.text.trim()) {
+    return data.text;
+  }
+  return null;
+}
+
+/**
+ * Parses raw JSON string, stripping markdown code fences if present.
+ */
+export function parseJsonSafely(raw: string): any {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*/, "").replace(/\s*```$/, "");
+  }
+  return JSON.parse(cleaned);
+}
+
+/**
  * Synthesizes an editorial lifestyle guide using OpenAI grounded in Firecrawl live web research.
+ * Primary: gpt-5.6-luna via OpenAI Responses API (/v1/responses)
+ * Secondary Fallback: gpt-4o-mini via Chat Completions API (/v1/chat/completions)
+ * Tertiary Fallback: Offline curated localized guide
  */
 export async function synthesizeLifestyleGuide(
   prompt: string,
@@ -232,66 +261,102 @@ export async function synthesizeLifestyleGuide(
   }
 
   try {
-    const langInstructions =
-      language === "bn"
-        ? "Respond entirely in authentic, beautiful, fluent Bengali (বাংলা)."
-        : language === "hi"
-        ? "Respond entirely in clear, respectful, natural Hindi (हिन्दी)."
-        : "Respond in warm, elegant, editorial English.";
-
     const webContext = webSources && webSources.length > 0
       ? `\nVerified Web Research Context:\n${webSources
           .map((s, idx) => `[${idx + 1}] ${s.title}: ${s.snippet ?? ""} (URL: ${s.url})`)
           .join("\n")}`
       : "";
 
-    const systemPrompt = `You are Moitrii, an empathetic, highly cultured personal AI companion for modern Indian women.
-You write comprehensive, warm, elegant, editorial lifestyle guides (calm tech aesthetic). Ground your recommendations in the provided verified web research facts.
-${langInstructions}
-
-CRITICAL LENGTH & STRUCTURE REQUIREMENT:
-Write an in-depth, rich, comprehensive article of AT LEAST 500 words in the "markdownBody" field. Structure it thoughtfully with:
-- An evocative editorial introduction setting the context, significance, and holistic philosophy.
-- At least 3 detailed sub-sections (using ## and ### markdown headings) with actionable bullet points, step-by-step recipes, routines, or mindful rituals.
-- Cultural, nutritional, or psychological context tailored for modern living.
-- A gentle, inspiring closing section on daily integration and long-term balance.
-
-Return ONLY valid JSON matching this exact structure:
-{
-  "title": "String (engaging, polished editorial headline)",
-  "subtitle": "String (evocative 1-2 sentence subtitle summarizing the essence)",
-  "readTime": "5 min read",
-  "takeaways": ["Takeaway 1", "Takeaway 2", "Takeaway 3", "Takeaway 4"],
-  "markdownBody": "Full markdown body of at least 500 words formatted with ## and ### headings, lists, and rich guidance",
-  "sources": [{"title": "Source Name", "url": "https://..."}]
-}`;
-
+    const systemPrompt = buildSystemPrompt(language);
     const userMessage = `Category: ${category}\nTopic: ${prompt}${webContext}`;
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-      }),
-    });
+    let rawContent: string | null = null;
 
-    if (!res.ok) {
-      console.warn(`OpenAI API returned status ${res.status}, using fallback.`);
+    // 1. Primary Attempt: gpt-5.6-luna via OpenAI Responses API (/v1/responses)
+    try {
+      const responseApiRes = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-5.6-luna",
+          input: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          text: {
+            format: {
+              type: "json_object",
+            },
+          },
+        }),
+      });
+
+      if (responseApiRes.ok) {
+        const data = await responseApiRes.json();
+        rawContent = extractResponseContent(data);
+      } else {
+        const errText = await responseApiRes.text();
+        console.warn(
+          `[Synthesizer] Primary 'gpt-5.6-luna' Responses API returned status ${responseApiRes.status} (${responseApiRes.statusText}): ${errText}. Attempting 'gpt-4o-mini' fallback...`
+        );
+      }
+    } catch (lunaErr) {
+      console.warn(
+        "[Synthesizer] Primary 'gpt-5.6-luna' call failed with network error:",
+        lunaErr,
+        "Attempting 'gpt-4o-mini' fallback..."
+      );
+    }
+
+    // 2. Secondary Fallback: gpt-4o-mini via Chat Completions API (/v1/chat/completions)
+    if (!rawContent) {
+      try {
+        const chatRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openAiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.7,
+          }),
+        });
+
+        if (chatRes.ok) {
+          const data = await chatRes.json();
+          rawContent = extractResponseContent(data);
+        } else {
+          const errText = await chatRes.text();
+          console.warn(
+            `[Synthesizer] Fallback 'gpt-4o-mini' Chat Completions API returned status ${chatRes.status} (${chatRes.statusText}): ${errText}. Using offline curated fallback guide.`
+          );
+        }
+      } catch (chatErr) {
+        console.warn(
+          "[Synthesizer] Fallback 'gpt-4o-mini' call failed with network error:",
+          chatErr
+        );
+      }
+    }
+
+    // 3. If neither LLM tier succeeded, return offline fallback guide
+    if (!rawContent) {
+      console.warn(
+        "[Synthesizer] All OpenAI synthesis tiers exhausted; using offline curated fallback guide."
+      );
       return buildFallbackGuide(prompt, category, language, webSources);
     }
 
-    const data = await res.json();
-    const parsed = JSON.parse(data.choices[0].message.content);
+    const parsed = parseJsonSafely(rawContent);
 
     const normCat = category.toLowerCase().trim() || "wellness";
     const coverImage = CATEGORY_COVERS[normCat] || CATEGORY_COVERS.default;
@@ -329,7 +394,7 @@ Return ONLY valid JSON matching this exact structure:
       language,
     };
   } catch (err) {
-    console.error("Synthesizer error:", err);
+    console.error("[Synthesizer] Fatal synthesizer error, using fallback guide:", err);
     return buildFallbackGuide(prompt, category, language, webSources);
   }
 }
